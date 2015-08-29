@@ -53,7 +53,8 @@ def myimg(file, default=''):
         return '%s%s' % (settings.RES_URL, file.url)
 
 def datetime_filter(t):
-    delta = int(t - time.time())
+    t = time.mktime(timezone.localtime(t).timetuple())
+    delta = int(time.time() - t)
     if delta < 60:
         return '1分钟前'
     if delta < 3600:
@@ -183,15 +184,21 @@ class MAIL(object):
 
 class JiGuang(object):
     app_key = settings.app_key 
-    master_secret = settings.app_key 
+    master_secret = settings.master_secret
 
-    def __init__(self, reg_id, msg='金指投'):
-        self.reg_id = reg_id
+    def __init__(self, msg='金指投'):
         self.msg = msg
-        _jpush = jpush.JPush(JiGuang.app_key, JiGuang.master_secret) 
-        self.ios_msg = jpush.ios(alert=msg , badge="+1", sound="a.caf", extras={'k1':'v1'})
+        self.ios_msg = jpush.ios(
+            alert=msg , 
+            badge="+1", 
+            sound="a.caf", 
+            extras={'k1':'v1'}
+        )
         self.android_msg = jpush.android(alert=msg)
-        self.push = _jpush.create_push() 
+        self.push = jpush.JPush(
+            JiGuang.app_key, 
+            JiGuang.master_secret
+        ).create_push() 
 
     def all(self):
         self.push.audience = jpush.all_
@@ -200,23 +207,30 @@ class JiGuang(object):
             android=self.android_msg, 
             ios=self.ios_msg
         ) 
-        self.push.platform = jpush.all_  #self.push.platform = jpush.platform("ios")
+        self.push.options = {
+            "time_to_live":86400, 
+            "sendno":12345,
+            "apns_production":False
+        }
+        self.push.platform = jpush.all_  
         self.push.send()
 
-    def run(self):
+    def single(self, reg_id):
         self.push.audience = jpush.audience( 
-            jpush.registration_id('id1', self.reg_id) 
+            jpush.registration_id('id1', reg_id) 
         ) 
         self.push.notification = jpush.notification(
             alert=self.msg, 
             android=self.android_msg, 
             ios=self.ios_msg
         ) 
+        self.push.options = {
+            "time_to_live":86400, 
+            "sendno":12345,
+            "apns_production":False
+        }
         self.push.platform = jpush.all_ 
         self.push.send() 
 
 if __name__ == '__main__':
-    #MAIL('test', 'lindyang').send()
-    JiGuang('all', '没有身份证的请暂时使用其他图像代替').run()
-    #print(dateformat())
-    #print(timeformat())
+    JiGuang('没有身份证的请暂时使用其他图像代替').all()

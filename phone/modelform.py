@@ -236,11 +236,6 @@ class TopicForm(forms.ModelForm):
         model = Topic
         fields = '__all__'
 
-class ReplyForm(forms.ModelForm):
-    class Meta:
-        model = Reply
-        fields = '__all__'
-
 class FeedbackForm(forms.ModelForm):
     class Meta:
         model = Feedback

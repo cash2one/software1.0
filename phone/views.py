@@ -17,7 +17,7 @@ from .utils import *
 def isexists(Model, pk):
     model = Model.objects.filter(pk=pk)
     if model.exists(): return model[0]
-    return False 
+    return None 
 
 @api_view(['POST'])
 def sendcode(request):
@@ -90,7 +90,6 @@ def regid(request):
     if not regid: return ARG
     user.regid = regid
     user.save()
-    #jg = JiGuang(user.regid, 'lindyang'); jg.run()
     return Response({'status':0, 'msg':'存储reg_id'})
 
 @api_view(['POST', 'GET'])
@@ -364,28 +363,6 @@ def projectdetail(request, pk):
     else:
         data['project_event'] = None
     return Response({'status': 0, 'msg': 'msg', 'data': data})
-
-@api_view(['POST', 'GET'])
-@islogin()
-def reply(request, pk):
-    uid = request.session.get('login')
-    msg = request.data.get('msg', '').strip()
-    if not msg: return Response({'status':1, 'msg':'回复不能为空'})
-    if Reply.objects.filter(user__pk=uid, project__pk=pk, valid=None).exists():
-        return Response({'status':1, 'msg':'尚有回复在审核中'})
-    project = isexists(Project, pk)
-    if not project: return ISEXISTS
-    Reply.objects.create(
-        user = User.objects.get(pk=uid),
-        project = project,
-        msg = msg
-    )
-    return Response({'status':0, 'msg':'回复成功'})
-
-@api_view(['POST', 'GET'])
-@islogin()
-def getreply(request, pk):
-    return Response({'status':0, 'msg':'ok'})
 
 @api_view(['POST', 'GET'])
 def finance_plan(request, pk):
@@ -1297,61 +1274,41 @@ def leadfunding(request):
 @islogin()
 def topic(request, pk):
     content = request.data.get('content','')
-    if content.strip() == '': return ARG
+    if content.strip() == '': return myarg('content') 
     project = isexists(Project, pk)
     if not project: return ISEXISTS
+    at_topic = request.data.get('at_topic',0)
+    if not at_topic: at_topic = None
+    else: at_topic = isexists(Topic, at_topic)
     uid = request.session.get('login')
     user = User.objects.get(pk=uid) 
     topic = Topic.objects.create(
        project = project,
        user = user,
+       at_topic = at_topic,
        content = content,
     )
     return Response({'status':0, 'msg':'发表话题成功', 'data':topic.id})
 
 @api_view(['POST', 'GET'])
 @islogin()
-def reply(request, pk):
-    content = request.data.get('content','')
-    if content.strip() == '': return ARG
-    topic = isexists(Topic, pk)
-    if not topic: return ISEXISTS
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid) 
-    reply = Topic.objects.create(
-       user = user,
-       topic = topic,
-       content = content,
-    )
-    return Response({'status':0, 'msg':'回复成功', 'data':reply.id})
-
-def replylist(pk):
-    objs = Reply.objects.filter(topic__pk=pk)
-    data = list()
-    for obj in objs:
-        tmp = dict()
-        tmp['id'] = obj.id
-        tmp['name'] = obj.user.name
-        tmp['img'] = myimg(obj.user.img)
-        tmp['content'] = obj.content
-        data.insert(0, tmp) 
-    return data
-
-@api_view(['POST', 'GET'])
-#@islogin()
 def topiclist(request, pk, page):
     objs = Topic.objects.filter(project__pk=pk)
-    start, end = start_end(page)
+    start, end = start_end(page, 6)
     objs = objs[start:end]
     data = list()
     for obj in objs:
         tmp = dict()
         tmp['id'] = obj.id
-        tmp['name'] = obj.user.name
         tmp['img'] = myimg(obj.user.img)
+        if obj.at_topic:
+            tmp['name'] = '%s 回复 %s' % (obj.user.name, obj.at_topic.user.name)
+        else:
+            tmp['name'] = '%s' % (obj.user.name)
+        tmp['create_datetime'] = datetime_filter(obj.create_datetime) 
         tmp['content'] = obj.content
-        tmp['data'] = replylist(obj.id)
+        tmp['investor'] = Investor.objects.filter(user=obj.user, valid=True).exists()
         data.insert(0, tmp) 
-    status, msg = (0,'') if len(objs)==PAGE_SIZE else (-1, '已到最后一页')
+    status, msg = (0,'') if len(objs)==6 else (-1, '已到最后一页')
     return Response({'status':status, 'msg':msg, 'data':data})
     

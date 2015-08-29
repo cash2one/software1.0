@@ -428,13 +428,8 @@ class KeywordAdmin(admin.ModelAdmin):
 
 class TopicAdmin(admin.ModelAdmin):
     form = TopicForm
-    list_display = ('id', 'project', 'user', 'content')
-    raw_id_fields = ('project', 'user')
-
-class ReplyAdmin(admin.ModelAdmin):
-    form = ReplyForm
-    list_display = ('id', 'user', 'topic', 'content')
-    raw_id_fields = ('user', 'topic')
+    list_display = ('id', 'project', 'user', 'at_topic', 'content')
+    raw_id_fields = ('project', 'user', 'at_topic')
 
 class FeedbackAdmin(admin.ModelAdmin):
     form = FeedbackForm

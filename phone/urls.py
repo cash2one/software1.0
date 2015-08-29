@@ -33,7 +33,6 @@ urlpatterns = [
     url(r'^banner/$', views.banner, name='banner'),
     url(r'^project/(?P<page>\d+)/$', views.project, name='project'),
     url(r'^projectdetail/(?P<pk>[1-9]\d*)/$', views.projectdetail, name='projectdetail'),
-    url(r'^reply/(?P<pk>[1-9]\d*)/$', views.reply, name='reply'),
     url(r'^financeplan/(?P<pk>[1-9]\d*)/$', views.finance_plan, name='finance_plan'),
     url(r'^coremember/(?P<pk>[1-9]\d*)/$', views.coremember, name='coremember'),
     url(r'^corememberdetail/(?P<pk>[1-9]\d*)/$', views.corememberdetail, name='corememberdetail'),
@@ -84,7 +83,5 @@ urlpatterns = [
     url(r'^leadfunding/$', views.leadfunding, name='leadfunding'),
     url(r'^privacy/$', views.privacy, name='privacy'),
     url(r'^topic/(?P<pk>[1-9]\d*)/$', views.topic, name='topic'),
-    url(r'^reply/(?P<pk>[1-9]\d*)/$', views.reply, name='reply'),
     url(r'^topiclist/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.topiclist, name='topiclist'),
-    #url(r'^replylist/(?P<pk>[1-9]\d*)/$', views.replylist, name='replylist'),
 ]
