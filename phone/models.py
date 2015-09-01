@@ -211,11 +211,11 @@ class Roadshow(models.Model):
             if roadshow.valid != self.valid:
                 if self.valid == True:
                     text = '你的路演申请已安排, 稍后会有工作人员联系您. 您也可拨打电话 %s, 或发送邮件 %s' %(settings.Michael, settings.EMAIL)
-                    JiGuang(self.user.regid, text).run()
+                    JiGuang(text).single(self.user.regid)
                     MobSMS().remind(self.user.telephone, text) 
                 elif self.valid == False:
                     text = '您的路演申请提交失败, 具体原因请联系金指投客服 %s' %(settings.EMAIL)
-                    JiGuang(self.user.regid, text).run()
+                    JiGuang(text).single(self.user.regid)
                     MobSMS().remind(self.user.telephone, text) 
         else:
             text = '%s于 %s 申请路演, 处理一下吧' % (self.user.telephone, timeformat())
@@ -252,11 +252,11 @@ class Investor(models.Model):
             if investor.valid != self.valid:
                 if self.valid == True:
                     text = '您的投资认证已经通过'
-                    JiGuang(self.user.regid, text).run() 
+                    JiGuang(text).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
                 elif self.valid == False:
                     text = '您的投资认证失败, 原因询问请致邮 %s' %(settings.EMAIL)
-                    JiGuang(self.user.regid, text).run() 
+                    JiGuang(text).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
         else:
             text = '%s 于 %s 申请了认证, 是否给ta通过' %(self.user.telephone, timeformat())
@@ -384,11 +384,11 @@ class ParticipateShip(models.Model):
             if participateship.valid != self.valid:
                 if self.valid == True:
                     text = '参加【%s】【%s】路演申请通过, 请去app页面查看' %(self.project.company.name, self.project.summary) 
-                    JiGuang(self.user.regid, text).run() 
+                    JiGuang(text).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
                 elif self.valid == False:
                     text = '参加【%s】【%s】路演申请未通过, 具体原因去app页面查看' %(self.project.company.name, self.project.summary)
-                    JiGuang(self.user.regid, text).run() 
+                    JiGuang(text).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
         else:
             text = '您的来现场申请已经提交, 请耐心等待审核'
@@ -457,7 +457,7 @@ class InvestShip(models.Model):
             regid = self.investor.user.regid
             text = '您投资%s项目%s万, 如有问题请联系 %s, 或致邮 %s' % (name, self.invest_amount, settings.Michael, settings.EMAIL) 
             MobSMS().remind(telephone, text)
-            JiGuang(regid, text).run() 
+            JiGuang(text).single(regid) 
             text = '%s 于 %s 投资 "%s", %s万' % (
                 telephone, 
                 timeformat(), 
@@ -770,8 +770,9 @@ class Topic(models.Model):
     project = models.ForeignKey('Project', verbose_name='项目', on_delete=models.PROTECT)
     user = models.ForeignKey('User', verbose_name='发表话题者', on_delete=models.PROTECT)
     content = models.CharField('内容', max_length=128)
-    #at_topic = models.ForeignKey('self', verbose_name='@话题', null=True, blank=True, on_delete=models.PROTECT)
+    at_topic = models.ForeignKey('self', verbose_name='@话题', null=True, blank=True, on_delete=models.PROTECT)
     valid = models.NullBooleanField('是否真实', default=None)
+    read = models.NullBooleanField('是否阅读', default=False)
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
    
     def __str__(self):
@@ -780,20 +781,6 @@ class Topic(models.Model):
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '话题'
-
-class Reply(models.Model):
-    user = models.ForeignKey('User', verbose_name='发表话题者', on_delete=models.PROTECT)
-    topic = models.ForeignKey('Topic', verbose_name='@话题', on_delete=models.PROTECT)
-    content = models.CharField('内容', max_length=128)
-    valid = models.NullBooleanField('是否真实', default=None)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
-
-    def __str__(self):
-        return '%s' % self.content
-
-    class Meta:
-        ordering = ('-pk',)
-        verbose_name = verbose_name_plural = '回复'
 
 class Feedback(models.Model):
     user = models.ForeignKey('User', verbose_name='用户')
@@ -827,3 +814,55 @@ class Aboutus(models.Model):
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '关于我们的分享'
+
+class MsgType(models.Model):
+    name = models.CharField('消息类型', max_length=32)
+
+    def __str__(self):
+        return '%s' % self.name
+
+    class Meta:
+        ordering = ('-pk',)
+        verbose_name = verbose_name_plural = '消息类型'
+
+class Push(models.Model):
+    msgtype = models.ForeignKey('MsgType', verbose_name='消息类型')
+    title = models.CharField('标题', max_length=32, default='金指投')
+    content = models.CharField('内容', max_length=64)
+    pid = models.PositiveIntegerField('对应的id', null=True, default=1)
+    url = models.URLField('地址', blank=True, default='www.jinzht.com')
+    comment = models.CharField('备注', max_length=64, blank=True)
+    valid = models.NullBooleanField('是否合法', default=None)
+    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
+
+    def __str__(self):
+        return '%s' % self.title
+
+    class Meta:
+        ordering = ('-pk',)
+        verbose_name = verbose_name_plural = '推送'
+
+    def save(self, *args, **kwargs):
+        edit = self.pk is not None
+        if self.valid == True:
+            extras = {'api': self.msgtype.name,
+                'pid': self.pid,
+                'url': self.url
+            }
+            JiGuang(self.content, extras).single('050dee23230')
+            JiGuang(self.content, extras).single('09112bbf03f')
+            #JiGuang(self.content, extras).single('0819a9114c1')
+            print(extras)
+        super(Push, self).save(*args, **kwargs)
+
+class Msgread(models.Model):
+    user = models.ForeignKey('User', verbose_name='用户')
+    msgtype = models.ForeignKey('MsgType', verbose_name='消息类型')
+    read = models.NullBooleanField('是否阅读', default=None)
+
+    def __str__(self):
+        return '%s' % self.user
+
+    class Meta:
+        ordering = ('pk',)
+        verbose_name = verbose_name_plural = '消息阅读'

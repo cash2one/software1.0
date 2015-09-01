@@ -25,6 +25,10 @@ class UserAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'telephone', 'gender', 'province_city', '_company', '_create_datetime')
     raw_id_fields = ('company', 'position')
     search_fields = ('telephone',)
+    actions = ['authticate_remind']
+
+    def authticate_remind(self, request, queryset):
+        MobSMS().remind('13519141132', '3大服务:\n1:关注,微信搜索【金马营】,回复8\n2:投资,点app【+】号,选"我要认证"\n3:融资,点app【+】号,选"我要路演"\n客服187-2934-2354')
 
     def province_city(self, obj):
         return '%s %s' % (obj.province, obj.city)
@@ -428,8 +432,9 @@ class KeywordAdmin(admin.ModelAdmin):
 
 class TopicAdmin(admin.ModelAdmin):
     form = TopicForm
-    list_display = ('id', 'project', 'user', 'at_topic', 'content')
+    list_display = ('id', 'project', 'user', 'at_topic', 'content', 'read')
     raw_id_fields = ('project', 'user', 'at_topic')
+    list_editable = ('read',)
 
 class FeedbackAdmin(admin.ModelAdmin):
     form = FeedbackForm
@@ -438,3 +443,12 @@ class FeedbackAdmin(admin.ModelAdmin):
 class AboutusAdmin(admin.ModelAdmin):
     form = AboutusForm
     list_display = ('id', 'title', 'img')
+
+class MsgTypeAdmin(admin.ModelAdmin):
+    form = MsgTypeForm
+    list_display = ('id', 'name')
+
+class PushAdmin(admin.ModelAdmin):
+    form = PushForm
+    list_display = ('id', 'title', 'content', 'pid', 'url', 'valid')
+    list_editable = ('valid',)

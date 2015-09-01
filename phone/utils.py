@@ -186,15 +186,18 @@ class JiGuang(object):
     app_key = settings.app_key 
     master_secret = settings.master_secret
 
-    def __init__(self, msg='金指投'):
+    def __init__(self, msg='金指投', extras={}):
         self.msg = msg
         self.ios_msg = jpush.ios(
             alert=msg , 
             badge="+1", 
             sound="a.caf", 
-            extras={'k1':'v1'}
+            extras=extras
         )
-        self.android_msg = jpush.android(alert=msg)
+        self.android_msg = jpush.android(
+            alert=msg,
+            extras=extras
+        )
         self.push = jpush.JPush(
             JiGuang.app_key, 
             JiGuang.master_secret
@@ -233,4 +236,4 @@ class JiGuang(object):
         self.push.send() 
 
 if __name__ == '__main__':
-    JiGuang('没有身份证的请暂时使用其他图像代替').all()
+    print('yld') 

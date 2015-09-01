@@ -316,12 +316,12 @@ def projectdetail(request, pk):
     project = isexists(Project, pk)
     if not project: return ISEXISTS
     data = dict()
+    data['company_name'] = project.company.name
     data['stage'] = project_stage(project)
     data['participator2plan'] = project.participator2plan
     data['plan_finance'] = project.planfinance
     data['project_img'] = '%s%s' %(RES_URL, project.img.url)
     data['thumbnail'] = '%s%s' %(RES_URL, project.thumbnail.url)
-    #data['project_video'] = "http://115.28.177.22/static/app/video/preview.mp4" 
     data['project_video'] = project.url
     data['url'] = videourl(project.url.split('/')[-1])
     data['industry_type'] = [i.name for i in project.company.industry.all()]
@@ -998,10 +998,9 @@ def myinvestorauthentication(request):
     return Response({'status':0, 'msg':'我的投资认证一览表', 'data':data})
 
 @api_view(['GET', 'POST'])
-#@islogin()
+@islogin()
 def myroadshow(request):
     uid = request.session.get('login')
-    uid = 2
     objs = Roadshow.objects.filter(user__pk=uid) 
     data = list()
     for obj in objs:
@@ -1292,6 +1291,30 @@ def topic(request, pk):
 
 @api_view(['POST', 'GET'])
 @islogin()
+def mytopic(request, page):
+    uid = request.data.get('login')
+    objs = Topic.objects.filter(at_topic__user__pk=uid).order_by('read', '-pk')
+    start, end = start_end(page, 6)
+    objs = objs[start:end]
+    data = list()
+    for obj in objs:
+        tmp = dict()
+        tmp['id'] = obj.id
+        tmp['read'] = True if obj.read == True else False
+        tmp['img'] = myimg(obj.user.img)
+        if obj.at_topic:
+            tmp['name'] = '%s 回复 %s' % (obj.user.name, obj.at_topic.user.name)
+        else:
+            tmp['name'] = '%s' % (obj.user.name)
+        tmp['create_datetime'] = datetime_filter(obj.create_datetime) 
+        tmp['content'] = obj.content
+        tmp['investor'] = Investor.objects.filter(user=obj.user, valid=True).exists()
+        data.append(tmp) 
+    status, msg = (0,'') if len(objs)==6 else (-1, '加载完毕')
+    return Response({'status':0, 'msg':'返回我的消息回复', 'data':data})
+
+@api_view(['POST', 'GET'])
+@islogin()
 def topiclist(request, pk, page):
     objs = Topic.objects.filter(project__pk=pk)
     start, end = start_end(page, 6)
@@ -1311,4 +1334,9 @@ def topiclist(request, pk, page):
         data.insert(0, tmp) 
     status, msg = (0,'') if len(objs)==6 else (-1, '已到最后一页')
     return Response({'status':status, 'msg':msg, 'data':data})
-    
+   
+@api_view(['POST', 'GET'])
+@islogin()
+def systeminformlist(request, page):
+    Push.objects.filter(msgtype__pk=2) 
+    return Response({'status':0, 'msg':'msg'})

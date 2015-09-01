@@ -245,3 +245,13 @@ class AboutusForm(forms.ModelForm):
     class Meta:
         model = Aboutus
         fields = '__all__'
+
+class MsgTypeForm(forms.ModelForm):
+    class Meta:
+        model = MsgType
+        fields = '__all__'
+
+class PushForm(forms.ModelForm):
+    class Meta:
+        model = Push
+        fields = '__all__'
