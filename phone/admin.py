@@ -1,3 +1,4 @@
+# coding: utf8
 from django.contrib import admin
 from .modeladmin import *
 from django.utils.text import capfirst

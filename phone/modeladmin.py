@@ -1,3 +1,4 @@
+# coding: utf-8
 from django.contrib import admin
 from django.contrib import messages
 
@@ -416,9 +417,13 @@ class KeywordAdmin(admin.ModelAdmin):
 
 class TopicAdmin(admin.ModelAdmin):
     form = TopicForm
-    list_display = ('id', 'project', 'user', 'at_topic', 'content', 'read')
+    list_display = ('id', 'project', 'user', 'at_user', 'content', 'read')
     raw_id_fields = ('project', 'user', 'at_topic')
     list_editable = ('read',)
+    def at_user(self, obj):
+        if obj.at_topic:
+            return obj.at_topic.user.name
+        return ''
 
 class FeedbackAdmin(admin.ModelAdmin):
     form = FeedbackForm

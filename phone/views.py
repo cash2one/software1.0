@@ -1,3 +1,4 @@
+# coding: utf-8
 __author__ = 'lindyang'
 
 from django.shortcuts import render
@@ -1292,18 +1293,21 @@ def topic(request, pk):
 @api_view(['POST', 'GET'])
 @islogin()
 def mytopic(request, page):
-    uid = request.data.get('login')
+    uid = request.session.get('login')
+    print(uid)
     objs = Topic.objects.filter(at_topic__user__pk=uid).order_by('read', '-pk')
+    print('total', objs.count())
     start, end = start_end(page, 6)
     objs = objs[start:end]
     data = list()
     for obj in objs:
         tmp = dict()
-        tmp['id'] = obj.id
+        tmp['pid'] = obj.project.id
+        tmp['tid'] = obj.id
         tmp['read'] = True if obj.read == True else False
         tmp['img'] = myimg(obj.user.img)
         if obj.at_topic:
-            tmp['name'] = '%s 回复 %s' % (obj.user.name, obj.at_topic.user.name)
+            tmp['name'] = '%s' % (obj.user.name)
         else:
             tmp['name'] = '%s' % (obj.user.name)
         tmp['create_datetime'] = datetime_filter(obj.create_datetime) 
@@ -1311,7 +1315,7 @@ def mytopic(request, page):
         tmp['investor'] = Investor.objects.filter(user=obj.user, valid=True).exists()
         data.append(tmp) 
     status, msg = (0,'') if len(objs)==6 else (-1, '加载完毕')
-    return Response({'status':0, 'msg':'返回我的消息回复', 'data':data})
+    return Response({'status':status, 'msg':msg, 'data':data})
 
 @api_view(['POST', 'GET'])
 @islogin()
