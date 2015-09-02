@@ -191,11 +191,11 @@ def project_stage(project):
                     'status': '路演预告', 
                     'start': {
                         'name':'路演时间', 
-                        'datetime':project.roadshow_start_datetime.strftime(D_FMT)
+                        'datetime':dateformat(project.roadshow_start_datetime)
                         },
                     'end': {
                         'name':'报名截止', 
-                        'datetime': (project.roadshow_start_datetime - timedelta(days=2)).strftime(D_FMT)
+                        'datetime': dateformat(project.roadshow_start_datetime - timedelta(days=2))
                         }
                 }
 
@@ -206,11 +206,11 @@ def project_stage(project):
                     'status': '融资完毕', 
                     'start': {
                         'name': '众筹时间', 
-                        'datetime': project.roadshow_start_datetime.strftime(D_FMT),
+                        'datetime': dateformat(project.roadshow_start_datetime),
                     },
                     'end': {
                         'name': '众筹截止时间', 
-                        'datetime': project.finance_stop_datetime.strftime(D_FMT)
+                        'datetime': dateformat(project.finance_stop_datetime)
                     }
                 }
         else:
@@ -219,11 +219,11 @@ def project_stage(project):
                     'status': '融资进行', 
                     'start': {
                         'name': '众筹时间', 
-                        'datetime': project.roadshow_start_datetime.strftime(D_FMT),
+                        'datetime': dateformat(project.roadshow_start_datetime),
                     },
                     'end': {
                         'name': '众筹截止时间', 
-                        'datetime': project.finance_stop_datetime.strftime(D_FMT)
+                        'datetime': dateformat(project.finance_stop_datetime)
                     }
                 }
     else:
@@ -232,11 +232,11 @@ def project_stage(project):
                     'status': '融资进行', 
                     'start': {
                         'name': '众筹时间', 
-                        'datetime': project.roadshow_start_datetime.strftime(D_FMT),
+                        'datetime': dateformat(project.roadshow_start_datetime),
                     },
                     'end': {
                         'name': '众筹截止时间', 
-                        'datetime': project.finance_stop_datetime.strftime(D_FMT)
+                        'datetime': dateformat(project.finance_stop_datetime)
                     }
                 }
     return stage
@@ -254,7 +254,7 @@ def project(request, page=0):
         tmp['id'] = project.id
         tmp['project_img'] = '%s%s' %(RES_URL, project.img.url)
         tmp['company_name'] = project.company.name
-        tmp['roadshow_start_datetime'] = project.roadshow_start_datetime.strftime(D_FMT)
+        tmp['roadshow_start_datetime'] = dateformat(project.roadshow_start_datetime)
         stage = project_stage(project)
         tmp['stage'] = stage['status']
         tmp['color'] = settings.COLOR[stage['flag']]
@@ -1336,7 +1336,15 @@ def topiclist(request, pk, page):
     return Response({'status':status, 'msg':msg, 'data':data})
    
 @api_view(['POST', 'GET'])
-@islogin()
+#@islogin()
 def systeminformlist(request, page):
-    Push.objects.filter(msgtype__pk=2) 
-    return Response({'status':0, 'msg':'msg'})
+    objs = Push.objects.filter(msgtype__pk=2) 
+    data = list()
+    for obj in objs:
+        tmp = dict()
+        tmp['title'] = obj.title
+        tmp['content'] = obj.content
+        tmp['url'] = obj.url
+        tmp['create_datetime'] = timeformat(obj.create_datetime)
+        data.append(tmp)
+    return Response({'status':0, 'msg':'msg', 'data':data})

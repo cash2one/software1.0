@@ -3,13 +3,6 @@ from django.contrib import messages
 
 from .modelform import *
 
-def secret_password(obj):
-    obj = obj.password
-    return obj
-    m = hashlib.md5( obj.encode(encoding='utf-8') )
-    return m.hexdigest()
-
-
 class QualificationAdmin(admin.ModelAdmin):
     form = QualificationForm
     list_display = ('id', 'desc')
@@ -25,10 +18,6 @@ class UserAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'telephone', 'gender', 'province_city', '_company', '_create_datetime')
     raw_id_fields = ('company', 'position')
     search_fields = ('telephone',)
-    actions = ['authticate_remind']
-
-    def authticate_remind(self, request, queryset):
-        MobSMS().remind('13519141132', '3大服务:\n1:关注,微信搜索【金马营】,回复8\n2:投资,点app【+】号,选"我要认证"\n3:融资,点app【+】号,选"我要路演"\n客服187-2934-2354')
 
     def province_city(self, obj):
         return '%s %s' % (obj.province, obj.city)
@@ -37,7 +26,7 @@ class UserAdmin(admin.ModelAdmin):
         return ','.join([company.name for company in obj.company.all()])
 
     def _create_datetime(self, obj):
-        return timezone.localtime(obj.create_datetime).strftime(T_FMT) 
+        return timeformat(obj.create_datetime)
 
     def has_delete_permission(self, request, obj=None):
         return True
@@ -51,8 +40,6 @@ class UserAdmin(admin.ModelAdmin):
 
     def get_actions(self, request):
         actions = super(UserAdmin, self).get_actions(request)
-        #if 'delete_selected' in actions:
-            #del actions['delete_selected']
         return actions
 
 class PositionAdmin(admin.ModelAdmin):
@@ -142,9 +129,6 @@ class RoadshowAdmin(admin.ModelAdmin):
 
     def get_actions(self, request):
         actions = super(RoadshowAdmin, self).get_actions(request)
-        if 'delete_selected' in actions:
-            pass
-            #del actions['delete_selected']
         return actions
 
 class InvestorAdmin(admin.ModelAdmin):
@@ -211,11 +195,11 @@ class ProjectAdmin(admin.ModelAdmin):
     _stage.boolean = True
 
     def _roadshow_start_datetime(self, obj):
-        return timezone.localtime(obj.roadshow_start_datetime).strftime(T_FMT)
+        return timeformat(obj.roadshow_start_datetime)
     _roadshow_start_datetime.short_description='路演时间'
 
     def _finance_stop_datetime(self, obj):
-        return timezone.localtime(obj.finance_stop_datetime).strftime(T_FMT)
+        return timeformat(obj.finance_stop_datetime)
     _finance_stop_datetime.short_description='融资截至'
     fieldsets = (
         (None, {

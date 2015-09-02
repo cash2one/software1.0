@@ -85,4 +85,5 @@ urlpatterns = [
     url(r'^topic/(?P<pk>[1-9]\d*)/$', views.topic, name='topic'),
     url(r'^mytopic/(?P<page>\d+)/$', views.mytopic, name='mytopic'),
     url(r'^topiclist/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.topiclist, name='topiclist'),
+    url(r'^systeminformlist/(?P<page>\d+)/$', views.systeminformlist, name='systeminformlist'),
 ]

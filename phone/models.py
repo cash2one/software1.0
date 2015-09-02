@@ -209,13 +209,14 @@ class Roadshow(models.Model):
         super(Roadshow, self).save(*args, **kwargs)
         if edit:
             if roadshow.valid != self.valid:
+                extras = {'api':'roadshow', 'url':'www.jinzht.com'}
                 if self.valid == True:
-                    text = '你的路演申请已安排, 稍后会有工作人员联系您. 您也可拨打电话 %s, 或发送邮件 %s' %(settings.Michael, settings.EMAIL)
-                    JiGuang(text).single(self.user.regid)
+                    text = '你的路演申请已安排'
+                    JiGuang(text, extras).single(self.user.regid)
                     MobSMS().remind(self.user.telephone, text) 
                 elif self.valid == False:
-                    text = '您的路演申请提交失败, 具体原因请联系金指投客服 %s' %(settings.EMAIL)
-                    JiGuang(text).single(self.user.regid)
+                    text = '您的路演申请提交失败'
+                    JiGuang(text, extras).single(self.user.regid)
                     MobSMS().remind(self.user.telephone, text) 
         else:
             text = '%s于 %s 申请路演, 处理一下吧' % (self.user.telephone, timeformat())
@@ -250,13 +251,16 @@ class Investor(models.Model):
         super(Investor, self).save(*args, **kwargs)
         if edit:
             if investor.valid != self.valid:
+                extras = {'api':'investor',
+                    'url':'www.jinzht.com'
+                }
                 if self.valid == True:
                     text = '您的投资认证已经通过'
-                    JiGuang(text).single(self.user.regid) 
+                    JiGuang(text, extras).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
                 elif self.valid == False:
-                    text = '您的投资认证失败, 原因询问请致邮 %s' %(settings.EMAIL)
-                    JiGuang(text).single(self.user.regid) 
+                    text = '您的投资认证失败'
+                    JiGuang(text, extras).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
         else:
             text = '%s 于 %s 申请了认证, 是否给ta通过' %(self.user.telephone, timeformat())
@@ -382,13 +386,14 @@ class ParticipateShip(models.Model):
         super(ParticipateShip, self).save(*args, **kwargs)
         if edit:
             if participateship.valid != self.valid:
+                extras = {'api':'participate', 'url':''}
                 if self.valid == True:
-                    text = '参加【%s】【%s】路演申请通过, 请去app页面查看' %(self.project.company.name, self.project.summary) 
-                    JiGuang(text).single(self.user.regid) 
+                    text = '您的来现场申请通过审核' 
+                    JiGuang(text, extras).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
                 elif self.valid == False:
-                    text = '参加【%s】【%s】路演申请未通过, 具体原因去app页面查看' %(self.project.company.name, self.project.summary)
-                    JiGuang(text).single(self.user.regid) 
+                    text = '您的来现场申请未通过审核'
+                    JiGuang(text, extras).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
         else:
             text = '您的来现场申请已经提交, 请耐心等待审核'
@@ -816,7 +821,7 @@ class Aboutus(models.Model):
         verbose_name = verbose_name_plural = '关于我们的分享'
 
 class MsgType(models.Model):
-    name = models.CharField('消息类型', max_length=32)
+    name = models.CharField('消息类型', max_length=32, unique=True)
 
     def __str__(self):
         return '%s' % self.name
@@ -851,7 +856,7 @@ class Push(models.Model):
             }
             JiGuang(self.content, extras).single('050dee23230')
             JiGuang(self.content, extras).single('09112bbf03f')
-            #JiGuang(self.content, extras).single('0819a9114c1')
+            JiGuang(self.content, extras).single('0309ac54615')
             print(extras)
         super(Push, self).save(*args, **kwargs)
 

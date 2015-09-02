@@ -15,13 +15,8 @@ class FundSizeRangeForm(forms.ModelForm):
 
 class UserForm(forms.ModelForm):
     class Meta:
-        #password = forms.CharField(widget=forms.PasswordInput)
         model = User
         fields = '__all__'
-        widgets = {
-            #'password': forms.PasswordInput(),
-        }
-        # exclude = ( , )
 
 class PositionForm(forms.ModelForm):
     class Meta:
@@ -60,7 +55,7 @@ class RoadshowForm(forms.ModelForm):
             if roadshow_datetime:
                 create_datetime = self.instance.create_datetime
                 if roadshow_datetime < create_datetime: 
-                    create_datetime = timezone.localtime(self.instance.create_datetime).strftime('%Y-%m-%d %H:%M:%S')
+                    create_datetime = timeformat(self.instance.create_datetime)
                     raise ValidationError('路演时间必须 < %s' % create_datetime)
 
 class InvestorForm(forms.ModelForm):
@@ -197,14 +192,11 @@ class ActivityForm(forms.ModelForm):
             datetime_format = '%Y-%m-%d %H:%M:%S'
             import pytz
             utc = pytz.UTC
-            #raise ValidationError(utc.localize( datetime.now() - timedelta(days=2) ))
             if start_datetime  < utc.localize( datetime.now() - timedelta(days=2) ):
                 raise ValidationError('活动必须提前两天登记')
 
             if start_datetime >= stop_datetime:
                 raise ValidationError('结束时间必须晚于开始时间')
-
-
 
 class NewsTypeForm(forms.ModelForm):
     class Meta:

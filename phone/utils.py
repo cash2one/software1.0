@@ -27,30 +27,33 @@ else:
 
 RES_URL = settings.RES_URL 
 PHONE_RE = re.compile(r'(13[0-9]|15[012356789]|17[678]|18[0-9]|14[57])[0-9]{8}$')
-D_FMT = '%Y-%m-%d'
-T_FMT = '%Y-%m-%d %H:%M:%S'
 PAGE_SIZE = 4        
 PK_RE = re.compile(r'^[1-9]\d*$')
 MTM_RE = re.compile(r'^[1-9]\d*(,[1-9]\d*)*$')
 
+def mystorage_file(file_field, upload_file, upload_to=''):
+    name = upload_file.name
+    pth = datetime.now().strftime(upload_to)
+    file_field.save('%s/%s' % (pth, name), File(upload_file)) 
+        
 def myarg(field='参数'):
     return Response({'status':1, 'msg':'%s 错误' % field})
-
-def timeformat(now=timezone.now()):
-    return timezone.localtime(now).strftime(T_FMT)
-
-def dateformat(now=timezone.now()):
-    return timezone.localtime(now).strftime(D_FMT)
-
-def validate_telephone(telephone):
-    if telephone and PHONE_RE.match(telephone): return True
-    return False                              
 
 def myimg(file, default=''):
     if not file:
         return '%s/media/default/coremember.png' % settings.RES_URL
     else:
         return '%s%s' % (settings.RES_URL, file.url)
+
+def timeformat(now=timezone.now()):
+    return timezone.localtime(now).strftime('%Y-%m-%d %H:%M:%S')
+
+def dateformat(now=timezone.now()):
+    return timezone.localtime(now).strftime('%Y-%m-%d')
+
+def validate_telephone(telephone):
+    if telephone and PHONE_RE.match(telephone): return True
+    return False                              
 
 def datetime_filter(t):
     t = time.mktime(timezone.localtime(t).timetuple())
@@ -83,15 +86,6 @@ def islogin(text=''):
             return func(*args, **kw)
         return wrapper
     return decorator
-
-def mystorage_file(file_field, upload_file, upload_to=''):
-    name = upload_file.name
-    pth = datetime.now().strftime(upload_to)
-    file_field.save('%s/%s' % (pth, name), File(upload_file)) 
-        
-def md5(s):
-    m = hashlib.md5(s)
-    return m.hexdigest()
 
 class MobSMS:
     userid = settings.userid 
