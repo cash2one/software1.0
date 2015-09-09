@@ -731,12 +731,21 @@ class NewsType(models.Model):
         verbose_name = verbose_name_plural = '资讯类型'
     
 class News(models.Model):
+    user = models.ForeignKey('User', verbose_name='责任编辑', blank=True, null=True)
+    newstype = models.ForeignKey('NewsType', verbose_name='资讯类型', blank=True, null=True)
     title = models.CharField('标题', max_length=32)
-    img = models.ImageField('图片', upload_to=UploadTo('news/img/%Y/%m'))
-    happen_datetime = models.DateTimeField('发布时间', auto_now=True)
-    author = models.CharField('作者', max_length=16)
-    content = models.TextField('内容')
+    img = models.ImageField('图片', upload_to=UploadTo('news/img/%Y/%m'), blank=True, null=True)
+    src = models.URLField('图片url', blank=True)
+    href = models.URLField('网页url', blank=True)
+    name = models.CharField('网页名', max_length=128)
+    source = models.CharField('来源', max_length='64', default='金指投')
+    content = models.TextField('内容', max_length='256')
+    keyword = models.CharField('关键词', max_length=64)
+
+    likers = ManyToManyField('User', related_name='news_likers', verbose_name='点赞', blank=True)
+    readcount = models.PositiveIntegerField('阅读数', default=1)
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
+    valid = models.NullBooleanField('合法', default=None)
 
     def save(self, *args, **kwargs):
         edit = self.pk is not None
@@ -750,7 +759,11 @@ class News(models.Model):
 
     class Meta:
         ordering = ('-pk', )
+        unique_together = ('title', 'create_datetime')
         verbose_name = verbose_name_plural = '资讯'
+
+class ReadShip(models.Model):
+    pass 
 
 class KnowledgeType(models.Model):
     pass

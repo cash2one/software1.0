@@ -182,7 +182,7 @@ def provincecity(request):
     user = User.objects.get(pk=uid)
     user.province, user.city = province, city
     user.save()
-    return Response({'status':0, 'msg': '修改籍贯成功'})
+    return Response({'status':0, 'msg': '修改所在地区成功'})
 
 def project_stage(project):
     now = timezone.now()
@@ -372,8 +372,7 @@ def finance_plan(request, pk):
     if not project: return ISEXISTS
     data['plan_finance'] = project.planfinance
     data['finance_pattern'] = project.pattern
-    #data['share2give'] = int(project.share2give)/100
-    data['share2give'] = project.tmpshare
+    data['share2give'] = project.share2give
     data['fund_purpose'] = project.usage
     data['quit_way'] = project.quitway
     return Response({'status':0, 'msg':'msg', 'data': data})
@@ -1352,3 +1351,35 @@ def systeminformlist(request, page):
         tmp['create_datetime'] = timeformat(obj.create_datetime)
         data.append(tmp)
     return Response({'status':0, 'msg':'msg', 'data':data})
+
+def g_news(queryset, page):
+    start, end = start_end(page)
+    queryset = queryset[start:end]
+    if not queryset: return Response({'status':0, 'msg':'加载完毕'})
+    data = list()
+    for qs in queryset:
+        tmp = dict()
+        tmp['id'] = qs.id
+        tmp['title'] = qs.title
+        tmp['source'] = qs.source
+        tmp['content'] = qs.content
+        tmp['src'] = qs.src
+        tmp['like'] = 100
+        tmp['readcount'] = 999
+        data.append(tmp)
+    status, msg = (0, '') if len(queryset) == PAGE_SIZE else (-1, '加载完毕')
+    return Response({'status': status, 'msg':msg, 'data':data})
+
+@api_view(['POST', 'GET'])
+def news(request, page):
+    flag = random.randint(0, 1)
+    queryset = News.objects.all()
+    return g_news(queryset, page)
+
+@api_view(['POST', 'GET'])
+def newskeyword(request):
+    flag = random.randint(0, 1)
+    data = list()
+    data = ['国内', '国外', '投融资']
+    return Response({'status':0, 'msg':'新闻关键词', 'data':data})
+

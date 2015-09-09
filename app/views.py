@@ -17,3 +17,6 @@ def project(request):
     active = sys._getframe().f_code.co_name
     context = {'project': project}
     return render(request, 'app/project.html', context)
+
+def news(request, name):
+    return render(request, 'app/news/%s' % name)

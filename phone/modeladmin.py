@@ -403,7 +403,8 @@ class NewsTypeAdmin(admin.ModelAdmin):
 
 class NewsAdmin(admin.ModelAdmin):
     form = NewsForm 
-    list_display = ('id', 'title', 'img', 'author')
+    list_display = ('id', 'title', 'img',)
+    raw_id_fields = ('user', 'likers')
 
 class KnowledgeTypeAdmin(admin.ModelAdmin):
     form = KnowledgeTypeForm

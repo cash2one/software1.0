@@ -75,7 +75,6 @@ urlpatterns = [
     url(r'^checkupdate/$', views.checkupdate, name='checkupdate'),
     url(r'^shareproject/(?P<pk>[1-9]\d*)/$', views.shareproject, name='shareproject'),
     url(r'^shareapp/$', views.shareapp, name='shareapp'),
-    
     url(r'^aboutroadshow', views.aboutroadshow, name='aboutroadshow'),
     url(r'^risk/$', views.risk, name='risk'),
     url(r'^useragreement/$', views.useragreement, name='useragreement'),
@@ -86,5 +85,7 @@ urlpatterns = [
     url(r'^topic/(?P<pk>[1-9]\d*)/$', views.topic, name='topic'),
     url(r'^mytopic/(?P<page>\d+)/$', views.mytopic, name='mytopic'),
     url(r'^topiclist/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.topiclist, name='topiclist'),
-    url(r'^systeminformlist/(?P<page>\d+)/$', views.systeminformlist, name='systeminformlist'),
+    url(r'^systeminformlist/(?P<page>\d+)/$',views.systeminformlist, name='systeminformlist'),
+    url(r'^news/(?P<page>\d+)/$', views.news, name='news'),
+    url(r'^newskeyword/$', views.newskeyword, name='newskeyword'),
 ]
