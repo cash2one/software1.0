@@ -609,7 +609,7 @@ class Thinktank(models.Model):
         return '%s' % self.name
 
     class Meta:
-        ordering = ('-pk',)
+        ordering = ('pk',)
         verbose_name = verbose_name_plural = '智囊团'
 
 class ThinktankCollect(models.Model):
@@ -620,7 +620,7 @@ class ThinktankCollect(models.Model):
     def __str__(self):
         return '%s' % (self.thinktank)
     class Meta:
-        ordering = ('-pk', )
+        ordering = ('pk', )
         unique_together = ('user', 'thinktank')
         verbose_name = verbose_name_plural = '智囊团收藏'
 

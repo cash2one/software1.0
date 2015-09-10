@@ -100,7 +100,6 @@ class Browser(object):
             except Exception as e:
                 print(e)
             else:
-                continue
                 News.objects.create(
                     title = title, src = src, name = name, source = source,
                     content = content, keyword = keyword

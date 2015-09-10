@@ -69,6 +69,7 @@ def register(request):
 @api_view(['POST'])
 def login(request):
     telephone = request.data.get('telephone', '').strip()
+    print('telephone', telephone)
     if validate_telephone(telephone) == False:
         return Response({'status':1, 'msg':'手机号码错误'})
     user = User.objects.filter(telephone=telephone)
@@ -555,7 +556,7 @@ def addcompany(request):
     user = User.objects.get(pk=uid)
     invalids = JoinShip.objects.filter(~Q(valid=True), user=user)
     if invalids.exists():
-        return Response({'status':0, 'msg':'尚有公司在审核中, 请耐心等待'})
+        return Response({'status':1, 'msg':'尚有公司在审核中, 请耐心等待'})
     name = request.data.get('company_name')
     company = Company.objects.filter(name=name)
     if company.exists():
