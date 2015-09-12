@@ -636,25 +636,17 @@ class System(models.Model):
 
 class Version(models.Model):
     edition = models.CharField('版本号', max_length=16, unique=True)
-    code = models.PositiveIntegerField()
     system = models.ForeignKey('System', verbose_name='系统类型', on_delete=models.PROTECT)
     item = models.TextField('更新条目')
-    url = models.URLField('地址')
-    apk = models.FileField('apk', upload_to = UploadTo('version/apk/%Y/%m'), blank=True)
-    create_datetime = models.DateTimeField('创建日期', auto_now_add=True)
+    href = models.URLField('地址')
+    create_datetime = models.DateTimeField('创建日期', auto_now=True)
 
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit: version = Version.objects.get(pk=self.pk)
-        super(Version, self).save(*args, **kwargs)
-        if edit:
-            osremove(version.apk, self.apk)
-    
     def __str__(self):
         return '%s/%s' % (self.system, self.edition)
 
     class Meta:
         ordering = ('-pk',)
+        unique_together = ('edition', 'system')
         verbose_name = verbose_name_plural = '版本'
 
 class Informlist(models.Model):
@@ -732,18 +724,20 @@ class NewsType(models.Model):
     
 class News(models.Model):
     user = models.ForeignKey('User', verbose_name='责任编辑', blank=True, null=True)
-    newstype = models.ForeignKey('NewsType', verbose_name='资讯类型', blank=True, null=True)
-    title = models.CharField('标题', max_length=32)
-    img = models.ImageField('图片', upload_to=UploadTo('news/img/%Y/%m'), blank=True, null=True)
+    newstype = models.ForeignKey('NewsType', verbose_name='资讯类型', blank=True, null=True, default=1)
+    title = models.CharField('标题', max_length=64)
     src = models.URLField('图片url', blank=True)
     href = models.URLField('网页url', blank=True)
+    img = models.ImageField('图片', upload_to=UploadTo('news/img/%Y/%m'), blank=True, null=True)
+    pdf = models.FileField('pdf文档', blank=True, null=True)
     name = models.CharField('网页名', max_length=128)
-    source = models.CharField('来源', max_length='64', default='金指投')
-    content = models.TextField('内容', max_length='256')
+    source = models.CharField('来源', max_length=64, default='金指投')
+    content = models.TextField('内容', max_length=256)
     keyword = models.CharField('关键词', max_length=64)
 
     likers = ManyToManyField('User', related_name='news_likers', verbose_name='点赞', blank=True)
     readcount = models.PositiveIntegerField('阅读数', default=1)
+    pub_date = models.DateField('发布时间', null=True, blank=True)
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
     valid = models.NullBooleanField('合法', default=None)
 
@@ -759,7 +753,7 @@ class News(models.Model):
 
     class Meta:
         ordering = ('-pk', )
-        unique_together = ('title', 'create_datetime')
+        unique_together = ('title', 'pub_date')
         verbose_name = verbose_name_plural = '资讯'
 
 class ReadShip(models.Model):

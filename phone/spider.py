@@ -41,10 +41,11 @@ NEWS_RE = re.compile(r'''
     <p\ class="intro">
         <a\ .+?>(?P<content>.+?)</a>
         <br>
-        <b>(?P<date>.+?)</b>
+        <b>.*?(?P<pub>\d{4}\-\d{2}\-\d{2}).*?</b>
         </br>
     </p>
 </div>''', re.VERBOSE)
+#\d{4}-\d{2}-\d{2}
 
 SK_RE = re.compile(r'来源:(?P<source>.+?)\xa0+?关键词:(?P<keyword>.+?)\r')
 
@@ -64,47 +65,55 @@ class Browser(object):
         try:
             res = self.opener.open(url)
             self.HTML = res.read()
-        except Exception as e:
-            raise Exception
+        except Exception as e: raise Exception
+        else: return res
+
+    def update(self, tag):
+        print(tag)
+        m = NEWS_RE.search(tag)
+        if not m: return
+        href = m.group('href') 
+        url = 'http://www.xsbcc.com%s' % href 
+        title = m.group('title').strip() # 标题
+        src = m.group('src') # 图片
+        content = m.group('content') # 简短介绍
+        pub = m.group('pub').strip() # 发布时间 
+        self.open(url)
+        soup = BeautifulSoup(self.HTML, 'html.parser')
+        head = soup.findAll('div', {'class', 'info'})[0]
+        detail = soup.findAll('div', {'class', 'rcon'})[0]
+        detail = str(detail)
+        sk = SK_RE.search(str(head))
+        source = sk.group('source').strip() # 来源
+        keyword = sk.group('keyword').strip() # 关键词
+
+        name = href.rsplit('/', 1)[-1].rsplit('.')[0]
+        #year = datetime.now().strftime('%Y')
+        #name = '%s/%s' % (year, name) # 网页名
+        DP_RE = re.compile(r'<span style=".*?font-size:.*?>(.+?)</span>', re.DOTALL)
+        div = ''
+        for val in DP_RE.finditer(detail): 
+            div += '<p>%s</p>' % val.group(1)
         else:
-            return res
-
-    def update(self, tags):
-        values = NEWS_RE.finditer(str(tags))
-        for value in values:
-            href = value.group('href') 
-            url = 'http://www.xsbcc.com%s' % href 
-
-            title = value.group('title').strip() # 标题
-            src = value.group('src') # 图片
-            content = value.group('content') # 简短介绍
-            pub = value.group('date').strip() # 发布时间 
-            self.open(url)
-            soup = BeautifulSoup(self.HTML, 'html.parser')
-            head = soup.findAll('div', {'class', 'info'})[0]
-            detail = soup.findAll('div', {'class', 'rcon'})[0]
-            sk = SK_RE.search(str(head))
-
-            source = sk.group('source').strip() # 来源
-            keyword = sk.group('keyword').strip() # 关键词
-
-            name = href.rsplit('/', 1)[-1].rsplit('.')[0]
-            #year = datetime.now().strftime('%Y')
-            #name = '%s/%s' % (year, name) # 网页名
-            DP_RE = re.compile(r'<div><span.*?>(.+?)</span></div>', re.DOTALL)
-            div = ''
-            for val in DP_RE.finditer(str(detail)):
-                div += '<p>%s</p>' % val.group(1)
+            DP_RE = re.compile(r'<p>.*</p>', re.DOTALL)
+            m = DP_RE.search(detail)
+            if m: div = re.sub(r'style=".*?"', r'', m.group(0))
+        div = re.sub(r'<br.?>', r'', div)
+        try: self.save(name, title, pub, source, div)
+        except Exception as e: print(e)
+        else:
             try:
-                self.save(name, title, pub, source, div)
-            except Exception as e:
-                print(e)
-            else:
                 News.objects.create(
-                    title = title, src = src, name = name, source = source,
-                    content = content, keyword = keyword
+                    title = title, 
+                    src = src, 
+                    name = name, 
+                    pub_date = pub,
+                    source = source,
+                    content = content, 
+                    keyword = keyword,
                 )
-                print(name, 'successfully')
+            except Exception as e: print(e)
+            else: print(name, 'successfully')
 
     def save(self, name, title, pub, source, div):
         html = '''
@@ -119,12 +128,16 @@ class Browser(object):
         <link href="http://www.jinzht.com/static/app/css/blog.css" rel="stylesheet">
     </head>
     <body>
-        <div class="container-fluid" style="margin-top:15px;">
-            <div class="row"><div class="col-sm-8 blog-main" style="padding-left:0px;padding-right:0px"><div class="blog-post">
-            <h3>%s</h3>
-            <p class="blog-post-meta">%s by <a href="#">%s</a></p>
-            %s
-        </div></div></div>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-8 blog-main" style="padding:15px 0">
+                    <div class="blog-post">
+                    <h3 style="color:#e94819;">%s</h3>
+                    <p class="blog-post-meta">发布: %s by <a href="#">%s</a></p>
+                    %s
+                </div>
+            </div>
+        </div>
     </body>
 </html>''' % (title, pub, source, div)
 
@@ -140,7 +153,8 @@ class Browser(object):
         '''get the main article'''
         soup = BeautifulSoup(self.HTML, 'html.parser')
         tags = soup.findAll('div', {'class': 'Q-tpWrap'})
-        self.update(tags)
+        for tag in tags:
+            self.update(str(tag))
 
 if __name__ == '__main__':
     

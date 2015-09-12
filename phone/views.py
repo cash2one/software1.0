@@ -1192,18 +1192,16 @@ def contactus(request):
     return Response({'status':0, 'msg':'联系我们', 'data':data})
 
 @api_view(['POST', 'GET'])
-def checkupdate(request):
-    flag = request.data.get('flag','').strip()
-    if not re.match('^[12]$', flag): return ARG
-    queryset = Version.objects.filter(system__id=int(flag))
-    if not queryset: return Response({'status':0, 'msg':'没有更新'})
+def checkupdate(request, system):
+    queryset = Version.objects.filter(system__id=system)
+    if not queryset: 
+        return Response({'status':0, 'msg':'没有更新'})
     version = queryset[0] 
     data = dict()
-    data['id'] = version.id
+    data['force'] = True
     data['edition'] = version.edition
-    data['code'] = version.code
     data['item'] = version.item
-    data['url'] = '%s%s' % (RES_URL, version.apk.url)
+    data['href'] = version.href 
     return Response({'status':0, 'msg':'检查更新', 'data':data})
 
 @api_view(['POST', 'GET'])
@@ -1356,7 +1354,7 @@ def systeminformlist(request, page):
 def g_news(queryset, page):
     start, end = start_end(page)
     queryset = queryset[start:end]
-    if not queryset: return Response({'status':0, 'msg':'加载完毕'})
+    if not queryset: return Response({'status':-1, 'msg':'加载完毕'})
     data = list()
     for qs in queryset:
         tmp = dict()
@@ -1367,6 +1365,7 @@ def g_news(queryset, page):
         tmp['src'] = qs.src
         tmp['like'] = 100
         tmp['readcount'] = 999
+        tmp['href'] = '%s/app/news/%s' %(settings.RES_URL, qs.name)
         data.append(tmp)
     status, msg = (0, '') if len(queryset) == PAGE_SIZE else (-1, '加载完毕')
     return Response({'status': status, 'msg':msg, 'data':data})
@@ -1374,13 +1373,82 @@ def g_news(queryset, page):
 @api_view(['POST', 'GET'])
 def news(request, page):
     flag = random.randint(0, 1)
-    queryset = News.objects.all()
+    queryset = News.objects.filter(newstype=1)
     return g_news(queryset, page)
 
 @api_view(['POST', 'GET'])
-def newskeyword(request):
-    flag = random.randint(0, 1)
-    data = list()
-    data = ['国内', '国外', '投融资']
-    return Response({'status':0, 'msg':'新闻关键词', 'data':data})
+def knowledge(request, page):
+    queryset = News.objects.filter(newstype=2)
+    return g_news(queryset, page)
 
+@api_view(['POST', 'GET'])
+def newsshare(request, pk):
+    news = isexists(News, pk) 
+    if not news: return ISEXISTS 
+    data = dict()
+    tmp['href'] = '%s/app/news/%s' %(settings.RES_URL, news.name)
+    data['src'] = news.src 
+    data['title'] = news.title
+    return Response({'status':0, 'msg':'newsshare', 'data':data})
+
+@api_view(['POST', 'GET'])
+@islogin()
+def newslike(request, pk):
+    news = isexists(News, pk) 
+    if not news: return ISEXISTS 
+    uid = request.session.get('login')
+    user = User.objects.get(pk=uid) 
+    if request.method == 'POST':
+        flag = request.data.get('flag')
+        if flag == '0':
+            news.likers.add(user)
+            return Response({'status':0, 'msg':'点赞成功'})
+        else:
+            news.likers.remove(user)
+            return Response({'status':0, 'msg':'取消点赞'})
+    else:
+        if user in news.likers.all(): flag = 1
+        else: flag = 0
+        return Response({'status':0, 'msg':'是否点赞', 'data':flag})
+        
+@api_view(['POST', 'GET'])
+def newsreadcount(request, pk):
+    news = isexists(News, pk) 
+    if not news: return ISEXISTS 
+    news.readcount += 1
+    return Response({'status':0, 'msg':'阅读数加'})
+    
+@api_view(['POST', 'GET'])
+def newstagsearch(request, page):
+    newstype = request.data.get('newstype', '')
+    if not PK_RE.match(newstype): return myarg('newstype')
+    if int(newstype) > 2: return myarg('newstype')
+    tag = request.data.get('tag', '')
+    print(tag)
+    #if tag not in ['全部', '最新', '最热']: return myarg('tag')
+    if tag == '全部':
+        queryset = News.objects.filter(newstype__id=newstype)
+    elif tag == '最新':
+        queryset = News.objects.filter(newstype__id=newstype)
+    else:
+        queryset = News.objects.filter(newstype__id=newstype)
+    return g_news(queryset, page) 
+
+@api_view(['POST', 'GET'])
+def newstitlesearch(request, page):
+    newstype = request.data.get('newstype', '')
+    if not PK_RE.match(newstype): return myarg('newstype')
+    title = request.data.get('title', '').strip()
+    if not title: return myarg('title')
+    queryset = News.objects.filter(newstype__id=newstype, title__contains=title)
+    return g_news(queryset, page)
+
+@api_view(['POST', 'GET'])
+def newstag(request):
+    data = ['全部', '最新', '最热']
+    return Response({'status':0, 'msg':'newstag', 'data':data})
+
+@api_view(['POST', 'GET'])
+def knowledgetag(request):
+    data = ['全部', '投资', '融资', '条文']
+    return Response({'status':0, 'msg':'knowledgetag', 'data':data})
