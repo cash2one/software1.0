@@ -75,7 +75,6 @@ class User(models.Model):
             osremove(user.idfore, self.idfore)
             osremove(user.idback, self.idback)
         else:
-            pass
             MobSMS().remind(self.telephone, settings.REGISTER) 
             MAIL('用户注册', '%s 在 %s 注册' % (self.telephone, timeformat()) ).send()
 
@@ -280,6 +279,7 @@ class Project(models.Model):
     business = models.TextField('主营业务')
     service = models.TextField('产品服务')
     planfinance = PositiveIntegerField('计划融资', default=0)
+    finance2get = PositiveIntegerField('已获得融资', default=0)
     pattern = CharField('融资方式', max_length=32, default='股权融资')
     share2give = DecimalField('让出股份', max_digits=4, decimal_places=2, default=0)
     tmpshare = models.CharField('临时股份', max_length=16, default='3')
@@ -620,7 +620,7 @@ class ThinktankCollect(models.Model):
     def __str__(self):
         return '%s' % (self.thinktank)
     class Meta:
-        ordering = ('pk', )
+        ordering = ('-pk', )
         unique_together = ('user', 'thinktank')
         verbose_name = verbose_name_plural = '智囊团收藏'
 
@@ -756,9 +756,6 @@ class News(models.Model):
         unique_together = ('title', 'pub_date')
         verbose_name = verbose_name_plural = '资讯'
 
-class ReadShip(models.Model):
-    pass 
-
 class KnowledgeType(models.Model):
     pass
 
@@ -808,6 +805,12 @@ class Feedback(models.Model):
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '用户反馈'
+
+    def save(self, *args, **kwargs):
+        edit = self.pk is not None
+        if not edit:
+            MobSMS().remind(self.user.telephone, '感谢你对金指投的支持, 我们会第一时间处理你的建议')
+        super(Feedback, self).save(*args, **kwargs)
 
 class Aboutus(models.Model):
     title = models.CharField('标题', max_length=32)
@@ -862,10 +865,7 @@ class Push(models.Model):
                 'pid': self.pid,
                 'url': self.url
             }
-            JiGuang(self.content, extras).single('050dee23230')
-            JiGuang(self.content, extras).single('09112bbf03f')
-            JiGuang(self.content, extras).single('0309ac54615')
-            print(extras)
+            JiGuang(self.content, extras).all()
         super(Push, self).save(*args, **kwargs)
 
 class Msgread(models.Model):

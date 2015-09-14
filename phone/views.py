@@ -32,10 +32,10 @@ def sendcode(request):
         return Response({'status':1, 'msg':'该手机注册过, 请直接登录'})
     elif flag == '1' and not user.exists(): 
         return Response({'status':1, 'msg':'您尚未注册, 请先注册'})
-    code = random.randint(99999, 999999)
+    code = random.randint(1000, 9999)
     ret = MobSMS(code).send(telephone)
     if ret == -1: return Response({'status':1, 'msg': '获取验证码失败'})
-    request.session[telephone] = code; request.session.set_expiry(60 * 10)
+    request.session[telephone] = code; request.session.set_expiry(60 * 3)
     print(',,,', code)
     return Response({'status':0, 'msg':'短息已发送, 请耐心等待'})
 
@@ -261,7 +261,7 @@ def project(request, page=0):
         tmp['stage'] = stage['status']
         tmp['color'] = settings.COLOR[stage['flag']]
         data.append(tmp)
-    status, msg = (0,'') if len(projects)==4 else (-1, '已到最后一页')
+    status, msg = (0,'') if len(projects)==4 else (-1, '加载完毕')
     return Response({'status':status, 'msg': msg, 'data': data})
 
 def g_thinktank(queryset, page):
@@ -280,7 +280,7 @@ def g_thinktank(queryset, page):
         tmp['company'] = item.company
         tmp['title'] = item.title
         data.append(tmp)
-    status, msg = (0,'') if len(queryset)==PAGE_SIZE else (-1, '已到最后一页')
+    status, msg = (0,'') if len(queryset)==PAGE_SIZE else (-1, '加载完毕')
     return Response({'status':status, 'msg':msg, 'data':data})
 
 @api_view(['POST', 'GET'])
@@ -470,7 +470,7 @@ def g_project(queryset, page):
         tmp['stage'] = stage['status']
         tmp['color'] = settings.COLOR[stage['flag']]
         data.append(tmp)
-    status, msg = (0, '') if len(queryset)==PAGE_SIZE else (-1, '最后一页')
+    status, msg = (0, '') if len(queryset)==PAGE_SIZE else (-1, '加载完毕')
     return Response({'status':status, 'msg':msg, 'data':data})
 
 @api_view(['POST', 'GET'])
@@ -1193,12 +1193,13 @@ def contactus(request):
 
 @api_view(['POST', 'GET'])
 def checkupdate(request, system):
+    return Response({'status':0, 'msg':'没有更新'})
     queryset = Version.objects.filter(system__id=system)
     if not queryset: 
         return Response({'status':0, 'msg':'没有更新'})
     version = queryset[0] 
     data = dict()
-    data['force'] = True
+    data['force'] = False
     data['edition'] = version.edition
     data['item'] = version.item
     data['href'] = version.href 
@@ -1334,7 +1335,7 @@ def topiclist(request, pk, page):
         tmp['content'] = obj.content
         tmp['investor'] = Investor.objects.filter(user=obj.user, valid=True).exists()
         data.insert(0, tmp) 
-    status, msg = (0,'') if len(objs)==6 else (-1, '已到最后一页')
+    status, msg = (0,'') if len(objs)==6 else (-1, '加载完毕')
     return Response({'status':status, 'msg':msg, 'data':data})
    
 @api_view(['POST', 'GET'])
@@ -1386,9 +1387,10 @@ def newsshare(request, pk):
     news = isexists(News, pk) 
     if not news: return ISEXISTS 
     data = dict()
-    tmp['href'] = '%s/app/news/%s' %(settings.RES_URL, news.name)
+    data['href'] = '%s/app/news/%s' %(settings.RES_URL, news.name)
     data['src'] = news.src 
     data['title'] = news.title
+    data['content'] = news.content
     return Response({'status':0, 'msg':'newsshare', 'data':data})
 
 @api_view(['POST', 'GET'])
@@ -1446,9 +1448,11 @@ def newstitlesearch(request, page):
 @api_view(['POST', 'GET'])
 def newstag(request):
     data = ['全部', '最新', '最热']
+    data = []
     return Response({'status':0, 'msg':'newstag', 'data':data})
 
 @api_view(['POST', 'GET'])
 def knowledgetag(request):
     data = ['全部', '投资', '融资', '条文']
+    data = []
     return Response({'status':0, 'msg':'knowledgetag', 'data':data})

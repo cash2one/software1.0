@@ -128,6 +128,8 @@ class Browser(object):
         <link href="http://www.jinzht.com/static/app/css/blog.css" rel="stylesheet">
     </head>
     <body>
+        <!--div class="container-fluid">
+            <div class="row"-->
         <div class="container-fluid">
             <div class="row">
                 <div class="col-sm-8 blog-main" style="padding:15px 0">
@@ -142,7 +144,9 @@ class Browser(object):
 </html>''' % (title, pub, source, div)
 
         import codecs
-        pth = '/var/www/html/software1.0/app/templates/app/news/'
+        BASE_DIR = os.path.dirname( os.path.dirname(os.path.abspath(__file__)) )
+        pth = os.path.join(BASE_DIR, 'app/templates/app/news/')
+        print(pth)
         filepath = os.path.join(pth, name)
         try: fp = codecs.open(filepath, 'w+', 'utf-8')
         except: raise 

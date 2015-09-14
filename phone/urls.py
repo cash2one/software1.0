@@ -94,4 +94,5 @@ urlpatterns = [
     url(r'^newstitlesearch/(?P<page>\d+)/$', views.newstitlesearch, name='newstitlesearch'),
     url(r'^newslike/(?P<pk>[1-9]\d*)/$', views.newslike, name='newslike'),
     url(r'^newsreadcount/(?P<pk>[1-9]\d*)/$', views.newsreadcount, name='newsreadcount'),
+    url(r'^newsshare/(?P<pk>[1-9]\d*)/$', views.newsshare, name='newsshare'),
 ]

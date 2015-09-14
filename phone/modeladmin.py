@@ -167,10 +167,9 @@ class InvestorAdmin(admin.ModelAdmin):
 
 class ProjectAdmin(admin.ModelAdmin):
     form = ProjectForm
-    list_display = ('id', '_stage', 'summary', 'company', 'planfinance', '_leadfollow', 'tmpshare', 'share2give', 'investor2plan', '_roadshow_start_datetime', '_finance_stop_datetime')
+    list_display = ('id', '_stage', 'summary', 'company', 'planfinance', 'finance2get', '_leadfollow', 'tmpshare', 'share2give', 'investor2plan', '_roadshow_start_datetime', '_finance_stop_datetime')
     raw_id_fields = ('roadshow', 'company', 'participators', 'investors', 'likers', 'voters', 'collectors')
-    #list_editable = ('thumbnail',)
-    #list_editable = ('roadshow_start_datetime', 'finance_stop_datetime')
+    list_editable = ('finance2get',)
     def _leadfollow(self, obj):
         return '%s/%s' % (obj.leadfund, obj.followfund)
     _leadfollow.short_description = '领/跟投'
@@ -211,7 +210,7 @@ class ProjectAdmin(admin.ModelAdmin):
             'fields':('desc', 'model', 'business', 'service')
         }),
         ('融资', {
-            'fields':(('planfinance', 'pattern', 'tmpshare', 'share2give', 'quitway'), 'usage')
+            'fields':(('planfinance', 'finance2get', 'pattern', 'tmpshare', 'share2give', 'quitway'), 'usage')
         }),
         ('数字', {
             'fields':(('investor2plan', 'participator2plan', 'leadfund', 'followfund'),)
