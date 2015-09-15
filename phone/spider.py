@@ -116,6 +116,7 @@ class Browser(object):
             else: print(name, 'successfully')
 
     def save(self, name, title, pub, source, div):
+        app = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
         html = '''
 <!DOCTYPE html>                
 <html lang="en">
@@ -135,13 +136,14 @@ class Browser(object):
                 <div class="col-sm-8 blog-main" style="padding:15px 0">
                     <div class="blog-post">
                     <h3 style="color:#e94819;">%s</h3>
-                    <p class="blog-post-meta">发布: %s by <a href="#">%s</a></p>
+                    <p class="blog-post-meta">发布: %s 编辑: <a href="%s">%s</a></p>
                     %s
+                    <p class="blog-post-meta">版权: %s</p>
                 </div>
             </div>
         </div>
     </body>
-</html>''' % (title, pub, source, div)
+</html>''' % (title, pub, app, '金指投科技', div, source)
 
         import codecs
         BASE_DIR = os.path.dirname( os.path.dirname(os.path.abspath(__file__)) )

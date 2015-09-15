@@ -11,9 +11,9 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 #from django.db.models import F, Q, Sum
-from .models import *
+from phone.models import *
 
-from .utils import *
+from phone.utils import *
 
 def isexists(Model, pk):
     model = Model.objects.filter(pk=pk)
@@ -820,11 +820,11 @@ def modifyposition(request):
 def lcv(project, uid=0): # like collect vote
     data = dict()
     ls = LikeShip.objects.filter(project=project)
-    data['like_sum'] = ls.count() + 997
+    data['like_sum'] = ls.count() + random.randint(100, 200) 
     cs = CollectShip.objects.filter(project=project)
-    data['collect_sum'] = cs.count() + 345
+    data['collect_sum'] = cs.count() + random.randint(100, 200) 
     vs = VoteShip.objects.filter(project=project)
-    data['vote_sum'] = vs.count() + 234
+    data['vote_sum'] = vs.count() + random.randint(100, 200)
     return data
 
 @api_view(['GET', 'POST'])
@@ -1364,8 +1364,8 @@ def g_news(queryset, page):
         tmp['source'] = qs.source
         tmp['content'] = qs.content
         tmp['src'] = qs.src
-        tmp['like'] = 100
-        tmp['readcount'] = 999
+        tmp['like'] = qs.likers.count()
+        tmp['readcount'] = qs.readcount
         tmp['href'] = '%s/app/news/%s' %(settings.RES_URL, qs.name)
         data.append(tmp)
     status, msg = (0, '') if len(queryset) == PAGE_SIZE else (-1, '加载完毕')
@@ -1418,6 +1418,7 @@ def newsreadcount(request, pk):
     news = isexists(News, pk) 
     if not news: return ISEXISTS 
     news.readcount += 1
+    news.save()
     return Response({'status':0, 'msg':'阅读数加'})
     
 @api_view(['POST', 'GET'])
