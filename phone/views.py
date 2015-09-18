@@ -11,6 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 #from django.db.models import F, Q, Sum
+from collections import OrderedDict
 from phone.models import *
 
 from phone.utils import *
@@ -247,22 +248,6 @@ def project_stage(project):
 def project(request, page=0):
     ret = g_project( Project.objects.all(), page) 
     return ret
-    projects = Project.objects.all()
-    start, end = start_end(page)
-    projects = projects[start:end]
-    data = list()
-    for project in projects:
-        tmp = dict()
-        tmp['id'] = project.id
-        tmp['project_img'] = '%s%s' %(RES_URL, project.img.url)
-        tmp['company_name'] = project.company.name
-        tmp['roadshow_start_datetime'] = dateformat(project.roadshow_start_datetime)
-        stage = project_stage(project)
-        tmp['stage'] = stage['status']
-        tmp['color'] = settings.COLOR[stage['flag']]
-        data.append(tmp)
-    status, msg = (0,'') if len(projects)==4 else (-1, '加载完毕')
-    return Response({'status':status, 'msg': msg, 'data': data})
 
 def g_thinktank(queryset, page):
     start, end = start_end(page)
@@ -279,6 +264,7 @@ def g_thinktank(queryset, page):
         tmp['name'] = item.name
         tmp['company'] = item.company
         tmp['title'] = item.title
+        tmp['experience'] = item.experience
         data.append(tmp)
     status, msg = (0,'') if len(queryset)==PAGE_SIZE else (-1, '加载完毕')
     return Response({'status':status, 'msg':msg, 'data':data})
@@ -323,10 +309,8 @@ def projectdetail(request, pk):
     data['participator2plan'] = project.participator2plan
     data['plan_finance'] = project.planfinance
     data['project_img'] = '%s%s' %(RES_URL, project.img.url)
-    data['thumbnail'] = '%s%s' %(RES_URL, project.thumbnail.url)
     data['project_video'] = project.url
     data['url'] = videourl(project.url.split('/')[-1])
-    data['industry_type'] = [i.name for i in project.company.industry.all()]
 
     q = InvestShip.objects.filter(project__pk=pk, valid=True).aggregate(Sum('invest_amount'))
     if not q['invest_amount__sum']:
@@ -348,8 +332,7 @@ def projectdetail(request, pk):
     data['vote_sum'] = ret['vote_sum']
 
     data['company_profile'] = project.company.profile
-    data['main_business'] = project.business
-    data['product_service'] = project.service
+    data['business'] = project.business
     data['project_desc'] = project.desc
     data['business_model'] = project.model
     data['leadfund'] = project.leadfund
@@ -454,7 +437,6 @@ def g_project(queryset, page):
         if flag == 'r': tmp['reason'] = project.reason
         if flag != 'p': project = project.project
         tmp['id'] = project.id
-        tmp['project_img'] = '%s%s' %(RES_URL, project.img.url)
         tmp['thumbnail'] = '%s%s' %(RES_URL, project.thumbnail.url)
         tmp['roadshow_start_datetime'] = dateformat(project.roadshow_start_datetime)
         tmp['project_summary'] = project.summary
@@ -1355,7 +1337,7 @@ def systeminformlist(request, page):
 def g_news(queryset, page):
     start, end = start_end(page)
     queryset = queryset[start:end]
-    if not queryset: return Response({'status':-1, 'msg':'加载完毕'})
+    if not queryset and int(page) == 0: return Response({'status':0, 'msg':'没有相关数据'})
     data = list()
     for qs in queryset:
         tmp = dict()
@@ -1372,9 +1354,8 @@ def g_news(queryset, page):
     return Response({'status': status, 'msg':msg, 'data':data})
 
 @api_view(['POST', 'GET'])
-def news(request, page):
-    flag = random.randint(0, 1)
-    queryset = News.objects.filter(newstype=1)
+def news(request, pk, page):
+    queryset = News.objects.filter(newstype__id=pk)
     return g_news(queryset, page)
 
 @api_view(['POST', 'GET'])
@@ -1404,10 +1385,10 @@ def newslike(request, pk):
         flag = request.data.get('flag')
         if flag == '0':
             news.likers.add(user)
-            return Response({'status':0, 'msg':'点赞成功'})
+            return Response({'status':0, 'msg':'点赞成功', 'data':1})
         else:
             news.likers.remove(user)
-            return Response({'status':0, 'msg':'取消点赞'})
+            return Response({'status':0, 'msg':'取消点赞', 'data':0})
     else:
         if user in news.likers.all(): flag = 1
         else: flag = 0
@@ -1422,38 +1403,18 @@ def newsreadcount(request, pk):
     return Response({'status':0, 'msg':'阅读数加'})
     
 @api_view(['POST', 'GET'])
-def newstagsearch(request, page):
-    newstype = request.data.get('newstype', '')
-    if not PK_RE.match(newstype): return myarg('newstype')
-    if int(newstype) > 2: return myarg('newstype')
-    tag = request.data.get('tag', '')
-    print(tag)
-    #if tag not in ['全部', '最新', '最热']: return myarg('tag')
-    if tag == '全部':
-        queryset = News.objects.filter(newstype__id=newstype)
-    elif tag == '最新':
-        queryset = News.objects.filter(newstype__id=newstype)
-    else:
-        queryset = News.objects.filter(newstype__id=newstype)
-    return g_news(queryset, page) 
-
-@api_view(['POST', 'GET'])
-def newstitlesearch(request, page):
-    newstype = request.data.get('newstype', '')
-    if not PK_RE.match(newstype): return myarg('newstype')
-    title = request.data.get('title', '').strip()
-    if not title: return myarg('title')
-    queryset = News.objects.filter(newstype__id=newstype, title__contains=title)
+def newssearch(request, pk, page):
+    value = request.data.get('title', '').strip()
+    if not value: return myarg('value')
+    queryset = News.objects.filter(newstype__id=pk, title__contains=value)
     return g_news(queryset, page)
 
 @api_view(['POST', 'GET'])
-def newstag(request):
-    data = ['全部', '最新', '最热']
-    data = []
+def newstype(request):
+    data = [{'key':item.id, 'value':item.name} for item in NewsType.objects.filter(~Q(valid=False))]
     return Response({'status':0, 'msg':'newstag', 'data':data})
 
 @api_view(['POST', 'GET'])
-def knowledgetag(request):
-    data = ['全部', '投资', '融资', '条文']
+def knowledgetag(requests):
     data = []
-    return Response({'status':0, 'msg':'knowledgetag', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})

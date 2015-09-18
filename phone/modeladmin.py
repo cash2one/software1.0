@@ -167,9 +167,9 @@ class InvestorAdmin(admin.ModelAdmin):
 
 class ProjectAdmin(admin.ModelAdmin):
     form = ProjectForm
-    list_display = ('id', '_stage', 'summary', 'company', 'planfinance', 'finance2get', '_leadfollow', 'tmpshare', 'share2give', 'investor2plan', '_roadshow_start_datetime', '_finance_stop_datetime')
+    list_display = ('id', '_stage', 'summary', 'company', 'planfinance', 'finance2get', '_leadfollow', 'tmpshare', 'share2give', 'investor2plan', '_roadshow_start_datetime', '_finance_stop_datetime', 'thumbnail')
     raw_id_fields = ('roadshow', 'company', 'participators', 'investors', 'likers', 'voters', 'collectors')
-    list_editable = ('finance2get',)
+    list_editable = ('thumbnail', 'finance2get',)
     def _leadfollow(self, obj):
         return '%s/%s' % (obj.leadfund, obj.followfund)
     _leadfollow.short_description = '领/跟投'
@@ -398,11 +398,12 @@ class ActivityAdmin(admin.ModelAdmin):
 
 class NewsTypeAdmin(admin.ModelAdmin):
     form = NewsTypeForm
-    list_display = ('id', 'name')
+    list_display = ('id', 'name', 'eng', 'valid')
+    list_editable = ('eng', 'valid')
 
 class NewsAdmin(admin.ModelAdmin):
     form = NewsForm 
-    list_display = ('id', 'title', 'img',)
+    list_display = ('id', 'title',)
     raw_id_fields = ('user', 'likers')
 
 class KnowledgeTypeAdmin(admin.ModelAdmin):

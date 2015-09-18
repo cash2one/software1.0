@@ -76,7 +76,7 @@ class User(models.Model):
             osremove(user.idback, self.idback)
         else:
             MobSMS().remind(self.telephone, settings.REGISTER) 
-            MAIL('用户注册', '%s 在 %s 注册' % (self.telephone, timeformat()) ).send()
+            MAIL('用户注册', '%s 在 %s 注册' % (self.telephone, timeformat(self.create_datetime)) ).send()
 
     def __str__(self):
         return '%s:%s' % (self.name, self.telephone)
@@ -277,7 +277,7 @@ class Project(models.Model):
     url = models.URLField('视频地址', blank=True)
     model = models.TextField('商业模式')
     business = models.TextField('主营业务')
-    service = models.TextField('产品服务')
+    service = models.TextField('产品服务', blank=True, null=True)
     planfinance = PositiveIntegerField('计划融资', default=0)
     finance2get = PositiveIntegerField('已获得融资', default=0)
     pattern = CharField('融资方式', max_length=32, default='股权融资')
@@ -291,9 +291,9 @@ class Project(models.Model):
     leadfund = models.PositiveIntegerField('领投金额', default=0)
     followfund = models.PositiveIntegerField('跟投金额', default=0)
     
-    roadshow_start_datetime = models.DateTimeField('路演时间')
-    roadshow_stop_datetime = models.DateTimeField('路演结束')
-    finance_stop_datetime = models.DateTimeField('融资结束')
+    roadshow_start_datetime = models.DateTimeField('路演时间', blank=True, null=True)
+    roadshow_stop_datetime = models.DateTimeField('路演结束', blank=True, null=True)
+    finance_stop_datetime = models.DateTimeField('融资结束', blank=True, null=True)
     over = models.NullBooleanField('众筹完成', default=None)
 
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
@@ -714,12 +714,15 @@ class Signin(models.Model):
 
 class NewsType(models.Model):
     name = models.CharField('资讯类型名', max_length=16, unique=True)
+    valid = models.NullBooleanField('是否真实', default=None)
+    eng = models.CharField('对应英文', max_length=64)
+
     
     def __str__(self):
         return '%s' % self.name
 
     class Meta:
-        ordering = ('-pk', )
+        ordering = ('pk', )
         verbose_name = verbose_name_plural = '资讯类型'
     
 class News(models.Model):
@@ -728,8 +731,6 @@ class News(models.Model):
     title = models.CharField('标题', max_length=64)
     src = models.URLField('图片url', blank=True)
     href = models.URLField('网页url', blank=True)
-    img = models.ImageField('图片', upload_to=UploadTo('news/img/%Y/%m'), blank=True, null=True)
-    pdf = models.FileField('pdf文档', blank=True, null=True)
     name = models.CharField('网页名', max_length=128)
     source = models.CharField('来源', max_length=64, default='金指投')
     content = models.TextField('内容', max_length=256)
@@ -745,8 +746,6 @@ class News(models.Model):
         edit = self.pk is not None
         if edit: news = News.objects.get(pk=self.pk)
         super(News, self).save(*args, **kwargs)
-        if edit:
-            osremove(news.img, self.img)
 
     def __str__(self):
         return '%s' % self.title
