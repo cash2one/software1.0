@@ -298,6 +298,14 @@ def videourl(name):
     private_url = q.private_download_url(base_url, expires=3600)
     return private_url
 
+def investamountsum(flag, project):
+    if flag == 1: return 0
+    elif flag == 2:
+        tmp = InvestShip.objects.filter(project=project, valid=True).aggregate(Sum('invest_amount'))['invest_amount__sum']
+        if not tmp: tmp = 0 
+        return (tmp + int(project.finance2get))
+    else: return project.finance2get
+
 @api_view(['POST', 'GET'])
 @islogin()
 def projectdetail(request, pk):
@@ -311,12 +319,7 @@ def projectdetail(request, pk):
     data['project_img'] = '%s%s' %(RES_URL, project.img.url)
     data['project_video'] = project.url
     data['url'] = videourl(project.url.split('/')[-1])
-
-    q = InvestShip.objects.filter(project__pk=pk, valid=True).aggregate(Sum('invest_amount'))
-    if not q['invest_amount__sum']:
-        data['invest_amount_sum'] = 0
-    else:
-        data['invest_amount_sum'] = q['invest_amount__sum']
+    data['invest_amount_sum'] = investamountsum(data['stage']['flag'], project)
     uid = request.session.get('login')
     ls = LikeShip.objects.filter(project__pk=pk)
     data['is_like'] =  ls.filter(user__pk=uid).exists()
@@ -330,7 +333,6 @@ def projectdetail(request, pk):
     data['like_sum'] = ret['like_sum']
     data['collect_sum'] = ret['collect_sum']
     data['vote_sum'] = ret['vote_sum']
-
     data['company_profile'] = project.company.profile
     data['business'] = project.business
     data['project_desc'] = project.desc
@@ -450,6 +452,7 @@ def g_project(queryset, page):
         tmp['vote_sum'] = ret['vote_sum']
         stage = project_stage(project)
         tmp['stage'] = stage['status']
+        if stage['flag'] == 3: tmp['invest_amount_sum'] = project.finance2get # 融资完成的显示
         tmp['color'] = settings.COLOR[stage['flag']]
         data.append(tmp)
     status, msg = (0, '') if len(queryset)==PAGE_SIZE else (-1, '加载完毕')
@@ -862,15 +865,7 @@ def feedback(request):
 
 @api_view(['GET', 'POST'])
 def keyword(request):
-    keywords = Keyword.objects.all()
-    data = list()
-    for keyword in keywords:
-        tmp = dict()
-        tmp['id'] = keyword.id
-        tmp['word'] = keyword.word
-        data.append(tmp)
-
-    industrys = Industry.objects.all()
+    industrys = Industry.objects.filter(~Q(valid=False))
     data = list()
     for keyword in industrys:
         tmp = dict()
@@ -880,18 +875,13 @@ def keyword(request):
     return Response({'status':0, 'msg':'热词一览表', 'data':data})
 
 @api_view(['POST', 'GET'])
-def search(request):
-    word = request.data.get('word')
-    number_re = re.compile(r'^[1-9]\d*$')
-    if number_re.match(word):
-        word = int(word)
-        ps = Project.objects.filter(company__industry__in=[word,])
-    else:
-        ps = Project.objects.filter(
-            Q(company__name__contains=word) |
-            Q(company__city__contains=word) 
-        )
-    ret = g_project(ps, 0)
+def projectsearch(request, pk, page):
+    if pk == '0': 
+        value = request.data.get('value').strip()
+        if not value: return myarg('value')
+        queryset = Project.objects.filter(company__name__contains=value)
+    else: queryset = Project.objects.filter(company__industry__in=[int(pk),])
+    ret = g_project(queryset, page)
     return ret
 
 @api_view(['GET', 'POST'])
@@ -1346,7 +1336,7 @@ def g_news(queryset, page):
         tmp['source'] = qs.source
         tmp['content'] = qs.content
         tmp['src'] = qs.src
-        tmp['like'] = qs.likers.count()
+        tmp['sharecount'] = qs.sharecount
         tmp['readcount'] = qs.readcount
         tmp['href'] = '%s/app/news/%s' %(settings.RES_URL, qs.name)
         data.append(tmp)
@@ -1375,24 +1365,12 @@ def newsshare(request, pk):
     return Response({'status':0, 'msg':'newsshare', 'data':data})
 
 @api_view(['POST', 'GET'])
-@islogin()
-def newslike(request, pk):
+def newssharecount(request, pk):
     news = isexists(News, pk) 
     if not news: return ISEXISTS 
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid) 
-    if request.method == 'POST':
-        flag = request.data.get('flag')
-        if flag == '0':
-            news.likers.add(user)
-            return Response({'status':0, 'msg':'点赞成功', 'data':1})
-        else:
-            news.likers.remove(user)
-            return Response({'status':0, 'msg':'取消点赞', 'data':0})
-    else:
-        if user in news.likers.all(): flag = 1
-        else: flag = 0
-        return Response({'status':0, 'msg':'是否点赞', 'data':flag})
+    news.sharecount += 1
+    news.save()
+    return Response({'status':0, 'msg':'分享数加'})
         
 @api_view(['POST', 'GET'])
 def newsreadcount(request, pk):
@@ -1404,9 +1382,13 @@ def newsreadcount(request, pk):
     
 @api_view(['POST', 'GET'])
 def newssearch(request, pk, page):
-    value = request.data.get('title', '').strip()
+    pth = os.path.join(settings.BASE_DIR, 'app/templates/app/news/')
+    print(pth)
+    value = request.data.get('value', '').strip()
+    value = 9
     if not value: return myarg('value')
-    queryset = News.objects.filter(newstype__id=pk, title__contains=value)
+    if pk == '0': queryset = News.objects.filter(title__contains=value)
+    else: queryset = News.objects.filter(newstype__id=pk)
     return g_news(queryset, page)
 
 @api_view(['POST', 'GET'])

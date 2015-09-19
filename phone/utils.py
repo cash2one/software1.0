@@ -153,7 +153,7 @@ class MAIL(object):
 
     def send(self):
         assert type(MAIL.server) == dict
-        assert type(self.to) == list
+        assert type(self.to) == tuple 
         assert type(self.files) == list
         msg = MIMEMultipart()
         msg['From'] = MAIL.fro

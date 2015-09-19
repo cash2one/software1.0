@@ -139,6 +139,7 @@ class Companystatus(models.Model):
 
 class Industry(models.Model):
     name = models.CharField('行业类别', max_length=16, unique=True)
+    valid = models.NullBooleanField('是否合法', default=None)
 
     def __str__(self):
         return '%s' % self.name
@@ -399,8 +400,9 @@ class ParticipateShip(models.Model):
         else:
             text = '您的来现场申请已经提交, 请耐心等待审核'
             #MobSMS().remind(self.user.telephone, text)
-            text = '%s 于 %s 申请来现场, 是否给ta同意' % (self.user.telephone, timeformat())
-            MAIL('来现场申请', text).send()
+            text = '%s 于 %s 申请来 %s' % (self.user.telephone, timeformat(), self.project.summary)
+            MAIL(subject='来现场', text=text).send()
+            MAIL(subject='来现场', text=text, to=settings.invest_manager).send()
             self.project.participators.add(self.user)
 
     def delete(self):
@@ -735,9 +737,8 @@ class News(models.Model):
     source = models.CharField('来源', max_length=64, default='金指投')
     content = models.TextField('内容', max_length=256)
     keyword = models.CharField('关键词', max_length=64)
-
-    likers = ManyToManyField('User', related_name='news_likers', verbose_name='点赞', blank=True)
-    readcount = models.PositiveIntegerField('阅读数', default=1)
+    sharecount = models.PositiveIntegerField('分享', default=0)
+    readcount = models.PositiveIntegerField('阅读数', default=0)
     pub_date = models.DateField('发布时间', null=True, blank=True)
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
     valid = models.NullBooleanField('合法', default=None)

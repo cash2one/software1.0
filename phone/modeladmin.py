@@ -79,7 +79,8 @@ class CompanystatusAdmin(admin.ModelAdmin):
 
 class IndustryAdmin(admin.ModelAdmin):
     form = IndustryForm
-    list_display = ('id', 'name')
+    list_display = ('id', 'name', 'valid')
+    list_editable = ('valid',)
 
 class CompanyAdmin(admin.ModelAdmin):
     form = CompanyForm
@@ -340,7 +341,7 @@ class RecommendProjectAdmin(admin.ModelAdmin):
 
     def change_view(self, object_id, request, form_url='', extra_context=None):
 
-        return super(RecommendProjectAdmin, self).add_view(object_id, request, form_url, extra_context)
+        return super(RecommendProjectAdmin, self).change_view(object_id, request, form_url, extra_context)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'project':
@@ -404,7 +405,7 @@ class NewsTypeAdmin(admin.ModelAdmin):
 class NewsAdmin(admin.ModelAdmin):
     form = NewsForm 
     list_display = ('id', 'title',)
-    raw_id_fields = ('user', 'likers')
+    raw_id_fields = ('user',)
 
 class KnowledgeTypeAdmin(admin.ModelAdmin):
     form = KnowledgeTypeForm
