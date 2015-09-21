@@ -89,7 +89,7 @@ class ProjectForm(forms.ModelForm):
         roadshow_stop_datetime = cleaned_data.get('roadshow_stop_datetime')
         finance_stop_datetime = cleaned_data.get('finance_stop_datetime')
 
-        if roadshow_stop_datetime and roadshow_stop_datetime and finance_stop_datetime:
+        if roadshow_start_datetime and roadshow_stop_datetime and finance_stop_datetime:
             if roadshow_start_datetime >= roadshow_stop_datetime:
                 raise forms.ValidationError('路演开始时间 必须< 路演截至时间')
             elif roadshow_stop_datetime > finance_stop_datetime:
@@ -247,4 +247,9 @@ class MsgTypeForm(forms.ModelForm):
 class PushForm(forms.ModelForm):
     class Meta:
         model = Push
+        fields = '__all__'
+
+class MsgreadForm(forms.ModelForm):
+    class Meta:
+        model = Msgread
         fields = '__all__'

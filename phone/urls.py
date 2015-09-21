@@ -94,4 +94,8 @@ urlpatterns = [
     url(r'^newsreadcount/(?P<pk>[1-9]\d*)/$', views.newsreadcount, name='newsreadcount'),
     url(r'^newsshare/(?P<pk>[1-9]\d*)/$', views.newsshare, name='newsshare'),
     url(r'^knowledgetag/$', views.knowledgetag, name='knowledgetag'),
+    url(r'^msgread/(?P<page>\d+)/$', views.msgread, name='msgread'),
+    url(r'^setmsgread/(?P<pk>[1-9]\d*)/$', views.setmsgread, name='setmsgread'),
+    url(r'^topicread/(?P<page>\d+)/$', views.topicread, name='topicread'),
+    url(r'^settopicread/(?P<pk>[1-9]\d*)/$', views.settopicread, name='settopicread'),
 ]

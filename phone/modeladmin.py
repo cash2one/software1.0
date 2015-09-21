@@ -177,7 +177,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
     def _stage(self, obj):
         now = timezone.now()
-        if now < obj.roadshow_start_datetime:
+        if not obj.roadshow_start_datetime or now < obj.roadshow_start_datetime:
             stage = '路演预告'
             return None
         elif now > obj.roadshow_stop_datetime:
@@ -405,7 +405,6 @@ class NewsTypeAdmin(admin.ModelAdmin):
 class NewsAdmin(admin.ModelAdmin):
     form = NewsForm 
     list_display = ('id', 'title',)
-    raw_id_fields = ('user',)
 
 class KnowledgeTypeAdmin(admin.ModelAdmin):
     form = KnowledgeTypeForm
@@ -441,5 +440,13 @@ class MsgTypeAdmin(admin.ModelAdmin):
 
 class PushAdmin(admin.ModelAdmin):
     form = PushForm
-    list_display = ('id', 'title', 'content', 'pid', 'url', 'valid')
+    list_display = ('id', 'msgtype', '_id', '_user', 'valid')
+    raw_id_fields = ('user',)
+    def _user(self, obj):
+       return ','.join([user.telephone for user in obj.user.all()]) 
     list_editable = ('valid',)
+
+class MsgreadAdmin(admin.ModelAdmin):
+    form = MsgreadForm
+    list_display = ('id', 'user', 'push', 'read')
+    

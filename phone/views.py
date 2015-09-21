@@ -188,7 +188,20 @@ def provincecity(request):
 
 def project_stage(project):
     now = timezone.now()
-    if now < project.roadshow_start_datetime: # 现在时间 < 路演开始时间
+    if not project.roadshow_start_datetime:
+        stage = {
+            'flag': 1,
+            'status': '路演预告',
+            'start': {
+                'name': '路演时间',
+                'datetime': '待定',
+            },
+            'end': {
+                'name': '报名截至',
+                'datetime': '待定'
+            }
+        }
+    elif now < project.roadshow_start_datetime: # 现在时间 < 路演开始时间
         stage = { 
                     'flag': 1,
                     'status': '路演预告', 
@@ -421,7 +434,7 @@ def participate(request, pk):
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     pps = ParticipateShip.objects.filter(project=project, user=user)
-    if pps.exists(): return Response({'status':0, 'msg':'已经报名'})
+    if pps.exists(): return Response({'status':1, 'msg':'已经报名'})
     ParticipateShip.objects.create(project=project, user=user)
     return Response({'status':0, 'msg':'报名成功'})
 
@@ -938,7 +951,7 @@ def wantinvest(request, pk):
         return Response({'status':-9, 'msg':'该投资人不存在'})
     investship = InvestShip.objects.filter(project__pk=pk, investor__pk=investor) #是否投资过
     if investship.exists():
-        return Response({'status':0, 'msg':'您已经投资过该项目'})
+        return Response({'status':1, 'msg':'您已经投资过该项目'})
     InvestShip.objects.create(
         investor = investor_obj[0],
         project = project,
@@ -1288,27 +1301,29 @@ def mytopic(request, page):
     status, msg = (0,'') if len(objs)==6 else (-1, '加载完毕')
     return Response({'status':status, 'msg':msg, 'data':data})
 
+def g_topiclist(request, queryset, page):
+    start, end = start_end(page, 6)
+    queryset = queryset[start:end]
+    data = list()
+    for item in queryset:
+        tmp = dict()
+        tmp['id'] = item.id
+        tmp['img'] = myimg(item.user.img)
+        if item.at_topic: tmp['name'] = '%s 回复 %s' % (item.user.name, item.at_topic.user.name)
+        else: tmp['name'] = '%s' % (item.user.name)
+        tmp['create_datetime'] = datetime_filter(item.create_datetime) 
+        tmp['content'] = item.content
+        tmp['investor'] = Investor.objects.filter(user=item.user, valid=True).exists()
+        data.insert(0, tmp) 
+    status, msg = (0,'') if len(queryset)==6 else (-1, '加载完毕')
+    return Response({'status':status, 'msg':msg, 'data':data})
+
 @api_view(['POST', 'GET'])
 @islogin()
 def topiclist(request, pk, page):
-    objs = Topic.objects.filter(project__pk=pk)
-    start, end = start_end(page, 6)
-    objs = objs[start:end]
-    data = list()
-    for obj in objs:
-        tmp = dict()
-        tmp['id'] = obj.id
-        tmp['img'] = myimg(obj.user.img)
-        if obj.at_topic:
-            tmp['name'] = '%s 回复 %s' % (obj.user.name, obj.at_topic.user.name)
-        else:
-            tmp['name'] = '%s' % (obj.user.name)
-        tmp['create_datetime'] = datetime_filter(obj.create_datetime) 
-        tmp['content'] = obj.content
-        tmp['investor'] = Investor.objects.filter(user=obj.user, valid=True).exists()
-        data.insert(0, tmp) 
-    status, msg = (0,'') if len(objs)==6 else (-1, '加载完毕')
-    return Response({'status':status, 'msg':msg, 'data':data})
+    queryset = Topic.objects.filter(project__pk=pk)
+    ret = g_topiclist(queryset, page)
+    return ret
    
 @api_view(['POST', 'GET'])
 #@islogin()
@@ -1397,6 +1412,55 @@ def newstype(request):
     return Response({'status':0, 'msg':'newstag', 'data':data})
 
 @api_view(['POST', 'GET'])
-def knowledgetag(requests):
+def knowledgetag(request):
     data = []
     return Response({'status':0, 'msg':'', 'data':data})
+
+@api_view(['POST', 'GET'])
+@islogin()
+def msgread(request, page):
+    uid = request.session.get('login')
+    uid = 1
+    queryset = Msgread.objects.filter(user__pk=uid)
+    start, end = start_end(page)
+    queryset = queryset[start:end]
+    data = list()
+    for item in queryset:
+        extras = {'api': item.push.msgtype.name,
+            '_id': item.push._id,
+            'url': item.push.url
+        }
+        tmp = dict()
+        tmp['id'] = item.id
+        tmp['content'] = item.push.content
+        tmp['extras'] = extras
+        tmp['create_datetime'] = timeformat(item.create_datetime)
+        tmp['read'] = item.read
+        data.append(tmp)
+    return Response({'status':0, 'msg':'', 'data':data})
+
+@api_view(['POST', 'GET'])
+@islogin()
+def setmsgread(request, pk):
+    msgread = isexists(Msgread, pk)
+    if not msgread: return myarg('msgread')
+    msgread.read = True
+    msgread.save()
+    return Response({'status':0, 'msg':'', 'data':msgread.read})
+
+@api_view(['POST', 'GET'])
+@islogin()
+def topicread(request, page):
+    uid = request.session.get('login') 
+    queryset = Topic.objects.filter(at_topic__user__id=uid, read=False) 
+    ret = g_topiclist(queryset, page)
+    return ret
+
+@api_view(['POST', 'GET'])
+@islogin()
+def settopicread(request, pk):
+    topic = isexists(Topic, pk)
+    if not topic: return myarg('topic')
+    topic.read = True
+    topic.save()
+    return Response({'status':0, 'msg':'', 'data':topic.read})

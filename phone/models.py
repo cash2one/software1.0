@@ -728,7 +728,6 @@ class NewsType(models.Model):
         verbose_name = verbose_name_plural = '资讯类型'
     
 class News(models.Model):
-    user = models.ForeignKey('User', verbose_name='责任编辑', blank=True, null=True)
     newstype = models.ForeignKey('NewsType', verbose_name='资讯类型', blank=True, null=True, default=1)
     title = models.CharField('标题', max_length=64)
     src = models.URLField('图片url', blank=True)
@@ -822,11 +821,11 @@ class Aboutus(models.Model):
         edit = self.pk is not None
         if edit: aboutus = Aboutus.objects.get(pk=self.pk)
         super(Aboutus, self).save(*args, **kwargs)
-        if edit:
-            osremove(aboutus.img, self.img)
+        if edit: osremove(aboutus.img, self.img)
 
     def __str__(self):
         return '%s' % self.title
+
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '关于我们的分享'
@@ -843,9 +842,10 @@ class MsgType(models.Model):
 
 class Push(models.Model):
     msgtype = models.ForeignKey('MsgType', verbose_name='消息类型')
+    user = models.ManyToManyField('User', verbose_name='推送给', blank=True)
     title = models.CharField('标题', max_length=32, default='金指投')
     content = models.CharField('内容', max_length=64)
-    pid = models.PositiveIntegerField('对应的id', null=True, default=1)
+    _id = models.PositiveIntegerField('对应的id', blank=True, null=True)
     url = models.URLField('地址', blank=True, default='www.jinzht.com')
     comment = models.CharField('备注', max_length=64, blank=True)
     valid = models.NullBooleanField('是否合法', default=None)
@@ -861,21 +861,38 @@ class Push(models.Model):
     def save(self, *args, **kwargs):
         edit = self.pk is not None
         if self.valid == True:
+            if self.msgtype.name == 'web':
+                news = News.objects.filter(pk=self._id)
+                if news: self.url = '%s/app/news/%s' %(settings.RES_URL, news[0].name)
             extras = {'api': self.msgtype.name,
-                'pid': self.pid,
+                'pid': self._id,
                 'url': self.url
             }
-            JiGuang(self.content, extras).all()
+            #JiGuang(self.content, extras).all()
+            JiGuang(self.content, extras).single('050dee23230')
+            JiGuang(self.content, extras).single('050eb8bcd2f')
+            JiGuang(self.content, extras).single('091331c019c')
+            if not self.user: print('all')
+            else:
+                from django.db import IntegrityError, transaction
+                try:
+                    for user in self.user.all():
+                        with transaction.atomic():
+                            Msgread.objects.create(user=user, push=self)
+                except IntegrityError as e:
+                    pass
         super(Push, self).save(*args, **kwargs)
-
+                    
 class Msgread(models.Model):
     user = models.ForeignKey('User', verbose_name='用户')
-    msgtype = models.ForeignKey('MsgType', verbose_name='消息类型')
-    read = models.NullBooleanField('是否阅读', default=None)
+    push = models.ForeignKey('Push', verbose_name='push')
+    read = models.NullBooleanField('是否阅读', default=False)
+    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
 
     def __str__(self):
         return '%s' % self.user
 
     class Meta:
-        ordering = ('pk',)
+        ordering = ('-pk',)
+        unique_together = ('user', 'push')
         verbose_name = verbose_name_plural = '消息阅读'

@@ -46,9 +46,11 @@ def myimg(file, default=''):
         return '%s%s' % (settings.RES_URL, file.url)
 
 def timeformat(now=timezone.now()):
+    if not now: return '待定'
     return timezone.localtime(now).strftime('%Y-%m-%d %H:%M:%S')
 
 def dateformat(now=timezone.now()):
+    if not now: return '待定' 
     return timezone.localtime(now).strftime('%Y-%m-%d')
 
 def validate_telephone(telephone):
