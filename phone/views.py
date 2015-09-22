@@ -37,7 +37,6 @@ def sendcode(request):
     ret = MobSMS(code).send(telephone)
     if ret == -1: return Response({'status':1, 'msg': '获取验证码失败'})
     request.session[telephone] = code; request.session.set_expiry(60 * 3)
-    print(',,,', code)
     return Response({'status':0, 'msg':'短息已发送, 请耐心等待'})
 
 @api_view(['POST'])
@@ -70,7 +69,6 @@ def register(request):
 @api_view(['POST'])
 def login(request):
     telephone = request.data.get('telephone', '').strip()
-    print('telephone', telephone)
     if validate_telephone(telephone) == False:
         return Response({'status':1, 'msg':'手机号码错误'})
     user = User.objects.filter(telephone=telephone)
@@ -134,7 +132,7 @@ def modifypassword(request):
 @islogin()
 def gender(request):
     gender = request.data.get('gender', '').strip()
-    if not re.match('^[01]$', gender): return ARG
+    if not re.match('^[01]$', gender): return myarg('gender')
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     user.gender = int(gender)
@@ -147,7 +145,7 @@ def weixin(request):
     uid = request.data.get('login')
     user = User.objects.get(pk=uid)
     weixin = request.data.get('weixin','').strip()
-    if not weixin: return ARG
+    if not weixin: return myarg('weixin')
     user.weixin = weixin
     user.save()
     return Response({'status':0, 'msg':'微信更改成功'})
@@ -158,10 +156,10 @@ def realname(request):
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     name = request.data.get('real_name', '').strip()
-    if not name: return ARG
+    if not name: return myarg('name')
     user.name = name
     user.save()
-    return Response({'status':0, 'msg':'真实姓名更改成功'})
+    return Response({'status':0, 'msg':'姓名更改成功'})
 
 @api_view(['GET', 'POST'])
 def banner(rquest):
@@ -170,6 +168,7 @@ def banner(rquest):
     for banner in banners:
         tmp = dict()
         tmp['img'] = '%s%s' %(RES_URL, banner.img.url)
+        tmp['project'] = banner.project.id if banner.project else None
         tmp['url'] = banner.url
         data.append(tmp)
     return Response({'status':0, 'msg': '返回列表', 'data':data})
@@ -180,11 +179,11 @@ def provincecity(request):
     uid = request.session.get('login')
     province = request.data.get('province', '').strip()
     city = request.data.get('city', '').strip()
-    if not province or not city: return ARG
+    if not province or not city: return myarg('province or city') 
     user = User.objects.get(pk=uid)
     user.province, user.city = province, city
     user.save()
-    return Response({'status':0, 'msg': '修改所在地区成功'})
+    return Response({'status':0, 'msg': '地区修改成功'})
 
 def project_stage(project):
     now = timezone.now()
@@ -192,12 +191,13 @@ def project_stage(project):
         stage = {
             'flag': 1,
             'status': '路演预告',
+            'color': 0xE69781,
             'start': {
                 'name': '路演时间',
                 'datetime': '待定',
             },
             'end': {
-                'name': '报名截至',
+                'name': '报名截止',
                 'datetime': '待定'
             }
         }
@@ -205,6 +205,7 @@ def project_stage(project):
         stage = { 
                     'flag': 1,
                     'status': '路演预告', 
+                    'color': 0xE69781,
                     'start': {
                         'name':'路演时间', 
                         'datetime':dateformat(project.roadshow_start_datetime)
@@ -220,12 +221,13 @@ def project_stage(project):
             stage = {
                     'flag': 3,
                     'status': '融资完毕', 
+                    'color': 0xDC471C,
                     'start': {
                         'name': '众筹时间', 
                         'datetime': dateformat(project.roadshow_start_datetime),
                     },
                     'end': {
-                        'name': '众筹截止时间', 
+                        'name': '截止时间', 
                         'datetime': dateformat(project.finance_stop_datetime)
                     }
                 }
@@ -233,12 +235,13 @@ def project_stage(project):
             stage = {
                     'flag': 2,
                     'status': '融资进行', 
+                    'color': 0xD4A225,
                     'start': {
                         'name': '众筹时间', 
                         'datetime': dateformat(project.roadshow_start_datetime),
                     },
                     'end': {
-                        'name': '众筹截止时间', 
+                        'name': '截止时间', 
                         'datetime': dateformat(project.finance_stop_datetime)
                     }
                 }
@@ -246,12 +249,13 @@ def project_stage(project):
             stage = {
                     'flag': 2,
                     'status': '融资进行', 
+                    'color': 0xD4A225,
                     'start': {
                         'name': '众筹时间', 
                         'datetime': dateformat(project.roadshow_start_datetime),
                     },
                     'end': {
-                        'name': '众筹截止时间', 
+                        'name': '截止时间', 
                         'datetime': dateformat(project.finance_stop_datetime)
                     }
                 }
@@ -274,6 +278,7 @@ def g_thinktank(queryset, page):
         if flag != 't': item = item.thinktank
         tmp['id'] = item.id
         tmp['img'] = '%s%s' %(RES_URL, item.img.url)
+        #tmp['thumbnail'] = '%s%s' %(RES_URL, item.thumbnail.url)
         tmp['name'] = item.name
         tmp['company'] = item.company
         tmp['title'] = item.title
@@ -287,7 +292,7 @@ def thinktankdetail(request, pk):
     thinktank = isexists(Thinktank, pk)
     if not thinktank: return ISEXISTS
     data = dict()
-    data['url'] = thinktank.url
+    data['url'] = thinktank.video
     data['experience'] = thinktank.experience
     data['success_cases'] = thinktank.success_cases
     data['good_at_field'] = thinktank.good_at_field
@@ -453,7 +458,6 @@ def g_project(queryset, page):
         if flag != 'p': project = project.project
         tmp['id'] = project.id
         tmp['thumbnail'] = '%s%s' %(RES_URL, project.thumbnail.url)
-        tmp['roadshow_start_datetime'] = dateformat(project.roadshow_start_datetime)
         tmp['project_summary'] = project.summary
         tmp['company_name'] = project.company.name
         tmp['province'] = project.company.province
@@ -464,9 +468,8 @@ def g_project(queryset, page):
         tmp['collect_sum'] = ret['collect_sum']
         tmp['vote_sum'] = ret['vote_sum']
         stage = project_stage(project)
-        tmp['stage'] = stage['status']
+        tmp['stage'] = stage
         if stage['flag'] == 3: tmp['invest_amount_sum'] = project.finance2get # 融资完成的显示
-        tmp['color'] = settings.COLOR[stage['flag']]
         data.append(tmp)
     status, msg = (0, '') if len(queryset)==PAGE_SIZE else (-1, '加载完毕')
     return Response({'status':status, 'msg':msg, 'data':data})
@@ -1178,13 +1181,13 @@ def contactus(request):
 
 @api_view(['POST', 'GET'])
 def checkupdate(request, system):
-    return Response({'status':0, 'msg':'没有更新'})
+    return Response({'status':1, 'msg':'没有更新'})
     queryset = Version.objects.filter(system__id=system)
     if not queryset: 
         return Response({'status':0, 'msg':'没有更新'})
     version = queryset[0] 
     data = dict()
-    data['force'] = False
+    data['force'] = True #False
     data['edition'] = version.edition
     data['item'] = version.item
     data['href'] = version.href 
@@ -1266,6 +1269,10 @@ def topic(request, pk):
     else: at_topic = isexists(Topic, at_topic)
     uid = request.session.get('login')
     user = User.objects.get(pk=uid) 
+    if at_topic and at_topic.user == user:
+        print(at_topic.user)
+        print(user)
+        return Response({'status':1, 'msg':'不能给自己回复哦'})
     topic = Topic.objects.create(
        project = project,
        user = user,
@@ -1274,34 +1281,7 @@ def topic(request, pk):
     )
     return Response({'status':0, 'msg':'发表话题成功', 'data':topic.id})
 
-@api_view(['POST', 'GET'])
-@islogin()
-def mytopic(request, page):
-    uid = request.session.get('login')
-    print(uid)
-    objs = Topic.objects.filter(at_topic__user__pk=uid).order_by('read', '-pk')
-    print('total', objs.count())
-    start, end = start_end(page, 6)
-    objs = objs[start:end]
-    data = list()
-    for obj in objs:
-        tmp = dict()
-        tmp['pid'] = obj.project.id
-        tmp['tid'] = obj.id
-        tmp['read'] = True if obj.read == True else False
-        tmp['img'] = myimg(obj.user.img)
-        if obj.at_topic:
-            tmp['name'] = '%s' % (obj.user.name)
-        else:
-            tmp['name'] = '%s' % (obj.user.name)
-        tmp['create_datetime'] = datetime_filter(obj.create_datetime) 
-        tmp['content'] = obj.content
-        tmp['investor'] = Investor.objects.filter(user=obj.user, valid=True).exists()
-        data.append(tmp) 
-    status, msg = (0,'') if len(objs)==6 else (-1, '加载完毕')
-    return Response({'status':status, 'msg':msg, 'data':data})
-
-def g_topiclist(request, queryset, page):
+def g_topiclist(queryset, page):
     start, end = start_end(page, 6)
     queryset = queryset[start:end]
     data = list()
@@ -1314,7 +1294,7 @@ def g_topiclist(request, queryset, page):
         tmp['create_datetime'] = datetime_filter(item.create_datetime) 
         tmp['content'] = item.content
         tmp['investor'] = Investor.objects.filter(user=item.user, valid=True).exists()
-        data.insert(0, tmp) 
+        data.append(tmp) 
     status, msg = (0,'') if len(queryset)==6 else (-1, '加载完毕')
     return Response({'status':status, 'msg':msg, 'data':data})
 
@@ -1344,16 +1324,17 @@ def g_news(queryset, page):
     queryset = queryset[start:end]
     if not queryset and int(page) == 0: return Response({'status':0, 'msg':'没有相关数据'})
     data = list()
-    for qs in queryset:
+    for item in queryset:
         tmp = dict()
-        tmp['id'] = qs.id
-        tmp['title'] = qs.title
-        tmp['source'] = qs.source
-        tmp['content'] = qs.content
-        tmp['src'] = qs.src
-        tmp['sharecount'] = qs.sharecount
-        tmp['readcount'] = qs.readcount
-        tmp['href'] = '%s/app/news/%s' %(settings.RES_URL, qs.name)
+        tmp['id'] = item.id
+        tmp['title'] = item.title
+        tmp['source'] = item.source
+        tmp['content'] = item.content
+        tmp['src'] = item.src
+        tmp['sharecount'] = item.sharecount
+        tmp['create_datetime'] = datetime_filter(item.create_datetime) 
+        tmp['readcount'] = item.readcount
+        tmp['href'] = '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, item.name)
         data.append(tmp)
     status, msg = (0, '') if len(queryset) == PAGE_SIZE else (-1, '加载完毕')
     return Response({'status': status, 'msg':msg, 'data':data})
@@ -1373,7 +1354,7 @@ def newsshare(request, pk):
     news = isexists(News, pk) 
     if not news: return ISEXISTS 
     data = dict()
-    data['href'] = '%s/app/news/%s' %(settings.RES_URL, news.name)
+    data['href'] = '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, news.name)
     data['src'] = news.src 
     data['title'] = news.title
     data['content'] = news.content
@@ -1397,10 +1378,7 @@ def newsreadcount(request, pk):
     
 @api_view(['POST', 'GET'])
 def newssearch(request, pk, page):
-    pth = os.path.join(settings.BASE_DIR, 'app/templates/app/news/')
-    print(pth)
     value = request.data.get('value', '').strip()
-    value = 9
     if not value: return myarg('value')
     if pk == '0': queryset = News.objects.filter(title__contains=value)
     else: queryset = News.objects.filter(newstype__id=pk)
@@ -1418,9 +1396,16 @@ def knowledgetag(request):
 
 @api_view(['POST', 'GET'])
 @islogin()
+def hasnewmsg(request):
+    uid = request.session.get('login')
+    queryset = Msgread.objects.filter(user__pk=uid)
+    data = {'count': queryset.count()}
+    return Response({'status':0, 'msg':'系统消息', 'data':data})    
+
+@api_view(['POST', 'GET'])
+@islogin()
 def msgread(request, page):
     uid = request.session.get('login')
-    uid = 1
     queryset = Msgread.objects.filter(user__pk=uid)
     start, end = start_end(page)
     queryset = queryset[start:end]
@@ -1447,6 +1432,13 @@ def setmsgread(request, pk):
     msgread.read = True
     msgread.save()
     return Response({'status':0, 'msg':'', 'data':msgread.read})
+
+@api_view(['POST', 'GET'])
+@islogin()
+def hasnewtopic(request):
+    uid = request.session.get('login') 
+    queryset = Topic.objects.filter(at_topic__user__id=uid, read=False)
+    return Response({'status':0, 'msg':'', 'data':{'count':queryset.count()}})
 
 @api_view(['POST', 'GET'])
 @islogin()

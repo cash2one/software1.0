@@ -4,6 +4,7 @@ from django.db.models import *
 from django.core.exceptions import ValidationError
 from django.utils.deconstruct import deconstructible
 from django.core.files.storage import FileSystemStorage
+from django.db import IntegrityError, transaction
 
 from .utils import *
 
@@ -567,10 +568,10 @@ class BannerType(models.Model):
 
 class Banner(models.Model):
     title = models.CharField('题目', max_length=16)
-    bannertype = models.ForeignKey('BannerType', verbose_name='旗标类型', on_delete=models.PROTECT)
     img = models.ImageField('图片', upload_to=UploadTo('banner/img/%Y/%m'))
-    desc = models.TextField('介绍', blank=True)
+    project = models.OneToOneField('Project', verbose_name='项目', blank=True, null=True)
     url = models.URLField('链接地址', max_length=64, blank=True)
+    desc = models.TextField('介绍', blank=True)
     create_datetime = models.DateTimeField('创建日期', auto_now_add=True)
 
     def __str__(self):
@@ -592,9 +593,9 @@ class Thinktank(models.Model):
     name = models.CharField('姓名', max_length=16)
     company = models.CharField('公司', max_length=64)
     title = models.CharField('职位', max_length=64)
+    thumbnail = models.ImageField('图像', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'))
     img = models.ImageField('图像', upload_to=UploadTo('thinktank/img/%Y/%m'))
-    video = models.FileField('视频', upload_to=UploadTo('thinktank/video/%Y/%m'), blank=True)
-    url = models.URLField('链接地址', max_length=64, blank=True)
+    video = models.URLField('链接地址', max_length=64, blank=True)
     experience = models.TextField('经历')
     success_cases = models.TextField('成功案例')
     good_at_field = models.TextField('擅长领域')
@@ -606,7 +607,8 @@ class Thinktank(models.Model):
         super(Thinktank, self).save(*args, **kwargs)
         if edit:
             osremove(thinktank.img, self.img)
-            osremove(thinktank.video, self.video)
+            osremove(thinktank.thumbnail, self.thumbnail)
+
     def __str__(self):
         return '%s' % self.name
 
@@ -637,7 +639,7 @@ class System(models.Model):
         verbose_name = verbose_name_plural = '操作系统'
 
 class Version(models.Model):
-    edition = models.CharField('版本号', max_length=16, unique=True)
+    edition = models.CharField('版本号', max_length=16)
     system = models.ForeignKey('System', verbose_name='系统类型', on_delete=models.PROTECT)
     item = models.TextField('更新条目')
     href = models.URLField('地址')
@@ -724,7 +726,7 @@ class NewsType(models.Model):
         return '%s' % self.name
 
     class Meta:
-        ordering = ('pk', )
+        ordering = ('-pk', )
         verbose_name = verbose_name_plural = '资讯类型'
     
 class News(models.Model):
@@ -863,24 +865,22 @@ class Push(models.Model):
         if self.valid == True:
             if self.msgtype.name == 'web':
                 news = News.objects.filter(pk=self._id)
-                if news: self.url = '%s/app/news/%s' %(settings.RES_URL, news[0].name)
+                if news: self.url = '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, news[0].name)
             extras = {'api': self.msgtype.name,
-                'pid': self._id,
+                '_id': self._id,
                 'url': self.url
             }
-            #JiGuang(self.content, extras).all()
-            JiGuang(self.content, extras).single('050dee23230')
-            JiGuang(self.content, extras).single('050eb8bcd2f')
-            JiGuang(self.content, extras).single('091331c019c')
-            if not self.user: print('all')
+            if not self.user:
+                JiGuang(self.content, extras).all()
+                queryset = User.objects.all()
             else:
-                from django.db import IntegrityError, transaction
-                try:
-                    for user in self.user.all():
-                        with transaction.atomic():
-                            Msgread.objects.create(user=user, push=self)
-                except IntegrityError as e:
-                    pass
+                for user in self.user.all(): 
+                    user.regid and JiGuang(self.content, extras).single(user.regid)
+                queryset = self.user.all() 
+            try:
+                for user in queryset:
+                    with transaction.atomic(): Msgread.objects.create(user=user, push=self)
+            except IntegrityError as e: pass
         super(Push, self).save(*args, **kwargs)
                     
 class Msgread(models.Model):

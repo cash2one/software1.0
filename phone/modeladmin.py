@@ -357,7 +357,7 @@ class BannerTypeAdmin(admin.ModelAdmin):
 
 class BannerAdmin(admin.ModelAdmin):
     form = BannerForm
-    list_display = ('id', 'title', 'bannertype', 'img', 'desc', 'url')
+    list_display = ('id', 'title', 'img', 'desc', 'url')
 
 class ThinktankAdmin(admin.ModelAdmin):
     form = ThinktankForm

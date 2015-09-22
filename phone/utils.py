@@ -35,7 +35,7 @@ def mystorage_file(file_field, upload_file, upload_to=''):
     name = upload_file.name
     pth = datetime.now().strftime(upload_to)
     file_field.save('%s/%s' % (pth, name), File(upload_file)) 
-        
+
 def myarg(field='参数'):
     return Response({'status':1, 'msg':'%s 错误' % field})
 
