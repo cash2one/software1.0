@@ -350,14 +350,9 @@ class RecommendProjectAdmin(admin.ModelAdmin):
 
         return super(RecommendProjectAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
-
-class BannerTypeAdmin(admin.ModelAdmin):
-    form = BannerTypeForm
-    list_display = ('id', 'name')
-
 class BannerAdmin(admin.ModelAdmin):
     form = BannerForm
-    list_display = ('id', 'title', 'img', 'desc', 'url')
+    list_display = ('id', 'title', 'project', 'img', 'desc', 'url')
 
 class ThinktankAdmin(admin.ModelAdmin):
     form = ThinktankForm
@@ -430,13 +425,9 @@ class FeedbackAdmin(admin.ModelAdmin):
     form = FeedbackForm
     list_display = ('id', 'user', 'advice')
 
-class AboutusAdmin(admin.ModelAdmin):
-    form = AboutusForm
-    list_display = ('id', 'title', 'img')
-
 class MsgTypeAdmin(admin.ModelAdmin):
     form = MsgTypeForm
-    list_display = ('id', 'name')
+    list_display = ('id', 'name', 'desc')
 
 class PushAdmin(admin.ModelAdmin):
     form = PushForm

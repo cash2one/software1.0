@@ -556,22 +556,12 @@ class RecommendProject(models.Model):
         ordering = ('-pk', )
         verbose_name = verbose_name_plural = '推荐项目'
 
-class BannerType(models.Model):
-    name = models.CharField('旗标类型', max_length=16, unique=True)
-
-    def __str__(self):
-        return '%s' % self.name
-
-    class Meta:
-        ordering = ('-pk', )
-        verbose_name = verbose_name_plural = '旗标类型'
-
 class Banner(models.Model):
     title = models.CharField('题目', max_length=16)
-    img = models.ImageField('图片', upload_to=UploadTo('banner/img/%Y/%m'))
     project = models.OneToOneField('Project', verbose_name='项目', blank=True, null=True)
-    url = models.URLField('链接地址', max_length=64, blank=True)
+    img = models.ImageField('图片', upload_to=UploadTo('banner/img/%Y/%m'))
     desc = models.TextField('介绍', blank=True)
+    url = models.URLField('链接地址', max_length=64, blank=True)
     create_datetime = models.DateTimeField('创建日期', auto_now_add=True)
 
     def __str__(self):
@@ -593,8 +583,8 @@ class Thinktank(models.Model):
     name = models.CharField('姓名', max_length=16)
     company = models.CharField('公司', max_length=64)
     title = models.CharField('职位', max_length=64)
-    thumbnail = models.ImageField('图像', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'))
     img = models.ImageField('图像', upload_to=UploadTo('thinktank/img/%Y/%m'))
+    thumbnail = models.ImageField('图像', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'))
     video = models.URLField('链接地址', max_length=64, blank=True)
     experience = models.TextField('经历')
     success_cases = models.TextField('成功案例')
@@ -608,7 +598,6 @@ class Thinktank(models.Model):
         if edit:
             osremove(thinktank.img, self.img)
             osremove(thinktank.thumbnail, self.thumbnail)
-
     def __str__(self):
         return '%s' % self.name
 
@@ -813,27 +802,9 @@ class Feedback(models.Model):
             MobSMS().remind(self.user.telephone, '感谢你对金指投的支持, 我们会第一时间处理你的建议')
         super(Feedback, self).save(*args, **kwargs)
 
-class Aboutus(models.Model):
-    title = models.CharField('标题', max_length=32)
-    img = models.ImageField('图片', upload_to=UploadTo('aboutus/img/%Y/%m'))
-    content = models.TextField('内容')
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
-
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit: aboutus = Aboutus.objects.get(pk=self.pk)
-        super(Aboutus, self).save(*args, **kwargs)
-        if edit: osremove(aboutus.img, self.img)
-
-    def __str__(self):
-        return '%s' % self.title
-
-    class Meta:
-        ordering = ('-pk',)
-        verbose_name = verbose_name_plural = '关于我们的分享'
-
 class MsgType(models.Model):
     name = models.CharField('消息类型', max_length=32, unique=True)
+    desc = models.CharField('描述', max_length=32, blank=True, null=True)
 
     def __str__(self):
         return '%s' % self.name
@@ -854,7 +825,7 @@ class Push(models.Model):
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
 
     def __str__(self):
-        return '%s' % self.title
+        return '%s' % self.msgtype.desc
 
     class Meta:
         ordering = ('-pk',)

@@ -135,11 +135,6 @@ class RecommendProjectForm(forms.ModelForm):
         model = RecommendProject
         fields = '__all__'
         
-class BannerTypeForm(forms.ModelForm):
-    class Meta:
-        model = BannerType
-        fields = '__all__'
-
 class BannerForm(forms.ModelForm):
     class Meta:
         model = Banner
@@ -232,11 +227,6 @@ class TopicForm(forms.ModelForm):
 class FeedbackForm(forms.ModelForm):
     class Meta:
         model = Feedback
-        fields = '__all__'
-
-class AboutusForm(forms.ModelForm):
-    class Meta:
-        model = Aboutus
         fields = '__all__'
 
 class MsgTypeForm(forms.ModelForm):

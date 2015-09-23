@@ -278,7 +278,7 @@ def g_thinktank(queryset, page):
         if flag != 't': item = item.thinktank
         tmp['id'] = item.id
         tmp['img'] = '%s%s' %(RES_URL, item.img.url)
-        #tmp['thumbnail'] = '%s%s' %(RES_URL, item.thumbnail.url)
+        tmp['thumbnail'] = '%s%s' %(RES_URL, item.img.url)
         tmp['name'] = item.name
         tmp['company'] = item.company
         tmp['title'] = item.title
@@ -386,12 +386,13 @@ def coremember(request, pk):
     project = isexists(Project, pk)
     if not project: return ISEXISTS
     data = list()
-    for cm in project.coremember_set.all():
+    for item in project.coremember_set.all():
         tmp = dict()
-        tmp['id'] = cm.id
-        tmp['img'] = myimg(cm.img)
-        tmp['name'] = cm.name
-        tmp['title'] = cm.title
+        tmp['id'] = item.id
+        tmp['img'] = myimg(item.img)
+        tmp['name'] = item.name
+        tmp['title'] = item.title
+        tmp['profile'] = item.profile
         data.append(tmp)
     return Response({'status':0, 'msg':'核心成员', 'data':data})
 
@@ -1194,18 +1195,11 @@ def checkupdate(request, system):
     return Response({'status':0, 'msg':'检查更新', 'data':data})
 
 @api_view(['POST', 'GET'])
-def share(request, pk):
-    data = dict()
-    data['url'] = 'http://www.baidu.com'
-    data['img'] = 'http://www.baidu.com'
-    return Response({'status':0, 'msg':'分享', 'data':data})
-
-@api_view(['POST', 'GET'])
 def shareproject(request, pk):
     data = dict()
     data['title'] = '项目分享'
     data['img'] = '%s/static/app/img/icon.png' % settings.RES_URL
-    data['url'] = '%s' % settings.RES_URL
+    data['url'] = 'http://www.jinzht.com:80'
     data['content'] = '项目分享'
     return Response({'status':0, 'msg':'分享', 'data':data})
 
@@ -1214,7 +1208,7 @@ def shareapp(request):
     data = dict()
     data['title'] = 'app分享'
     data['img'] = '%s/static/app/img/icon.png' % settings.RES_URL
-    data['url'] = '%s' % settings.RES_URL
+    data['url'] = 'http://www.jinzht.com:80'
     data['content'] = '金指投App分享'
     return Response({'status':0, 'msg':'分享', 'data':data})
 
@@ -1287,6 +1281,7 @@ def g_topiclist(queryset, page):
     data = list()
     for item in queryset:
         tmp = dict()
+        tmp['pid'] = item.project.id
         tmp['id'] = item.id
         tmp['img'] = myimg(item.user.img)
         if item.at_topic: tmp['name'] = '%s 回复 %s' % (item.user.name, item.at_topic.user.name)
@@ -1346,11 +1341,11 @@ def news(request, pk, page):
 
 @api_view(['POST', 'GET'])
 def knowledge(request, page):
-    queryset = News.objects.filter(newstype=2)
+    queryset = News.objects.filter(newstype=4)
     return g_news(queryset, page)
 
 @api_view(['POST', 'GET'])
-def newsshare(request, pk):
+def sharenews(request, pk):
     news = isexists(News, pk) 
     if not news: return ISEXISTS 
     data = dict()
@@ -1398,7 +1393,7 @@ def knowledgetag(request):
 @islogin()
 def hasnewmsg(request):
     uid = request.session.get('login')
-    queryset = Msgread.objects.filter(user__pk=uid)
+    queryset = Msgread.objects.filter(user__pk=uid, read=False)
     data = {'count': queryset.count()}
     return Response({'status':0, 'msg':'系统消息', 'data':data})    
 
@@ -1417,6 +1412,7 @@ def msgread(request, page):
         }
         tmp = dict()
         tmp['id'] = item.id
+        tmp['title'] = item.push.msgtype.desc
         tmp['content'] = item.push.content
         tmp['extras'] = extras
         tmp['create_datetime'] = timeformat(item.create_datetime)
@@ -1435,6 +1431,18 @@ def setmsgread(request, pk):
 
 @api_view(['POST', 'GET'])
 @islogin()
+def deletemsgread(request, pk):
+    msgread = isexists(Msgread, pk)
+    if not msgread: return myarg('msgread')
+    uid = request.session.get('login')
+    user = User.objects.get(pk=uid)
+    if msgread.user == user:
+        msgread.delte()
+        return Response({'status':0, 'msg':'删除msg'})
+    return Response({'status': 1, 'msg':'不能删除别人的msg啊'})
+
+@api_view(['POST', 'GET'])
+@islogin()
 def hasnewtopic(request):
     uid = request.session.get('login') 
     queryset = Topic.objects.filter(at_topic__user__id=uid, read=False)
@@ -1444,15 +1452,20 @@ def hasnewtopic(request):
 @islogin()
 def topicread(request, page):
     uid = request.session.get('login') 
-    queryset = Topic.objects.filter(at_topic__user__id=uid, read=False) 
+    queryset = Topic.objects.filter(~Q(read=None), at_topic__user__id=uid) 
     ret = g_topiclist(queryset, page)
     return ret
 
 @api_view(['POST', 'GET'])
 @islogin()
 def settopicread(request, pk):
+    uid = request.session.get('login')
+    if pk == '0':
+        queryset = Topic.objects.filter(at_topic__user__id=uid, read=False) 
+        queryset.update(read=True)
+        return Response({'status':0, 'msg':'全部设为已读'})
     topic = isexists(Topic, pk)
     if not topic: return myarg('topic')
-    topic.read = True
+    topic.read = None 
     topic.save()
     return Response({'status':0, 'msg':'', 'data':topic.read})
