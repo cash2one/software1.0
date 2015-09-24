@@ -239,7 +239,7 @@ class PushForm(forms.ModelForm):
         model = Push
         fields = '__all__'
 
-class MsgreadForm(forms.ModelForm):
+class SystemInformForm(forms.ModelForm):
     class Meta:
-        model = Msgread
+        model = SystemInform 
         fields = '__all__'

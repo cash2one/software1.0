@@ -114,7 +114,6 @@ class JoinShip(models.Model):
         else:
             self.user.company.add(self.company)
             
-
     def delete(self):
         self.user.company.remove(self.company)
         return super(JoinShip, self).delete()
@@ -833,6 +832,7 @@ class Push(models.Model):
 
     def save(self, *args, **kwargs):
         edit = self.pk is not None
+        super(Push, self).save(*args, **kwargs)
         if self.valid == True:
             if self.msgtype.name == 'web':
                 news = News.objects.filter(pk=self._id)
@@ -852,9 +852,8 @@ class Push(models.Model):
                 for user in queryset:
                     with transaction.atomic(): Msgread.objects.create(user=user, push=self)
             except IntegrityError as e: pass
-        super(Push, self).save(*args, **kwargs)
                     
-class Msgread(models.Model):
+class SystemInform(models.Model):
     user = models.ForeignKey('User', verbose_name='用户')
     push = models.ForeignKey('Push', verbose_name='push')
     read = models.NullBooleanField('是否阅读', default=False)

@@ -22,21 +22,16 @@ def isexists(Model, pk):
     return None 
 
 @api_view(['POST'])
-def sendcode(request):
+def sendcode(request, flag):
     telephone = request.data.get('telephone')
-    flag = request.data.get('flag','').strip()
-    if validate_telephone(telephone) == False:
-        return Response({'status':1, 'msg':'非法手机号'})
-    if not re.match('^[01]$', flag): return ARG
+    if validate_telephone(telephone) == False: return Response({'status':1, 'msg':'非法手机号'})
     user = User.objects.filter(telephone=telephone)
-    if flag == '0' and user.exists(): 
-        return Response({'status':1, 'msg':'该手机注册过, 请直接登录'})
-    elif flag == '1' and not user.exists(): 
-        return Response({'status':1, 'msg':'您尚未注册, 请先注册'})
+    if flag == '0' and user.exists(): return Response({'status':1, 'msg':'该手机注册过, 请直接登录'})
+    elif flag == '1' and not user.exists(): return Response({'status':1, 'msg':'您尚未注册, 请先注册'})
     code = random.randint(1000, 9999)
     ret = MobSMS(code).send(telephone)
     if ret == -1: return Response({'status':1, 'msg': '获取验证码失败'})
-    request.session[telephone] = code; request.session.set_expiry(60 * 3)
+    request.session[telephone] = code; request.session.set_expiry(60 * 10)
     return Response({'status':0, 'msg':'短息已发送, 请耐心等待'})
 
 @api_view(['POST'])
@@ -88,7 +83,7 @@ def regid(request):
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     regid = request.data.get('regid', '').strip()
-    if not regid: return ARG
+    if not regid: return myarg('regid') 
     user.regid = regid
     user.save()
     return Response({'status':0, 'msg':'存储reg_id'})
@@ -460,7 +455,8 @@ def g_project(queryset, page):
         tmp['id'] = project.id
         tmp['thumbnail'] = '%s%s' %(RES_URL, project.thumbnail.url)
         tmp['project_summary'] = project.summary
-        tmp['company_name'] = project.company.name
+        company_name = re.sub(r'(股份)?有限(责任)?公司', '', project.company.name)
+        tmp['company_name'] = company_name
         tmp['province'] = project.company.province
         tmp['city'] = project.company.city
         tmp['industry_type'] = [it.name for it in project.company.industry.all()]
@@ -822,11 +818,11 @@ def modifyposition(request):
 def lcv(project, uid=0): # like collect vote
     data = dict()
     ls = LikeShip.objects.filter(project=project)
-    data['like_sum'] = ls.count() + random.randint(100, 200) 
+    data['like_sum'] = ls.count()# + random.randint(100, 200) 
     cs = CollectShip.objects.filter(project=project)
-    data['collect_sum'] = cs.count() + random.randint(100, 200) 
+    data['collect_sum'] = cs.count()# + random.randint(100, 200) 
     vs = VoteShip.objects.filter(project=project)
-    data['vote_sum'] = vs.count() + random.randint(100, 200)
+    data['vote_sum'] = vs.count()# + random.randint(100, 200)
     return data
 
 @api_view(['GET', 'POST'])
@@ -860,8 +856,9 @@ def collectroadshow(request, page=0):
     uid = request.session.get('login')
     now = timezone.now()
     queryset = CollectShip.objects.filter(
+        Q(project__roadshow_start_datetime__isnull=True) | 
+        Q(project__roadshow_start_datetime__gt=now),
         user__pk=uid, 
-        project__roadshow_start_datetime__lt=now
     )
     ret = g_project( queryset, page )
     return ret
@@ -1275,7 +1272,7 @@ def topic(request, pk):
     )
     return Response({'status':0, 'msg':'发表话题成功', 'data':topic.id})
 
-def g_topiclist(queryset, page):
+def g_topiclist(queryset, page, at=True):
     start, end = start_end(page, 6)
     queryset = queryset[start:end]
     data = list()
@@ -1284,7 +1281,11 @@ def g_topiclist(queryset, page):
         tmp['pid'] = item.project.id
         tmp['id'] = item.id
         tmp['img'] = myimg(item.user.img)
-        if item.at_topic: tmp['name'] = '%s 回复 %s' % (item.user.name, item.at_topic.user.name)
+        if item.at_topic: 
+            if at == True:
+                tmp['name'] = '%s@%s' % (item.user.name, item.at_topic.user.name)
+            else:
+                tmp['name'] = '%s 回复了您' % (item.user.name)
         else: tmp['name'] = '%s' % (item.user.name)
         tmp['create_datetime'] = datetime_filter(item.create_datetime) 
         tmp['content'] = item.content
@@ -1300,20 +1301,6 @@ def topiclist(request, pk, page):
     ret = g_topiclist(queryset, page)
     return ret
    
-@api_view(['POST', 'GET'])
-#@islogin()
-def systeminformlist(request, page):
-    objs = Push.objects.filter(msgtype__pk=2) 
-    data = list()
-    for obj in objs:
-        tmp = dict()
-        tmp['title'] = obj.title
-        tmp['content'] = obj.content
-        tmp['url'] = obj.url
-        tmp['create_datetime'] = timeformat(obj.create_datetime)
-        data.append(tmp)
-    return Response({'status':0, 'msg':'msg', 'data':data})
-
 def g_news(queryset, page):
     start, end = start_end(page)
     queryset = queryset[start:end]
@@ -1328,6 +1315,7 @@ def g_news(queryset, page):
         tmp['src'] = item.src
         tmp['sharecount'] = item.sharecount
         tmp['create_datetime'] = datetime_filter(item.create_datetime) 
+        tmp['create_datetime'] = timezone.localtime(item.create_datetime).strftime('%m/%d %H:%M')
         tmp['readcount'] = item.readcount
         tmp['href'] = '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, item.name)
         data.append(tmp)
@@ -1393,15 +1381,15 @@ def knowledgetag(request):
 @islogin()
 def hasnewmsg(request):
     uid = request.session.get('login')
-    queryset = Msgread.objects.filter(user__pk=uid, read=False)
+    queryset = SystemInform.objects.filter(user__pk=uid, read=False)
     data = {'count': queryset.count()}
     return Response({'status':0, 'msg':'系统消息', 'data':data})    
 
 @api_view(['POST', 'GET'])
 @islogin()
-def msgread(request, page):
+def systeminform(request, page):
     uid = request.session.get('login')
-    queryset = Msgread.objects.filter(user__pk=uid)
+    queryset = SystemInform.objects.filter(user__pk=uid)
     start, end = start_end(page)
     queryset = queryset[start:end]
     data = list()
@@ -1422,22 +1410,22 @@ def msgread(request, page):
 
 @api_view(['POST', 'GET'])
 @islogin()
-def setmsgread(request, pk):
-    msgread = isexists(Msgread, pk)
-    if not msgread: return myarg('msgread')
-    msgread.read = True
-    msgread.save()
-    return Response({'status':0, 'msg':'', 'data':msgread.read})
+def setsysteminform(request, pk):
+    systeminform = isexists(SystemInform, pk)
+    if not systeminform: return myarg('systeminform')
+    systeminform.read = True
+    systeminform.save()
+    return Response({'status':0, 'msg':'', 'data':systeminform.read})
 
 @api_view(['POST', 'GET'])
 @islogin()
-def deletemsgread(request, pk):
-    msgread = isexists(Msgread, pk)
-    if not msgread: return myarg('msgread')
+def deletesysteminform(request, pk):
+    systeminform = isexists(SystemInform, pk)
+    if not systeminform: return myarg('systeminform')
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
-    if msgread.user == user:
-        msgread.delte()
+    if systeminform.user == user:
+        systeminform.delte()
         return Response({'status':0, 'msg':'删除msg'})
     return Response({'status': 1, 'msg':'不能删除别人的msg啊'})
 
@@ -1453,7 +1441,7 @@ def hasnewtopic(request):
 def topicread(request, page):
     uid = request.session.get('login') 
     queryset = Topic.objects.filter(~Q(read=None), at_topic__user__id=uid) 
-    ret = g_topiclist(queryset, page)
+    ret = g_topiclist(queryset, page, False)
     return ret
 
 @api_view(['POST', 'GET'])
@@ -1468,4 +1456,16 @@ def settopicread(request, pk):
     if not topic: return myarg('topic')
     topic.read = None 
     topic.save()
-    return Response({'status':0, 'msg':'', 'data':topic.read})
+    return Response({'status':0, 'msg':'删除成功'})
+
+@api_view(['POST', 'GET'])
+def latestnewscount(request):
+    yesterday = timezone.now() - timedelta(days=1)
+    queryset = News.objects.filter(~Q(newstype=4), create_datetime__gt=yesterday)
+    return Response({'status':0, 'msg':'新三板数量', 'data':{'count':queryset.count()}})
+    
+@api_view(['POST', 'GET'])
+def latestknowledgecount(request):
+    yesterday = timezone.now() - timedelta(days=1)
+    queryset = News.objects.filter(newstype=4, create_datetime__gt=yesterday)
+    return Response({'status':0, 'msg':'新三板数量', 'data':{'count':queryset.count()}})

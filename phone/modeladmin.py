@@ -399,7 +399,9 @@ class NewsTypeAdmin(admin.ModelAdmin):
 
 class NewsAdmin(admin.ModelAdmin):
     form = NewsForm 
-    list_display = ('id', 'title',)
+    list_display = ('id', 'title', '_create_datetime')
+    def _create_datetime(self, obj):
+        return datetime_filter(obj.create_datetime)
 
 class KnowledgeTypeAdmin(admin.ModelAdmin):
     form = KnowledgeTypeForm
@@ -437,7 +439,7 @@ class PushAdmin(admin.ModelAdmin):
        return ','.join([user.telephone for user in obj.user.all()]) 
     list_editable = ('valid',)
 
-class MsgreadAdmin(admin.ModelAdmin):
-    form = MsgreadForm
+class SystemInformAdmin(admin.ModelAdmin):
+    form = SystemInformForm
     list_display = ('id', 'user', 'push', 'read')
     
