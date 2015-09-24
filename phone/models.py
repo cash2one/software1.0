@@ -714,7 +714,7 @@ class NewsType(models.Model):
         return '%s' % self.name
 
     class Meta:
-        ordering = ('-pk', )
+        ordering = ('pk', )
         verbose_name = verbose_name_plural = '资讯类型'
     
 class News(models.Model):
@@ -781,6 +781,13 @@ class Topic(models.Model):
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '话题'
 
+    def save(self, *args, **kwargs):
+        edit = self.pk is not None
+        super(Topic, self).save(*args, **kwargs)
+        if edit == False and self.at_topic:
+            extras = {'api': 'msg'}
+            JiGuang('%s 回复了你, 点击查看' % self.user.name, extras).single(self.at_topic.user.regid)
+            
 class Feedback(models.Model):
     user = models.ForeignKey('User', verbose_name='用户')
     advice = models.TextField('用户吐槽')
@@ -850,7 +857,7 @@ class Push(models.Model):
                 queryset = self.user.all() 
             try:
                 for user in queryset:
-                    with transaction.atomic(): Msgread.objects.create(user=user, push=self)
+                    with transaction.atomic(): SystemInform.objects.create(user=user, push=self)
             except IntegrityError as e: pass
                     
 class SystemInform(models.Model):

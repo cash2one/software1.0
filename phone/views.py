@@ -1379,7 +1379,7 @@ def knowledgetag(request):
 
 @api_view(['POST', 'GET'])
 @islogin()
-def hasnewmsg(request):
+def hassysteminform(request):
     uid = request.session.get('login')
     queryset = SystemInform.objects.filter(user__pk=uid, read=False)
     data = {'count': queryset.count()}
@@ -1406,7 +1406,7 @@ def systeminform(request, page):
         tmp['create_datetime'] = timeformat(item.create_datetime)
         tmp['read'] = item.read
         data.append(tmp)
-    return Response({'status':0, 'msg':'', 'data':data})
+    return Response({'status':0, 'msg':'系统通知', 'data':data})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -1415,7 +1415,7 @@ def setsysteminform(request, pk):
     if not systeminform: return myarg('systeminform')
     systeminform.read = True
     systeminform.save()
-    return Response({'status':0, 'msg':'', 'data':systeminform.read})
+    return Response({'status':0, 'msg':'设置消息已读', 'data':systeminform.read})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -1425,8 +1425,8 @@ def deletesysteminform(request, pk):
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     if systeminform.user == user:
-        systeminform.delte()
-        return Response({'status':0, 'msg':'删除msg'})
+        systeminform.delete()
+        return Response({'status':0, 'msg':'删除成功'})
     return Response({'status': 1, 'msg':'不能删除别人的msg啊'})
 
 @api_view(['POST', 'GET'])
