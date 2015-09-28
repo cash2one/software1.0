@@ -583,7 +583,7 @@ class Thinktank(models.Model):
     company = models.CharField('公司', max_length=64)
     title = models.CharField('职位', max_length=64)
     img = models.ImageField('图像', upload_to=UploadTo('thinktank/img/%Y/%m'))
-    thumbnail = models.ImageField('图像', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'))
+    thumbnail = models.ImageField('小图', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'))
     video = models.URLField('链接地址', max_length=64, blank=True)
     experience = models.TextField('经历')
     success_cases = models.TextField('成功案例')

@@ -264,7 +264,7 @@ def project(request, page=0):
 def g_thinktank(queryset, page):
     start, end = start_end(page)
     queryset = queryset[start:end]
-    if not queryset: return Response({'status':-1, 'msg':'数据为空', 'data':[]})
+    if not queryset: return Response({'status':-1, 'msg':'加载完毕', 'data':[]})
     if isinstance(queryset[0], Thinktank): flag = 't'
     elif isinstance(queryset[0], ThinktankCollect): flag= 'c'
     data = list()
@@ -346,10 +346,10 @@ def projectdetail(request, pk):
     data['like_sum'] = ret['like_sum']
     data['collect_sum'] = ret['collect_sum']
     data['vote_sum'] = ret['vote_sum']
-    data['company_profile'] = project.company.profile
-    data['business'] = project.business
-    data['project_desc'] = project.desc
-    data['business_model'] = project.model
+    data['company_profile'] = '    ' + project.company.profile
+    data['business'] = '    ' + project.business
+    data['project_desc'] = '    ' + project.desc
+    data['business_model'] = '    ' + project.model
     data['leadfund'] = project.leadfund
     data['followfund'] = project.followfund
     pes = project.projectevent_set.all()
@@ -357,7 +357,7 @@ def projectdetail(request, pk):
         e = pes[0]
         data['project_event'] = {
             'event_date':dateformat(e.happen_datetime),
-            'event_detail':e.detail,
+            'event_detail':'    ' + e.detail,
             'event_title':e.title
         }
     else:
@@ -388,7 +388,7 @@ def coremember(request, pk):
         tmp['name'] = item.name
         tmp['title'] = item.title
         tmp['profile'] = item.profile
-        data.append(tmp)
+        data.insert(0, tmp)
     return Response({'status':0, 'msg':'核心成员', 'data':data})
 
 @api_view(['POST', 'GET'])
@@ -706,7 +706,7 @@ def authenticate(request):
     user = User.objects.get(pk=uid)
     user.name = name
     user.save()
-    return Response({'status':0, 'msg':'认证成功', 'data':data})
+    return Response({'status':0, 'msg':'认证成功, 等待审核', 'data':data})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -998,10 +998,10 @@ def myroadshow(request):
             tmp['company'] = ''
         tmp['create_datetime'] = timeformat(obj.create_datetime)
         tmp['audit_datetime'] = timeformat(obj.create_datetime + timedelta(seconds=2))
-        if obj.handle_datetime:
-            tmp['handle_datetime'] = timeformat(obj.handle_datetime)
-        else:
+        if obj.valid == None:
             tmp['handle_datetime'] = ''
+        else:
+            tmp['handle_datetime'] = timeformat(obj.handle_datetime)
         tmp['valid'] = obj.valid
         if obj.valid == True:
             tmp['reason'] = '申请成功' 
@@ -1025,7 +1025,7 @@ def myparticipate(request):
         tmp['project'] = obj.project.summary
         tmp['create_datetime'] = timeformat(obj.create_datetime)
         tmp['audit_datetime'] = timeformat(obj.create_datetime + timedelta(seconds=2))
-        if not obj.handle_datetime:
+        if obj.valid == None:
             tmp['handle_datetime'] = ''
         else:
             tmp['handle_datetime'] = timeformat(obj.handle_datetime)
@@ -1425,8 +1425,8 @@ def deletesysteminform(request, pk):
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     if systeminform.user == user:
-        systeminform.delete()
-        return Response({'status':0, 'msg':'删除成功'})
+        systeminform.delte()
+        return Response({'status':0, 'msg':'删除msg'})
     return Response({'status': 1, 'msg':'不能删除别人的msg啊'})
 
 @api_view(['POST', 'GET'])

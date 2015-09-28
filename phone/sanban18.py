@@ -72,7 +72,7 @@ class Browser(object):
         if not m: return
         src = m.group('src') # 图片
         title = m.group('title').strip() # 标题
-        if newstype.name == 'viewpoint': title = re.sub(r'\[.+?\]', '', title)
+        if newstype.eng == 'viewpoint': title = re.sub(r'\[.+?\]', '', title)
         content = m.group('content').strip() # 简短介绍
         url = m.group('href')
         url = url.replace('www.sanban18.com', '61.152.104.238')
