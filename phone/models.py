@@ -831,7 +831,7 @@ class Push(models.Model):
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
 
     def __str__(self):
-        return '%s' % self.msgtype.desc
+        return '%s,%s' % (self.id, self.msgtype.desc)
 
     class Meta:
         ordering = ('-pk',)
@@ -866,10 +866,31 @@ class SystemInform(models.Model):
     read = models.NullBooleanField('是否阅读', default=False)
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
 
+class Feeling(models.Model):
+    user = models.ForeignKey('User', verbose_name='用户')
+    content = models.TextField('内容', blank=True, null=True)
+    #at = models.ManyToManyField('User', related_name='feeling_at', verbose_name='@联系人', blank=True)
+    pics = models.TextField('图片地址', blank=True)
+    likers = models.ManyToManyField('User', related_name='feeling_likes', verbose_name='点赞', blank=True)
+    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
+
+    def __str__(self):
+        return '%s' % self.content
+    
+    class Meta:
+        ordering = ('-pk',)
+        verbose_name = verbose_name_plural = '状态发表'
+
+class Feelingcomment(models.Model):
+    feeling = models.ForeignKey('Feeling', verbose_name='状态')
+    user = models.ForeignKey('User', verbose_name='发表话题者', on_delete=models.PROTECT)
+    content = models.TextField('内容')
+    at = models.ForeignKey('self', verbose_name='@', null=True, blank=True)
+    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
+
     def __str__(self):
         return '%s' % self.user
 
     class Meta:
         ordering = ('-pk',)
-        unique_together = ('user', 'push')
-        verbose_name = verbose_name_plural = '消息阅读'
+        verbose_name = verbose_name_plural = '话题评论'

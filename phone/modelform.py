@@ -243,3 +243,13 @@ class SystemInformForm(forms.ModelForm):
     class Meta:
         model = SystemInform 
         fields = '__all__'
+
+class FeelingForm(forms.ModelForm):
+    class Meta:
+        model = Feeling
+        fields = '__all__'
+
+class FeelingcommentForm(forms.ModelForm):
+    class Meta:
+        model = Feelingcomment
+        fields = '__all__'

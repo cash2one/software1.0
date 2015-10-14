@@ -443,3 +443,15 @@ class SystemInformAdmin(admin.ModelAdmin):
     form = SystemInformForm
     list_display = ('id', 'user', 'push', 'read')
     
+
+class FeelingAdmin(admin.ModelAdmin):
+    form = FeelingForm
+    list_dispaly = ('id', 'user', 'content', 'create_datetime')
+    raw_id_fields = ('user', 'likers', )
+
+class FeelingcommentAdmin(admin.ModelAdmin):
+    form = FeelingcommentForm
+    list_dispaly = ('id',)
+
+
+

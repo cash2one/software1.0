@@ -1256,8 +1256,12 @@ def topic(request, pk):
     project = isexists(Project, pk)
     if not project: return ISEXISTS
     at_topic = request.data.get('at_topic',0)
-    if not at_topic: at_topic = None
-    else: at_topic = isexists(Topic, at_topic)
+    if not at_topic: 
+        at_topic = None
+        msg = '发表话题成功'
+    else: 
+        at_topic = isexists(Topic, at_topic)
+        msg = '回复成功'
     uid = request.session.get('login')
     user = User.objects.get(pk=uid) 
     if at_topic and at_topic.user == user:
@@ -1270,7 +1274,7 @@ def topic(request, pk):
        at_topic = at_topic,
        content = content,
     )
-    return Response({'status':0, 'msg':'发表话题成功', 'data':topic.id})
+    return Response({'status':0, 'msg':msg, 'data':topic.id})
 
 def g_topiclist(queryset, page, at=True):
     start, end = start_end(page, 6)
@@ -1425,7 +1429,7 @@ def deletesysteminform(request, pk):
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     if systeminform.user == user:
-        systeminform.delte()
+        systeminform.delete()
         return Response({'status':0, 'msg':'删除msg'})
     return Response({'status': 1, 'msg':'不能删除别人的msg啊'})
 
@@ -1469,3 +1473,128 @@ def latestknowledgecount(request):
     yesterday = timezone.now() - timedelta(days=1)
     queryset = News.objects.filter(newstype=4, create_datetime__gt=yesterday)
     return Response({'status':0, 'msg':'新三板数量', 'data':{'count':queryset.count()}})
+
+def g_feelinglist(queryset, page):
+    start, end = start_end(page, 6)
+    queryset = queryset[start:end]
+    data = list()
+    for item in queryset:
+        tmp = dict()
+        tmp['id'] = item.id
+        tmp['photo'] = myimg(item.user.img)
+        tmp['content'] = item.content
+        pics = item.pics.all()
+        _queryset = Feelingcomment.objects.filter(feeling=item)
+        _data = list()
+        for _item in _queryset:
+            _tmp = dict()
+            _tmp['id'] = _item.id
+            _tmp['phote'] = myimg(_item.user.img)
+            if _item.at:
+                _tmp['name'] = '%s@%s' % (_item.user.name, _item.at.user.name)
+            else:
+                _tmp['name'] = '%s' % (_item.user.name)
+            _tmp['content'] = '%s' % (_item.content)
+            _data.append(_tmp)
+        tmp['_data'] = _data
+        data.append(tmp)
+    return Response({'status':0, 'msg':'状态圈', 'data':data})
+
+@api_view(['POST'])
+@islogin()
+def feeling(request, page):
+    queryset = Feeling.objects.all()
+    ret = g_feelinglist(queryset, page)
+    return ret
+
+@api_view(['POST'])
+@islogin()
+def postfeeling(request):
+    #files = dict(request.data).get('file', None)
+    #if not files: return Response({'stauts':1, 'msg':'没有图片上传'})
+    #pth = os.path.join(settings.BASE_DIR, 'media/feeling')
+    #for file in files:
+    #    filename = '{}{}'.format(uuid.uuid4().hex, '.png')
+    #    filepath = os.path.join(pth, filename)
+    #    print(filepath)
+    #    with codecs.open(filepath, 'w+', 'utf-8') as f:
+    #        f.write(file)
+    pth = os.path.join(settings.BASE_DIR, 'media/feeling')
+    print(request.FILES)
+    for i in range(0, 9):
+        img = request.data.get('file%s' %i, None)
+        if not img: continue
+        if type(img) == str:
+            img = File(img)
+        filename = '{}{}'.format(uuid.uuid4().hex, '.png')
+        filepath = os.path.join(pth, filename)
+        fp = open(filepath, 'wb')
+        for out in img.chunks():
+            fp.write(out)
+        fp.close()
+        print(filepath)
+    #uid = request.session.get('login')
+    return Response({'status':0, 'msg':'postfeeling'})
+
+@api_view(['POST', 'GET'])
+@islogin()
+def deletefeeling(request, pk):
+    item = isexists(Feeling, pk)
+    if not item: return ISEXISTS
+    uid = request.session.get('login')
+    user = User.objects.get(pk=uid)
+    if item.user == user:
+        item.delete()
+        return Response({'status':0, 'msg':'删除状态成功'})
+    return Response({'status':0, 'msg':'不能删除别人的状态'})
+
+@api_view(['POST'])
+@islogin()
+def likefeeling(request, pk, flag):
+    item = isexists(Feeling, pk)
+    if not item: return ISEXISTS
+    uid = request.session.get('login')
+    user = User.objects.get(pk=uid)
+    if flag == '1':
+        item.likers.add(user)
+    else:
+        item.likers.remove(user)
+    return Response({'status':0, 'msg':'操作成功'})
+
+@api_view(['GET'])
+@islogin()
+def feelinglikers(request, pk):
+    item = isexists(Feeling, pk)
+    if not item: return ISEXISTS
+    data = '.'.join( item.likers.all() )
+    return Response({'status':0, 'msg':'状态点赞情况', 'data':data})
+
+@api_view(['POST'])
+@islogin()
+def postfeelingcomment(request, pk):
+    item = isexists(Feeling, pk)
+    if not item: return ISEXISTS
+    uid = request.session.get('login') 
+    content = request.data.get('content', '').rstrip()
+    at = request.data.get('at', 0)
+    if not at: at = None
+    else: at = isexists(Feeling, at)
+    Feelingcomment.objects.create(
+        feeling = item,
+        user = User.objects.get(pk=uid),
+        content = content,
+        at = at
+    )
+    return Response({'status':0, 'msg':'回复成功'})
+
+@api_view(['POST'])
+@islogin()
+def deletefeelingcomment(request, pk):
+    item = isexists(Feeling, pk)
+    if not item: return ISEXISTS
+    uid = request.session.get('login')
+    user = User.objects.get(pk=uid)
+    if item.user == user:
+        item.delete()
+        return Response({'status':0, 'msg':'删除评论'})
+    return Response({'status':0, 'msg':'不能删除别人的评论'})

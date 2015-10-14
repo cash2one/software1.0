@@ -101,4 +101,5 @@ urlpatterns = [
     url(r'^settopicread/(?P<pk>\d+)/$', views.settopicread, name='settopicread'),
     url(r'^latestnewscount/$', views.latestnewscount, name='latestnewscount'),
     url(r'^latestknowledgecount/$', views.latestknowledgecount, name='latestknowledgecount'),
+    url(r'^postfeeling/$', views.postfeeling, name='postfeeling'),
 ]
