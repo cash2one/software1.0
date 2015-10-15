@@ -869,17 +869,23 @@ class SystemInform(models.Model):
 class Feeling(models.Model):
     user = models.ForeignKey('User', verbose_name='用户')
     content = models.TextField('内容', blank=True, null=True)
-    #at = models.ManyToManyField('User', related_name='feeling_at', verbose_name='@联系人', blank=True)
     pics = models.TextField('图片地址', blank=True)
     likers = models.ManyToManyField('User', related_name='feeling_likes', verbose_name='点赞', blank=True)
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
 
     def __str__(self):
-        return '%s' % self.content
+        return '%s' % self.id
     
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '状态发表'
+
+    def delete(self):
+        for v in self.pics.split(';'):
+            absolute_path = os.path.join(settings.BASE_DIR, v)
+            os.path.exists(absolute_path) and os.remove(absolute_path) 
+        return super(Feeling, self).delete()
+        
 
 class Feelingcomment(models.Model):
     feeling = models.ForeignKey('Feeling', verbose_name='状态')
@@ -887,6 +893,7 @@ class Feelingcomment(models.Model):
     content = models.TextField('内容')
     at = models.ForeignKey('self', verbose_name='@', null=True, blank=True)
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
+    valid = models.NullBooleanField('是否合法', default=None)
 
     def __str__(self):
         return '%s' % self.user

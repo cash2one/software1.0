@@ -900,8 +900,9 @@ def projectsearch(request, pk, page):
 
 @api_view(['GET', 'POST'])
 @islogin()
-def generalinformation(request):
-    uid = request.session.get('login')
+def generalinformation(request, pk=None):
+    if pk: uid = pk
+    else: uid = request.session.get('login')
     data = dict()
     data['telephone'] = User.objects.get(pk=uid).telephone
     user = User.objects.get(pk=uid)
@@ -909,7 +910,6 @@ def generalinformation(request):
     data['real_name'] = user.name
     data['gender'] = user.gender
     data['position_type'] = [pt.name for pt in user.position.all()]
-    #data['province_city'] = [user.province, user.city]
     data['province'] = user.province
     data['city'] = user.city
     return Response({'status':0, 'msg':'用户信息', 'data':data})
@@ -1474,66 +1474,93 @@ def latestknowledgecount(request):
     queryset = News.objects.filter(newstype=4, create_datetime__gt=yesterday)
     return Response({'status':0, 'msg':'新三板数量', 'data':{'count':queryset.count()}})
 
-def g_feelinglist(queryset, page):
+def g_feelinglikers(queryset, page=0, page_size=3): 
+    start, end = start_end(page, page_size)
+    queryset = queryset[start:end]
+    data = list()
+    for item in queryset:
+        tmp = dict()
+        tmp['name'] = item.name
+        tmp['uid'] = item.id
+        data.append(tmp)
+    return data
+
+def g_feelingcomment(queryset, user=None, page=0, page_size=15):
+    start, end = start_end(page, page_size)
+    queryset = queryset[start:end]
+    _data = list()
+    for _item in queryset:
+        _tmp = dict()
+        _tmp['id'] = _item.id
+        _tmp['flag'] = _item.user == user
+        _tmp['name'] = '%s' % (_item.user.name)
+        _tmp['uid'] = _item.user.id
+        if _item.at:
+            _tmp['at_label'] = '回复'
+            _tmp['at_uid'] = _item.at.user.id
+            _tmp['at_name'] = _item.at.user.name
+        _tmp['label_suffix'] = ':'
+        _tmp['content'] = '%s' % (_item.content)
+        _data.append(_tmp)
+    return _data
+        
+def g_feelinglist(queryset, page, user=None):
     start, end = start_end(page, 6)
     queryset = queryset[start:end]
     data = list()
     for item in queryset:
         tmp = dict()
         tmp['id'] = item.id
+        tmp['uid'] = item.user.id
+        tmp['flag'] = item.user == user
+        tmp['datetime'] = datetime_filter(item.create_datetime)
+        tmp['name'] = item.user.name
         tmp['photo'] = myimg(item.user.img)
         tmp['content'] = item.content
-        pics = item.pics.all()
-        _queryset = Feelingcomment.objects.filter(feeling=item)
-        _data = list()
-        for _item in _queryset:
-            _tmp = dict()
-            _tmp['id'] = _item.id
-            _tmp['phote'] = myimg(_item.user.img)
-            if _item.at:
-                _tmp['name'] = '%s@%s' % (_item.user.name, _item.at.user.name)
-            else:
-                _tmp['name'] = '%s' % (_item.user.name)
-            _tmp['content'] = '%s' % (_item.content)
-            _data.append(_tmp)
-        tmp['_data'] = _data
+        tmp['pics'] = [] if item.pics==''  else [ os.path.join(settings.RES_URL, v) for v in item.pics.split(';') ]
+        tmp['likers'] = g_feelinglikers(item.likers.all()) # page_size=3
+        remain_likers_num = item.likers.all().count() - 3
+        tmp['remain_likers_num'] = 0 if remain_likers_num <=0 else remain_likers_num
+        tmp['position'] = [ v.name for v in item.user.position.all() ]
+        tmp['city'] = item.user.city 
+        _queryset = Feelingcomment.objects.filter(feeling=item, valid=None)
+        _data = g_feelingcomment(_queryset, user)
+        tmp['comment'] = _data
+        remain_comment_num = _queryset.count() - 15
+        tmp['remain_comment_num'] = 0 if remain_comment_num <=0 else remain_comment_num 
         data.append(tmp)
     return Response({'status':0, 'msg':'状态圈', 'data':data})
 
-@api_view(['POST'])
+@api_view(['POST', 'GET'])
 @islogin()
 def feeling(request, page):
+    uid = request.session.get('login', '1')
+    user = User.objects.get(pk=uid)
     queryset = Feeling.objects.all()
-    ret = g_feelinglist(queryset, page)
+    ret = g_feelinglist(queryset, page, user)
     return ret
 
 @api_view(['POST'])
 @islogin()
 def postfeeling(request):
-    #files = dict(request.data).get('file', None)
-    #if not files: return Response({'stauts':1, 'msg':'没有图片上传'})
-    #pth = os.path.join(settings.BASE_DIR, 'media/feeling')
-    #for file in files:
-    #    filename = '{}{}'.format(uuid.uuid4().hex, '.png')
-    #    filepath = os.path.join(pth, filename)
-    #    print(filepath)
-    #    with codecs.open(filepath, 'w+', 'utf-8') as f:
-    #        f.write(file)
-    pth = os.path.join(settings.BASE_DIR, 'media/feeling')
-    print(request.FILES)
-    for i in range(0, 9):
-        img = request.data.get('file%s' %i, None)
-        if not img: continue
-        if type(img) == str:
-            img = File(img)
-        filename = '{}{}'.format(uuid.uuid4().hex, '.png')
-        filepath = os.path.join(pth, filename)
-        fp = open(filepath, 'wb')
-        for out in img.chunks():
-            fp.write(out)
-        fp.close()
-        print(filepath)
-    #uid = request.session.get('login')
+    content = request.data.get('content', '').rstrip()
+    relative_path = datetime.now().strftime('media/feeling/%Y/%m')
+    absolute_path = os.path.join(settings.BASE_DIR, relative_path)   
+    if request.FILES: mkdirp(absolute_path)
+    elif not content: return Response({'status':1, 'msg':'发表内容不能为空'})
+    relative_path_list = list()
+    for k, v in request.FILES.items():
+        img_name = '{}{}'.format(uuid.uuid4().hex, '.png')
+        img = os.path.join(absolute_path, img_name)
+        with open(img, 'wb') as fp:
+            for data in v.chunks(): fp.write(data)
+        relative_path_list.append( os.path.join(relative_path, img_name) )
+    uid = request.session.get('login')
+    feeling = Feeling.objects.create(
+        user = User.objects.get(pk=uid),
+        content = content,
+        pics = ';'.join(relative_path_list),
+    )
     return Response({'status':0, 'msg':'postfeeling'})
 
 @api_view(['POST', 'GET'])
@@ -1546,7 +1573,7 @@ def deletefeeling(request, pk):
     if item.user == user:
         item.delete()
         return Response({'status':0, 'msg':'删除状态成功'})
-    return Response({'status':0, 'msg':'不能删除别人的状态'})
+    return Response({'status':1, 'msg':'不能删除别人的状态'})
 
 @api_view(['POST'])
 @islogin()
@@ -1555,19 +1582,26 @@ def likefeeling(request, pk, flag):
     if not item: return ISEXISTS
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
-    if flag == '1':
-        item.likers.add(user)
-    else:
-        item.likers.remove(user)
+    if flag == '1': item.likers.add(user)
+    else: item.likers.remove(user)
     return Response({'status':0, 'msg':'操作成功'})
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @islogin()
-def feelinglikers(request, pk):
+def feelinglikers(request, pk, page):
     item = isexists(Feeling, pk)
     if not item: return ISEXISTS
-    data = '.'.join( item.likers.all() )
+    queryset = item.likers.all()
+    data = g_feelinglikers(queryset, page, 15)
     return Response({'status':0, 'msg':'状态点赞情况', 'data':data})
+
+@api_view(['GET', 'POST'])
+@islogin()
+def feelingcomment(request, pk, page):
+    user = User.objects.get( pk = request.session.get('login') )
+    _queryset = Feelingcomment.objects.filter(feeling=item, valid=None)
+    _data = g_feelingcomment(_queryset, user, page)
+    return Response({'status':0, 'msg':'评论列表', 'data':data})
 
 @api_view(['POST'])
 @islogin()
@@ -1576,9 +1610,10 @@ def postfeelingcomment(request, pk):
     if not item: return ISEXISTS
     uid = request.session.get('login') 
     content = request.data.get('content', '').rstrip()
+    if not content: return Response({'status':1, 'msg':'回复内容不能为空'})
     at = request.data.get('at', 0)
     if not at: at = None
-    else: at = isexists(Feeling, at)
+    else: at = isexists(Feelingcomment, at)
     Feelingcomment.objects.create(
         feeling = item,
         user = User.objects.get(pk=uid),
@@ -1589,12 +1624,13 @@ def postfeelingcomment(request, pk):
 
 @api_view(['POST'])
 @islogin()
-def deletefeelingcomment(request, pk):
+def hidefeelingcomment(request, pk):
     item = isexists(Feeling, pk)
     if not item: return ISEXISTS
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     if item.user == user:
-        item.delete()
+        item.valid = False
+        item.save()
         return Response({'status':0, 'msg':'删除评论'})
     return Response({'status':0, 'msg':'不能删除别人的评论'})

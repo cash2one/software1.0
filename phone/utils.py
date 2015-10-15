@@ -89,6 +89,13 @@ def islogin(text=''):
         return wrapper
     return decorator
 
+def mkdirp(path):
+    import errno
+    try: os.makedirs(path)
+    except OSError as e:
+        if e.errno == errno.EEXIST and os.path.isdir(path): pass
+        else: raise
+
 class MobSMS:
     userid = settings.userid 
     account = settings.account

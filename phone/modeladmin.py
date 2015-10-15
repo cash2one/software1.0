@@ -446,7 +446,7 @@ class SystemInformAdmin(admin.ModelAdmin):
 
 class FeelingAdmin(admin.ModelAdmin):
     form = FeelingForm
-    list_dispaly = ('id', 'user', 'content', 'create_datetime')
+    list_display = ('id', 'content', 'pics', 'create_datetime')
     raw_id_fields = ('user', 'likers', )
 
 class FeelingcommentAdmin(admin.ModelAdmin):
