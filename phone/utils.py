@@ -78,6 +78,12 @@ def start_end(page=0, page_size=PAGE_SIZE):
     end = (page+1) * page_size
     return start, end
 
+def g_queryset(QuerySet, page, pagesize=settings.DEFAULT_PAGESIZE):
+    page, pagesize = int(page), int(pagesize)
+    start = page * pagesize
+    end = (page+1) * pagesize
+    return QuerySet[start:end]
+
 def islogin(text=''):
     def decorator(func):
         @functools.wraps(func)

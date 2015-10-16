@@ -16,10 +16,10 @@ from phone.models import *
 
 from phone.utils import *
 
-def isexists(Model, pk):
+NOENTITY = Response({'status':1, 'msg':'no entity'})
+def getinstance(Model, pk):
     model = Model.objects.filter(pk=pk)
-    if model.exists(): return model[0]
-    return None 
+    return model[0] if model.exists() else None
 
 @api_view(['POST'])
 def sendcode(request, flag):
@@ -50,8 +50,8 @@ def register(request):
     password = request.data.get('password')
     system = request.data.get('system', '').strip()
     if not re.match('^[12]$', system): return ARG
-    system = isexists(System, system)
-    if not system: return ISEXISTS
+    system = getinstance(System, system)
+    if not system: return NOENTITY
     user = User.objects.create(
         telephone=telephone, 
         password=password,
@@ -262,8 +262,7 @@ def project(request, page=0):
     return ret
 
 def g_thinktank(queryset, page):
-    start, end = start_end(page)
-    queryset = queryset[start:end]
+    queryset = g_queryset(queryset, page)
     if not queryset: return Response({'status':-1, 'msg':'加载完毕', 'data':[]})
     if isinstance(queryset[0], Thinktank): flag = 't'
     elif isinstance(queryset[0], ThinktankCollect): flag= 'c'
@@ -284,8 +283,8 @@ def g_thinktank(queryset, page):
 
 @api_view(['POST', 'GET'])
 def thinktankdetail(request, pk):
-    thinktank = isexists(Thinktank, pk)
-    if not thinktank: return ISEXISTS
+    thinktank = getinstance(Thinktank, pk)
+    if not thinktank: return NOENTITY
     data = dict()
     data['url'] = thinktank.video
     data['experience'] = thinktank.experience
@@ -322,8 +321,8 @@ def investamountsum(flag, project):
 @api_view(['POST', 'GET'])
 @islogin()
 def projectdetail(request, pk):
-    project = isexists(Project, pk)
-    if not project: return ISEXISTS
+    project = getinstance(Project, pk)
+    if not project: return NOENTITY
     data = dict()
     data['company_name'] = project.company.name
     data['stage'] = project_stage(project)
@@ -367,8 +366,8 @@ def projectdetail(request, pk):
 @api_view(['POST', 'GET'])
 def finance_plan(request, pk):
     data = dict()
-    project = isexists(Project, pk)
-    if not project: return ISEXISTS
+    project = getinstance(Project, pk)
+    if not project: return NOENTITY
     data['plan_finance'] = project.planfinance
     data['finance_pattern'] = project.pattern
     data['share2give'] = project.share2give
@@ -378,8 +377,8 @@ def finance_plan(request, pk):
 
 @api_view(['POST', 'GET'])
 def coremember(request, pk):
-    project = isexists(Project, pk)
-    if not project: return ISEXISTS
+    project = getinstance(Project, pk)
+    if not project: return NOENTITY
     data = list()
     for item in project.coremember_set.all():
         tmp = dict()
@@ -393,8 +392,8 @@ def coremember(request, pk):
 
 @api_view(['POST', 'GET'])
 def corememberdetail(request, pk):
-    coremember = isexists(CoreMember, pk)
-    if not coremember: return ISEXISTS
+    coremember = getinstance(CoreMember, pk)
+    if not coremember: return NOENTITY
     data = dict()
     data['profile'] = coremember.profile
     return Response({'status':0, 'msg':'核心成员详情', 'data':data})
@@ -430,8 +429,8 @@ def project_event(request, pk):
 @api_view(['POST', 'GET'])
 @islogin()
 def participate(request, pk):
-    project = isexists(Project, pk)
-    if not project: return ISEXISTS
+    project = getinstance(Project, pk)
+    if not project: return NOENTITY
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     pps = ParticipateShip.objects.filter(project=project, user=user)
@@ -440,8 +439,7 @@ def participate(request, pk):
     return Response({'status':0, 'msg':'报名成功'})
 
 def g_project(queryset, page): 
-    start, end = start_end(page)
-    queryset = queryset[start:end]
+    queryset = g_queryset(queryset, page)
     if not queryset: return Response({'status':-1, 'msg':'没有项目', 'data':[]})
     if isinstance(queryset[0], Project): flag = 'p'
     elif isinstance(queryset[0], RecommendProject): flag = 'r'
@@ -536,8 +534,8 @@ def activity(request):
 @api_view(['POST', 'GET'])
 @islogin()
 def signin(request, pk):
-    activity = isexists(Activity, pk)
-    if not activity: return ISEXISTS
+    activity = getinstance(Activity, pk)
+    if not activity: return NOENTITY
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     if Signin.objects.filter(user=user, activity=activity).exists(): 
@@ -586,8 +584,8 @@ def editcompany(request, pk):
 
 @api_view(['POST', 'GET'])
 def companyinfo(request, pk):
-    company = isexists(Company, pk)
-    if not company: return ISEXISTS
+    company = getinstance(Company, pk)
+    if not company: return NOENTITY
     data = dict()
     data['industry_type'] = [it.name for it in company.industry.all()]
     data['province'] = company.province
@@ -673,12 +671,12 @@ def authenticate(request):
     if not MTM_RE.match(qualification): return ARG
     if flag == '1' and not MTM_RE.match(industry): return ARG
     if flag == '1':
-        company = isexists(Company, company)
-        if not company: return ISEXISTS
+        company = getinstance(Company, company)
+        if not company: return NOENTITY
     else:
         company = None
-    fundsizerange = isexists(FundSizeRange, fundsizerange)
-    if not fundsizerange: return ISEXISTS
+    fundsizerange = getinstance(FundSizeRange, fundsizerange)
+    if not fundsizerange: return NOENTITY
      
     user = User.objects.get(pk=uid)
     investors = Investor.objects.filter(user=user, company=company)
@@ -775,8 +773,8 @@ def like(request, pk):
 @api_view(['POST'])
 @islogin()
 def vote(request, pk): 
-    project = isexists(Project, pk)
-    if not project: return ISEXISTS
+    project = getinstance(Project, pk)
+    if not project: return NOENTITY
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     if VoteShip.objects.filter(project=project, user=user).exists():
@@ -941,8 +939,8 @@ def wantinvest(request, pk):
     if not PK_RE.match(investor): 
         return  Response({'status':1, 'msg':'请点击选择您的投资人身份'})
         return ARG 
-    project = isexists(Project, pk) # 项目
-    if not project: return ISEXISTS
+    project = getinstance(Project, pk) # 项目
+    if not project: return NOENTITY
     fund = project.leadfund if flag=='1' else project.followfund
     if int(invest_amount) < fund:
         return Response({'status':1, 'msg':'金额必须大于%s' % fund})
@@ -1122,8 +1120,8 @@ def deletevideo(request):
 @api_view(['POST', 'GET'])
 @islogin()
 def ismyproject(request, pk):
-    project = isexists(Project, pk)
-    if not project: return ISEXISTS
+    project = getinstance(Project, pk)
+    if not project: return NOENTITY
     uid = request.session.get('login')
     if project.roadshow and  project.roadshow.user.id == uid: 
         return Response({'status':1, 'msg':'你不可以给自己的项目投资'})
@@ -1146,8 +1144,8 @@ def isinvestor(request):
 @api_view(['POST', 'GET'])
 @islogin()
 def investorinfo(request, pk):
-    investor = isexists(Investor, pk)
-    if not investor: return ISEXISTS
+    investor = getinstance(Investor, pk)
+    if not investor: return NOENTITY
     data = dict()
     data['investor_type'] = 1 if investor.company else 0 
     if investor.company: #机构投资人
@@ -1253,14 +1251,14 @@ def leadfunding(request):
 def topic(request, pk):
     content = request.data.get('content','')
     if content.strip() == '': return myarg('content') 
-    project = isexists(Project, pk)
-    if not project: return ISEXISTS
+    project = getinstance(Project, pk)
+    if not project: return NOENTITY
     at_topic = request.data.get('at_topic',0)
     if not at_topic: 
         at_topic = None
         msg = '发表话题成功'
     else: 
-        at_topic = isexists(Topic, at_topic)
+        at_topic = getinstance(Topic, at_topic)
         msg = '回复成功'
     uid = request.session.get('login')
     user = User.objects.get(pk=uid) 
@@ -1277,8 +1275,7 @@ def topic(request, pk):
     return Response({'status':0, 'msg':msg, 'data':topic.id})
 
 def g_topiclist(queryset, page, at=True):
-    start, end = start_end(page, 6)
-    queryset = queryset[start:end]
+    queryset = g_queryset(queryset, page)
     data = list()
     for item in queryset:
         tmp = dict()
@@ -1306,8 +1303,7 @@ def topiclist(request, pk, page):
     return ret
    
 def g_news(queryset, page):
-    start, end = start_end(page)
-    queryset = queryset[start:end]
+    queryset = g_queryset(queryset, page)
     if not queryset and int(page) == 0: return Response({'status':0, 'msg':'没有相关数据'})
     data = list()
     for item in queryset:
@@ -1338,8 +1334,8 @@ def knowledge(request, page):
 
 @api_view(['POST', 'GET'])
 def sharenews(request, pk):
-    news = isexists(News, pk) 
-    if not news: return ISEXISTS 
+    news = getinstance(News, pk) 
+    if not news: return NOENTITY 
     data = dict()
     data['href'] = '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, news.name)
     data['src'] = news.src 
@@ -1349,16 +1345,16 @@ def sharenews(request, pk):
 
 @api_view(['POST', 'GET'])
 def newssharecount(request, pk):
-    news = isexists(News, pk) 
-    if not news: return ISEXISTS 
+    news = getinstance(News, pk) 
+    if not news: return NOENTITY 
     news.sharecount += 1
     news.save()
     return Response({'status':0, 'msg':'分享数加'})
         
 @api_view(['POST', 'GET'])
 def newsreadcount(request, pk):
-    news = isexists(News, pk) 
-    if not news: return ISEXISTS 
+    news = getinstance(News, pk) 
+    if not news: return NOENTITY 
     news.readcount += 1
     news.save()
     return Response({'status':0, 'msg':'阅读数加'})
@@ -1394,8 +1390,7 @@ def hassysteminform(request):
 def systeminform(request, page):
     uid = request.session.get('login')
     queryset = SystemInform.objects.filter(user__pk=uid)
-    start, end = start_end(page)
-    queryset = queryset[start:end]
+    queryset = g_queryset(queryset, page)
     data = list()
     for item in queryset:
         extras = {'api': item.push.msgtype.name,
@@ -1415,7 +1410,7 @@ def systeminform(request, page):
 @api_view(['POST', 'GET'])
 @islogin()
 def setsysteminform(request, pk):
-    systeminform = isexists(SystemInform, pk)
+    systeminform = getinstance(SystemInform, pk)
     if not systeminform: return myarg('systeminform')
     systeminform.read = True
     systeminform.save()
@@ -1424,7 +1419,7 @@ def setsysteminform(request, pk):
 @api_view(['POST', 'GET'])
 @islogin()
 def deletesysteminform(request, pk):
-    systeminform = isexists(SystemInform, pk)
+    systeminform = getinstance(SystemInform, pk)
     if not systeminform: return myarg('systeminform')
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
@@ -1456,7 +1451,7 @@ def settopicread(request, pk):
         queryset = Topic.objects.filter(at_topic__user__id=uid, read=False) 
         queryset.update(read=True)
         return Response({'status':0, 'msg':'全部设为已读'})
-    topic = isexists(Topic, pk)
+    topic = getinstance(Topic, pk)
     if not topic: return myarg('topic')
     topic.read = None 
     topic.save()
@@ -1474,20 +1469,19 @@ def latestknowledgecount(request):
     queryset = News.objects.filter(newstype=4, create_datetime__gt=yesterday)
     return Response({'status':0, 'msg':'新三板数量', 'data':{'count':queryset.count()}})
 
-def g_feelinglikers(queryset, page=0, page_size=3): 
-    start, end = start_end(page, page_size)
-    queryset = queryset[start:end]
+def g_feelinglikers(queryset, page, pagesize=settings.FEELINGLIKERS_INITAL_PAGESIZE): 
+    queryset = g_queryset(queryset, page, pagesize)
     data = list()
     for item in queryset:
         tmp = dict()
         tmp['name'] = item.name
         tmp['uid'] = item.id
+        tmp['photo'] = myimg(item.img)
         data.append(tmp)
     return data
 
-def g_feelingcomment(queryset, user=None, page=0, page_size=15):
-    start, end = start_end(page, page_size)
-    queryset = queryset[start:end]
+def g_feelingcomment(queryset, user, page):
+    queryset = g_queryset(queryset, page, settings.FEELINGCOMMENT_PAGESIZE)
     _data = list()
     for _item in queryset:
         _tmp = dict()
@@ -1495,18 +1489,18 @@ def g_feelingcomment(queryset, user=None, page=0, page_size=15):
         _tmp['flag'] = _item.user == user
         _tmp['name'] = '%s' % (_item.user.name)
         _tmp['uid'] = _item.user.id
+        _tmp['photo'] = myimg(_item.user.img)
         if _item.at:
-            _tmp['at_label'] = '回复'
+            _tmp['at_label'] = settings.AT_LABEL
             _tmp['at_uid'] = _item.at.user.id
             _tmp['at_name'] = _item.at.user.name
-        _tmp['label_suffix'] = ':'
+        _tmp['label_suffix'] = settings.LABEL_SUFFIX
         _tmp['content'] = '%s' % (_item.content)
         _data.append(_tmp)
     return _data
         
-def g_feelinglist(queryset, page, user=None):
-    start, end = start_end(page, 6)
-    queryset = queryset[start:end]
+def g_feeling(queryset, user, page):
+    queryset = g_queryset(queryset, page, settings.FEELING_PAGESIZE)
     data = list()
     for item in queryset:
         tmp = dict()
@@ -1518,13 +1512,13 @@ def g_feelinglist(queryset, page, user=None):
         tmp['photo'] = myimg(item.user.img)
         tmp['content'] = item.content
         tmp['pics'] = [] if item.pics==''  else [ os.path.join(settings.RES_URL, v) for v in item.pics.split(';') ]
-        tmp['likers'] = g_feelinglikers(item.likers.all()) # page_size=3
+        tmp['likers'] = g_feelinglikers(item.likers.all(), 0) # page_size=3
         remain_likers_num = item.likers.all().count() - 3
         tmp['remain_likers_num'] = 0 if remain_likers_num <=0 else remain_likers_num
         tmp['position'] = [ v.name for v in item.user.position.all() ]
         tmp['city'] = item.user.city 
         _queryset = Feelingcomment.objects.filter(feeling=item, valid=None)
-        _data = g_feelingcomment(_queryset, user)
+        _data = g_feelingcomment(_queryset, user, 0)
         tmp['comment'] = _data
         remain_comment_num = _queryset.count() - 15
         tmp['remain_comment_num'] = 0 if remain_comment_num <=0 else remain_comment_num 
@@ -1534,11 +1528,9 @@ def g_feelinglist(queryset, page, user=None):
 @api_view(['POST', 'GET'])
 @islogin()
 def feeling(request, page):
-    uid = request.session.get('login', '1')
-    user = User.objects.get(pk=uid)
     queryset = Feeling.objects.all()
-    ret = g_feelinglist(queryset, page, user)
-    return ret
+    user = User.objects.get(pk=request.session.get('login', '1'))
+    return g_feeling(queryset, user, page)
 
 @api_view(['POST'])
 @islogin()
@@ -1563,13 +1555,12 @@ def postfeeling(request):
     )
     return Response({'status':0, 'msg':'postfeeling'})
 
-@api_view(['POST', 'GET'])
+@api_view(['POST'])
 @islogin()
 def deletefeeling(request, pk):
-    item = isexists(Feeling, pk)
-    if not item: return ISEXISTS
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
+    item = getinstance(Feeling, pk)
+    if not item: return NOENTITY
+    user = User.objects.get(pk=request.session.get('login'))
     if item.user == user:
         item.delete()
         return Response({'status':0, 'msg':'删除状态成功'})
@@ -1578,57 +1569,54 @@ def deletefeeling(request, pk):
 @api_view(['POST'])
 @islogin()
 def likefeeling(request, pk, flag):
-    item = isexists(Feeling, pk)
-    if not item: return ISEXISTS
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
+    item = getinstance(Feeling, pk)
+    if not item: return NOENTITY
+    user = User.objects.get(pk=request.session.get('login'))
     if flag == '1': item.likers.add(user)
     else: item.likers.remove(user)
     return Response({'status':0, 'msg':'操作成功'})
 
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 @islogin()
 def feelinglikers(request, pk, page):
-    item = isexists(Feeling, pk)
-    if not item: return ISEXISTS
+    item = getinstance(Feeling, pk)
+    if not item: return NOENTITY
     queryset = item.likers.all()
-    data = g_feelinglikers(queryset, page, 15)
+    data = g_feelinglikers(queryset, page, settings.FEELINGLIKERS_PAGESIZE)
     return Response({'status':0, 'msg':'状态点赞情况', 'data':data})
 
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 @islogin()
 def feelingcomment(request, pk, page):
-    user = User.objects.get( pk = request.session.get('login') )
-    _queryset = Feelingcomment.objects.filter(feeling=item, valid=None)
-    _data = g_feelingcomment(_queryset, user, page)
+    item = getinstance(Feeling, pk)
+    if not item: return NOENTITY
+    user = User.objects.get(pk=request.session.get('login'))
+    queryset = Feelingcomment.objects.filter(feeling=item, valid=None)
+    data = g_feelingcomment(queryset, user, page)
     return Response({'status':0, 'msg':'评论列表', 'data':data})
 
 @api_view(['POST'])
 @islogin()
 def postfeelingcomment(request, pk):
-    item = isexists(Feeling, pk)
-    if not item: return ISEXISTS
-    uid = request.session.get('login') 
+    item = getinstance(Feeling, pk)
     content = request.data.get('content', '').rstrip()
-    if not content: return Response({'status':1, 'msg':'回复内容不能为空'})
     at = request.data.get('at', 0)
-    if not at: at = None
-    else: at = isexists(Feelingcomment, at)
+    if not item: return NOENTITY
+    if not content: return Response({'status':1, 'msg':'回复内容为空'})
     Feelingcomment.objects.create(
         feeling = item,
-        user = User.objects.get(pk=uid),
+        user = User.objects.get(request.session.get('login')),
         content = content,
-        at = at
+        at = None if not at else getinstance(Feelingcomment, at),
     )
     return Response({'status':0, 'msg':'回复成功'})
 
 @api_view(['POST'])
 @islogin()
 def hidefeelingcomment(request, pk):
-    item = isexists(Feeling, pk)
-    if not item: return ISEXISTS
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
+    item = getinstance(Feeling, pk)
+    if not item: return NOENTITY
+    user = User.objects.get(pk=request.session.get('login'))
     if item.user == user:
         item.valid = False
         item.save()
