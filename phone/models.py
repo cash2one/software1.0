@@ -881,9 +881,10 @@ class Feeling(models.Model):
         verbose_name = verbose_name_plural = '状态发表'
 
     def delete(self):
+        import imghdr
         for v in self.pics.split(';'):
-            absolute_path = os.path.join(settings.BASE_DIR, v)
-            os.path.exists(absolute_path) and os.remove(absolute_path) 
+            pic = os.path.join(settings.BASE_DIR, v)
+            os.path.isfile(pic) and imghdr.what(pic) == 'png' and os.remove(pic) 
         return super(Feeling, self).delete()
         
 

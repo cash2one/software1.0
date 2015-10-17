@@ -78,7 +78,6 @@ class Browser(object):
         url = url.replace('www.sanban18.com', '61.152.104.238')
         try: self.open(url)
         except Exception as e: return
-        print(title)
         soup = BeautifulSoup(self.HTML, 'html.parser')
         div = soup.findAll('div', {'class', 'newscont'})[0]
         div = str(div)
@@ -117,7 +116,6 @@ class Browser(object):
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="http://cdn.bootcss.com/bootstrap/3.3.5/css/bootstrap.min.css"/>
-        <link rel="stylesheet" href="http://getbootstrap.com/2.3.2/assets/css/bootstrap-responsive.css"/>
         <link href="http://www.jinzht.com/static/app/css/blog.css" rel="stylesheet">
     </head>
     <body>
@@ -125,13 +123,16 @@ class Browser(object):
             <div class="row blog-main" style="margin:5px -14px;">
                 <div class="blog-post">
                 <h4 style="color:#e94819;"><strong>%s</strong></h4>
-                <p class="blog-post-meta">时间: %s 汇编: <a href="%s">%s</a></p>
+                <p class="blog-post-meta">
+                    <a href="%s">%s</a>
+                    <a class="btn btn-danger pull-right" href="%s">下载APP</a>
+                </p>
                 %s
                 <p class="blog-post-meta">版权: %s</p>
             </div>
         </div>
     </body>
-</html>''' % (title, pub, app, '金指投科技', div, source)
+</html>''' % (title, app, '金指投科技', app, div, source)
 
         import codecs
         pth = os.path.join(settings.BASE_DIR, settings.NEWS_TEMPLATE)

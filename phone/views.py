@@ -1499,8 +1499,8 @@ def g_feelingcomment(queryset, user, page):
         _data.append(_tmp)
     return _data
         
-def g_feeling(queryset, user, page):
-    queryset = g_queryset(queryset, page, settings.FEELING_PAGESIZE)
+def g_feeling(queryset, user, page, pagesize):
+    queryset = g_queryset(queryset, page, pagesize)
     data = list()
     for item in queryset:
         tmp = dict()
@@ -1512,6 +1512,7 @@ def g_feeling(queryset, user, page):
         tmp['photo'] = myimg(item.user.img)
         tmp['content'] = item.content
         tmp['pics'] = [] if item.pics==''  else [ os.path.join(settings.RES_URL, v) for v in item.pics.split(';') ]
+        tmp['is_like'] = user in item.likers.all()
         tmp['likers'] = g_feelinglikers(item.likers.all(), 0) # page_size=3
         remain_likers_num = item.likers.all().count() - 3
         tmp['remain_likers_num'] = 0 if remain_likers_num <=0 else remain_likers_num
@@ -1523,14 +1524,17 @@ def g_feeling(queryset, user, page):
         remain_comment_num = _queryset.count() - 15
         tmp['remain_comment_num'] = 0 if remain_comment_num <=0 else remain_comment_num 
         data.append(tmp)
-    return Response({'status':0, 'msg':'状态圈', 'data':data})
+    return data
 
 @api_view(['POST', 'GET'])
 @islogin()
 def feeling(request, page):
     queryset = Feeling.objects.all()
     user = User.objects.get(pk=request.session.get('login', '1'))
-    return g_feeling(queryset, user, page)
+    pagesize = settings.FEELING_PAGESIZE # 状态默认分页
+    data = g_feeling(queryset, user, page, pagesize)
+    status = -(len(data)<pagesize)
+    return Response({'status':status, 'msg':'状态圈', 'data':data})
 
 @api_view(['POST'])
 @islogin()
@@ -1574,7 +1578,7 @@ def likefeeling(request, pk, flag):
     user = User.objects.get(pk=request.session.get('login'))
     if flag == '1': item.likers.add(user)
     else: item.likers.remove(user)
-    return Response({'status':0, 'msg':'操作成功'})
+    return Response({'status':0, 'msg':'操作成功', 'data':not int(flag)})
 
 @api_view(['GET'])
 @islogin()
@@ -1582,8 +1586,10 @@ def feelinglikers(request, pk, page):
     item = getinstance(Feeling, pk)
     if not item: return NOENTITY
     queryset = item.likers.all()
-    data = g_feelinglikers(queryset, page, settings.FEELINGLIKERS_PAGESIZE)
-    return Response({'status':0, 'msg':'状态点赞情况', 'data':data})
+    pagesize = settings.FEELINGLIKERS_PAGESIZE
+    data = g_feelinglikers(queryset, page, pagesize)
+    status = -(len(data)<pagesize)
+    return Response({'status':status, 'msg':'状态点赞', 'data':data})
 
 @api_view(['GET'])
 @islogin()
@@ -1592,29 +1598,35 @@ def feelingcomment(request, pk, page):
     if not item: return NOENTITY
     user = User.objects.get(pk=request.session.get('login'))
     queryset = Feelingcomment.objects.filter(feeling=item, valid=None)
+    pagesize = settings.FEELINGCOMMENT_PAGESIZE
     data = g_feelingcomment(queryset, user, page)
-    return Response({'status':0, 'msg':'评论列表', 'data':data})
+    status = -1 if len(data) < pagesize else 0
+    return Response({'status':status, 'msg':'评论列表', 'data':data})
 
 @api_view(['POST'])
 @islogin()
 def postfeelingcomment(request, pk):
     item = getinstance(Feeling, pk)
     content = request.data.get('content', '').rstrip()
-    at = request.data.get('at', 0)
+    at = request.data.get('at', None)
     if not item: return NOENTITY
     if not content: return Response({'status':1, 'msg':'回复内容为空'})
+    user = User.objects.get(pk=request.session.get('login'))
+    if at:
+        at = getinstance(Feelingcomment, at)
+        if at and user == at.user: return Response({'status':1, 'msg':'不能给自己回复'})
     Feelingcomment.objects.create(
         feeling = item,
-        user = User.objects.get(request.session.get('login')),
+        user = user,
         content = content,
-        at = None if not at else getinstance(Feelingcomment, at),
+        at = at,
     )
     return Response({'status':0, 'msg':'回复成功'})
 
 @api_view(['POST'])
 @islogin()
 def hidefeelingcomment(request, pk):
-    item = getinstance(Feeling, pk)
+    item = getinstance(Feelingcomment, pk)
     if not item: return NOENTITY
     user = User.objects.get(pk=request.session.get('login'))
     if item.user == user:
