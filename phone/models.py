@@ -66,6 +66,7 @@ class User(models.Model):
     city = models.CharField('城市', max_length=32, blank=True)
     comment = TextField('备注信息', blank=True)
     create_datetime = models.DateTimeField('注册时间', auto_now_add=True)
+    background = models.ImageField('微信背景', upload_to=UploadTo('user/background/%Y/%m/'), blank=True)
 
     def save(self, *args, **kwargs): #密码的问题
         edit = self.pk is not None
@@ -75,6 +76,7 @@ class User(models.Model):
             osremove(user.img, self.img)
             osremove(user.idfore, self.idfore)
             osremove(user.idback, self.idback)
+            osremove(user.background, self.background)
         else:
             MobSMS().remind(self.telephone, settings.REGISTER) 
             MAIL('用户注册', '%s 在 %s 注册' % (self.telephone, timeformat(self.create_datetime)) ).send()
@@ -881,10 +883,9 @@ class Feeling(models.Model):
         verbose_name = verbose_name_plural = '状态发表'
 
     def delete(self):
-        import imghdr
         for v in self.pics.split(';'):
             pic = os.path.join(settings.BASE_DIR, v)
-            os.path.isfile(pic) and imghdr.what(pic) == 'png' and os.remove(pic) 
+            os.path.isfile(pic) and imghdr.what(pic) in settings.ALLOW_IMG and os.remove(pic) 
         return super(Feeling, self).delete()
         
 
@@ -902,3 +903,14 @@ class Feelingcomment(models.Model):
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '话题评论'
+
+    def save(self, *args, **kwargs):
+        edit = self.pk is not None
+        super(Feelingcomment, self).save(*args, **kwargs)
+        if edit == False:
+            if self.user == self.feeling.user:
+                pass
+            else:
+                extras = {'api': 'feeling'}
+                JiGuang('有人给你盖了楼, 点击查看', extras).single(self.feeling.user.regid)
+                self.at and self.at.user != self.feeling.user and  JiGuang('有人回复了你, 点击查看', extras).single(self.at.user.regid)

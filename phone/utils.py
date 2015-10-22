@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, date
 from rest_framework.response import Response
 
 import os, re, functools, uuid, time, random, pytz, hashlib, codecs
+import imghdr
 import jpush as jpush
 import requests
 from qiniu import Auth, BucketManager

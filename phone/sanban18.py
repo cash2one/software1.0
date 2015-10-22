@@ -146,7 +146,7 @@ class Browser(object):
         '''get the main article'''
         soup = BeautifulSoup(self.HTML, 'html.parser')
         tags = soup.findAll('p', {'class': 'htn-top clearfix'})
-        for top in tags: self.update(top, newstype)
+        for top in tags[0:3]: self.update(top, newstype)
 
 def main():
     browser = Browser()
@@ -159,7 +159,7 @@ def main():
             url = 'http://www.sanban18.com/%s/' %(item.eng)
             url = 'http://61.152.104.238/%s/' %(item.eng)
             try: browser.open(url)
-            except Exception as e: exit(0)
+            except Exception as e: print('exit(0)')
             else: browser.collect(item)
 
 def push():
