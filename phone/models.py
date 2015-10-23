@@ -911,6 +911,6 @@ class Feelingcomment(models.Model):
             if self.user == self.feeling.user:
                 pass
             else:
-                extras = {'api': 'feeling'}
-                JiGuang('有人给你盖了楼, 点击查看', extras).single(self.feeling.user.regid)
+                extras = {'api': 'feeling', 'id':self.id}
+                JiGuang('有人提及到您, 点击查看', extras).single(self.feeling.user.regid)
                 self.at and self.at.user != self.feeling.user and  JiGuang('有人回复了你, 点击查看', extras).single(self.at.user.regid)

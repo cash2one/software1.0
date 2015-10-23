@@ -80,13 +80,11 @@ def login(request):
 @api_view(['POST','GET'])        
 @islogin()
 def regid(request):
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
+    user = User.objects.get(pk=request.session.get('login'))
     regid = request.data.get('regid', '').strip()
     if not regid: return myarg('regid') 
-    user.regid = regid
-    user.save()
-    return Response({'status':0, 'msg':'存储reg_id'})
+    user.regid = regid; user.save()
+    return Response({'status':0, 'msg':''})
 
 @api_view(['POST', 'GET'])
 def logout(request):
@@ -96,8 +94,7 @@ def logout(request):
 @api_view(['POST'])
 def resetpassword(request):
     telephone = request.data.get('telephone')
-    if validate_telephone(telephone) == False:
-        return Response({'status':1, 'msg':'手机格式不正确'})
+    if validate_telephone(telephone) == False: return Response({'status':1, 'msg':'手机格式不正确'})
     user = User.objects.filter(telephone=telephone)
     if not user.exists(): return Response({'status':1, 'msg':'您尚未注册, 请先注册'})
     code = request.data.get('code')
@@ -105,8 +102,7 @@ def resetpassword(request):
     if code != code_session: return Response({'status':1, 'msg':'验证码错误'})
     user = user[0]
     password = request.data.get('password')
-    user.password = password
-    user.save()
+    user.password = password; user.save()
     request.session['login'] = user.id; request.session.set_expiry(3600 * 24)
     request.session[telephone] = ''
     return Response({'status':0, 'msg':'设置密码成功'})
@@ -114,13 +110,11 @@ def resetpassword(request):
 @api_view(['POST'])
 @islogin()
 def modifypassword(request):
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
+    user = User.objects.get(pk=request.session.get('login'))
     old_password = request.data.get('old_password')
     new_password = request.data.get('new_password')
     if old_password != user.password: return Response({'status':1, 'msg':'旧密码输入有误'})
-    user.password = new_password
-    user.save()
+    user.password = new_password; user.save()
     return Response({'status':0, 'msg':'修改密码成功'})
 
 @api_view(['POST'])
@@ -128,56 +122,48 @@ def modifypassword(request):
 def gender(request):
     gender = request.data.get('gender', '').strip()
     if not re.match('^[01]$', gender): return myarg('gender')
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
-    user.gender = int(gender)
-    user.save()
+    user = User.objects.get(pk=request.session.get('login'))
+    user.gender = int(gender); user.save()
     return Response({'status':0, 'msg':'性别设置成功'})
             
 @api_view(['POST'])
 @islogin()
 def weixin(request):
-    uid = request.data.get('login')
-    user = User.objects.get(pk=uid)
     weixin = request.data.get('weixin','').strip()
     if not weixin: return myarg('weixin')
-    user.weixin = weixin
-    user.save()
+    user = User.objects.get(pk=request.session.get('login'))
+    user.weixin = weixin; user.save()
     return Response({'status':0, 'msg':'微信设置成功'})
 
 @api_view(['POST'])
 @islogin()
 def realname(request):
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
     name = request.data.get('real_name', '').strip()
     if not name: return myarg('name')
-    user.name = name
-    user.save()
+    user = User.objects.get(pk=request.session.get('login'))
+    user.name = name; user.save()
     return Response({'status':0, 'msg':'姓名设置成功'})
 
 @api_view(['GET', 'POST'])
 def banner(rquest):
-    banners = Banner.objects.reverse()[:4]
+    queryset= Banner.objects.reverse()[:4]
     data = list()
-    for banner in banners:
+    for item in queryset:
         tmp = dict()
-        tmp['img'] = '%s%s' %(RES_URL, banner.img.url)
-        tmp['project'] = banner.project.id if banner.project else None
-        tmp['url'] = banner.url
+        tmp['img'] = '%s%s' %(RES_URL, item.img.url)
+        tmp['project'] = item.project.id if item.project else None
+        tmp['url'] = item.url
         data.append(tmp)
     return Response({'status':0, 'msg': '', 'data':data})
 
 @api_view(['POST'])
 @islogin()
 def provincecity(request):
-    uid = request.session.get('login')
     province = request.data.get('province', '').strip()
     city = request.data.get('city', '').strip()
     if not province or not city: return myarg('province or city') 
-    user = User.objects.get(pk=uid)
-    user.province, user.city = province, city
-    user.save()
+    user = User.objects.get(pk=request.session.get('login'))
+    user.province, user.city = province, city; user.save()
     return Response({'status':0, 'msg': '地区设置成功'})
 
 def project_stage(project):
@@ -261,15 +247,23 @@ def project(request, page=0):
     ret = g_project( Project.objects.all(), page) 
     return ret
 
-def g_thinktank(queryset, page):
-    queryset = g_queryset(queryset, page)
-    if not queryset: return Response({'status':-1, 'msg':'加载完毕', 'data':[]})
-    if isinstance(queryset[0], Thinktank): flag = 't'
-    elif isinstance(queryset[0], ThinktankCollect): flag= 'c'
+@api_view(['POST', 'GET'])
+def thinktankdetail(request, pk):
+    item = getinstance(Thinktank, pk)
+    if not item: return NOENTITY
+    data = dict()
+    data['url'] = item.video
+    data['experience'] = item.experience
+    data['success_cases'] = item.success_cases
+    data['good_at_field'] = item.good_at_field
+    return Response({'status':0, 'msg':'', 'data':data})
+    
+@api_view(['POST', 'GET'])    
+def thinktank(request, page):
+    queryset = g_queryset(Thinktank.objects.all(), page)
     data = list()
     for item in queryset:
         tmp = dict()
-        if flag != 't': item = item.thinktank
         tmp['id'] = item.id
         tmp['img'] = '%s%s' %(RES_URL, item.img.url)
         tmp['thumbnail'] = '%s%s' %(RES_URL, item.img.url)
@@ -278,31 +272,8 @@ def g_thinktank(queryset, page):
         tmp['title'] = item.title
         tmp['experience'] = item.experience
         data.append(tmp)
-    status, msg = (0,'') if len(queryset)==PAGE_SIZE else (-1, '加载完毕')
-    return Response({'status':status, 'msg':msg, 'data':data})
-
-@api_view(['POST', 'GET'])
-def thinktankdetail(request, pk):
-    thinktank = getinstance(Thinktank, pk)
-    if not thinktank: return NOENTITY
-    data = dict()
-    data['url'] = thinktank.video
-    data['experience'] = thinktank.experience
-    data['success_cases'] = thinktank.success_cases
-    data['good_at_field'] = thinktank.good_at_field
-    return Response({'status':0, 'msg':'', 'data':data})
-    
-@api_view(['POST', 'GET'])    
-def thinktank(request, page):
-    ret = g_thinktank(Thinktank.objects.all(), page)
-    return ret
-
-@api_view(['POST', 'GET'])
-@islogin()
-def collectthinktank(request, page):
-    uid = request.session.get('login')
-    ret = g_thinktank( ThinktankCollect.objects.filter(user__pk=uid), page )
-    return ret
+    status = -int(len(queryset)<PAGE_SIZE)
+    return Response({'status':status, 'msg':'加载完毕', 'data':data})
 
 def videourl(name):
     q = Auth(settings.access_key, settings.secret_key)
@@ -364,15 +335,15 @@ def projectdetail(request, pk):
     return Response({'status': 0, 'msg': '', 'data': data})
 
 @api_view(['POST', 'GET'])
-def finance_plan(request, pk):
+def financeplan(request, pk):
+    item = getinstance(Project, pk)
+    if not item: return NOENTITY
     data = dict()
-    project = getinstance(Project, pk)
-    if not project: return NOENTITY
-    data['plan_finance'] = project.planfinance
-    data['finance_pattern'] = project.pattern
-    data['share2give'] = project.share2give
-    data['fund_purpose'] = project.usage
-    data['quit_way'] = project.quitway
+    data['plan_finance'] = item.planfinance
+    data['finance_pattern'] = item.pattern
+    data['share2give'] = item.share2give
+    data['fund_purpose'] = item.usage
+    data['quit_way'] = item.quitway
     return Response({'status':0, 'msg':'', 'data': data})
 
 @api_view(['POST', 'GET'])
@@ -380,7 +351,8 @@ def coremember(request, pk):
     project = getinstance(Project, pk)
     if not project: return NOENTITY
     data = list()
-    for item in project.coremember_set.all():
+    queryset = project.coremember_set.all()
+    for item in queryset:
         tmp = dict()
         tmp['id'] = item.id
         tmp['img'] = myimg(item.img)
@@ -400,29 +372,28 @@ def corememberdetail(request, pk):
 
 @api_view(['POST', 'GET'])
 def projectinvestorlist(request, pk):
-    ivs = InvestShip.objects.filter(project__pk=pk, valid=True)
+    queryset = InvestShip.objects.filter(project__pk=pk, valid=True)
     data = list()
-    for iv in ivs:
-        print('lindyang')
+    for item in queryset:
         tmp = dict()
-        investor = iv.investor
-        tmp['certificate_datetime'] = dateformat(investor.certificate_datetime)
-        tmp['invest_amount'] = iv.invest_amount
-        tmp['real_name'] = investor.user.name
+        investor = item.investor
         user = investor.user
+        tmp['certificate_datetime'] = dateformat(investor.certificate_datetime)
+        tmp['invest_amount'] = item.invest_amount
+        tmp['real_name'] = user.name
         tmp['user_img'] = myimg(user.img)
         data.append(tmp)
     return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
-def project_event(request, pk):
-    pe = ProjectEvent.objects.filter(project__pk=pk)
+def projectevent(request, pk):
+    queryset = ProjectEvent.objects.filter(project__pk=pk)
     data = list()
-    for t in pe:
+    for item in queryset:
         tmp = dict()
-        tmp['event_title'] = t.title
-        tmp['event_detail'] = t.detail
-        tmp['event_date'] = t.happen_datetime
+        tmp['event_title'] = item.title
+        tmp['event_detail'] = item.detail
+        tmp['event_date'] = item.happen_datetime
         data.append(tmp)
     return Response({'status':0, 'msg':'', 'data':data})
 
@@ -431,12 +402,11 @@ def project_event(request, pk):
 def participate(request, pk):
     project = getinstance(Project, pk)
     if not project: return NOENTITY
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
-    pps = ParticipateShip.objects.filter(project=project, user=user)
-    if pps.exists(): return Response({'status':1, 'msg':'您已申请参加该项目路演, 无需重复报名'})
+    user = User.objects.get(pk=request.session.get('login'))
+    item = ParticipateShip.objects.filter(project=project, user=user)
+    if item.exists(): return Response({'status':1, 'msg':'您已申请参加该项目路演, 无需重复报名'})
     ParticipateShip.objects.create(project=project, user=user)
-    return Response({'status':0, 'msg':'恭喜您, 申请成功!'})
+    return Response({'status':0, 'msg':'恭喜您, 申请成功'})
 
 @api_view(['GET'])
 def defaultclassify(request): return Response({'status':0, 'msg':'', 'data':3})
@@ -469,23 +439,23 @@ def g_project(queryset, page):
         tmp['stage'] = stage
         if stage['flag'] == 3: tmp['invest_amount_sum'] = project.finance2get # 融资完成的显示
         data.append(tmp)
-    status, msg = (0, '') if len(queryset)==PAGE_SIZE else (-1, '加载完毕')
-    return Response({'status':status, 'msg':msg, 'data':data})
+    status = -int(len(queryset)<PAGE_SIZE)
+    return Response({'status':status, 'msg':'加载完毕', 'data':data})
 
 @api_view(['POST', 'GET'])
-def recommend_project(request, page):
+def recommendproject(request, page):
     ret = g_project( RecommendProject.objects.all(), page )
     return ret
 
 @api_view(['POST', 'GET'])
-def wait_for_finance(request, page):
+def waitforfinance(request, page):
     #ps = Project.objects.filter(roadshow_start_datetime__lt=timezone.now().date()).annotate(invested_sum=Sum('investship__invest_amount')).filter(Q(invested_sum__isnull=True) | Q(invested_sum=0) ) 
     now = timezone.now()
     ret = g_project( Project.objects.filter(roadshow_start_datetime__lte=now, finance_stop_datetime__gte=now), page )
     return ret
 
 @api_view(['POST', 'GET'])
-def finish_finance(request, page):
+def finishfinance(request, page):
     #ps = Project.objects.annotate(invested_sum=Sum('investship__invest_amount')).filter(invested_sum__gte=F('planfinance'))
     now = timezone.now()
     ret = g_project( Project.objects.filter(finance_stop_datetime__lt = now), page )
@@ -495,33 +465,29 @@ def finish_finance(request, page):
 @islogin()
 def wantroadshow(request):
     uid = request.session.get('login')
-    if Roadshow.objects.filter(~Q(valid=True), user__pk=uid).exists():
-        return Response({'status':1, 'msg':'您还有路演申请仍在审核中'})
+    if Roadshow.objects.filter(~Q(valid=True), user__pk=uid).exists(): return Response({'status':1, 'msg':'您还有路演申请仍在审核中'})
     user = User.objects.get(pk=uid)
     contact_name = request.data.get('contact_name')
     contact_phone = request.data.get('contact_phone')
-    company = request.data.get('company')
-    vcr = request.data.get('vcr', 'http://baidu.com')
-    company = Company.objects.filter(pk=company)
-    if not company.exists():
-        return Response({'status':1, 'msg':'该公司不存在, 请重新选择'})
-    company = company[0]
-    roadshow = Roadshow.objects.create(
-                user=user, 
-                company=company, 
-                contact_name=contact_name, 
-                contact_phone=contact_phone,
-            )
-    return Response({'status':0, 'msg':'上传项目成功, 您的项目已成功入选项目库', 'data':roadshow.id})
+    company = request.data.get('company', 0)
+    if not PK_RE.match(company): return myarg('company')
+    vcr = request.data.get('vcr', 'http://www.jinzht.com')
+    company = getinstance(Company, company)
+    if not company: return Response({'status':1, 'msg':'该公司不存在, 请重新选择'})
+    obj = Roadshow.objects.create(
+        user=user, 
+        company=company, 
+        contact_name=contact_name, 
+        contact_phone=contact_phone,
+    )
+    return Response({'status':0, 'msg':'上传项目成功, 您的项目已成功入选项目库', 'data':obj.id})
 
 @api_view(['POST', 'GET'])
 @islogin()
 def activity(request):
-    if not Activity.objects.all().exists():
-        return Response({'status':-1, 'msg':'目前没有活动'})
+    if not Activity.objects.all().exists(): return Response({'status':-1, 'msg':'目前没有活动'})
     ac = Activity.objects.all()[0]
-    if timezone.now() > ac.stop_datetime:
-        return Response({'status':-1, 'msg':'目前没有活动'})
+    if timezone.now() > ac.stop_datetime: return Response({'status':-1, 'msg':'目前没有活动'})
     data = dict()
     data['id'] = ac.id
     data['summary'] = ac.summary
@@ -537,15 +503,12 @@ def activity(request):
 @api_view(['POST', 'GET'])
 @islogin()
 def signin(request, pk):
-    activity = getinstance(Activity, pk)
-    if not activity: return NOENTITY
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
-    if Signin.objects.filter(user=user, activity=activity).exists(): 
-        return Response({'status':0, 'msg':'你已签到, 无需重复签到'})
-    if timezone.now() > activity.stop_datetime: 
-        return Response({'status':1, 'msg':'对不起, 此活动已结束'})
-    Signin.objects.create(user=user, activity=activity)
+    item = getinstance(Activity, pk)
+    if not item: return NOENTITY
+    user = User.objects.get(pk=request.session.get('login'))
+    if Signin.objects.filter(user=user, activity=item).exists(): return Response({'status':0, 'msg':'你已签到, 无需重复签到'})
+    if timezone.now() > item.stop_datetime: return Response({'status':1, 'msg':'对不起, 此活动已结束'})
+    Signin.objects.create(user=user, activity=item)
     return Response({'status':0, 'msg':'恭喜您, 签到成功!'})
 
 @api_view(['POST'])
@@ -554,23 +517,21 @@ def addcompany(request):
     uid = request.session.get('login')
     user = User.objects.get(pk=uid)
     invalids = JoinShip.objects.filter(~Q(valid=True), user=user)
-    if invalids.exists():
-        return Response({'status':1, 'msg':'您尚有公司在审核中, 请耐心等待'})
+    if invalids.exists(): return Response({'status':1, 'msg':'您尚有公司在审核中, 请耐心等待'})
     name = request.data.get('company_name')
     company = Company.objects.filter(name=name)
-    if company.exists():
-        company = company[0]
+    if company.exists(): company = company[0]
     else:
         province = request.data.get('province')
         city = request.data.get('city')
         industry= request.data.get('industry_type').split(',')
         companystatus = request.data.get('company_status')
         company = Company.objects.create(
-                    name = name,
-                    province = province,
-                    city = city,
-                    companystatus = Companystatus.objects.get(pk=companystatus)
-                )
+            name = name,
+            province = province,
+            city = city,
+            companystatus = Companystatus.objects.get(pk=companystatus)
+        )
         company.industry= industry
 
     if not JoinShip.objects.filter(user__pk=uid, company__pk=company.id).exists():
@@ -587,71 +548,40 @@ def editcompany(request, pk):
 
 @api_view(['POST', 'GET'])
 def companyinfo(request, pk):
-    company = getinstance(Company, pk)
-    if not company: return NOENTITY
+    item = getinstance(Company, pk)
+    if not item: return NOENTITY
     data = dict()
-    data['industry_type'] = [it.name for it in company.industry.all()]
-    data['province'] = company.province
-    data['city'] = company.city
-    data['company_status'] = company.companystatus.name
+    data['industry_type'] = [it.name for it in item.industry.all()]
+    data['province'] = item.province
+    data['city'] = item.city
+    data['company_status'] = item.companystatus.name
     return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 @islogin()
 def mycompanylist(request):
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
-    cs = user.company.all()
-    data = list()
-    for c in cs:
-        tmp =dict()
-        tmp['id'] = c.id
-        tmp['company_name'] = c.name
-        data.append(tmp)
+    user = User.objects.get(pk=request.session.get('login'))
+    data = [{'id':o.id, 'company_name':o.name} for o in user.company.all()]
     return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def industry(request):
-    its = Industry.objects.all()
-    data = list()
-    for it in its:
-        tmp = dict()
-        tmp['id'] = it.id
-        tmp['type_name'] = it.name
-        data.append(tmp)
+    data = [{'id':o.id, 'type_name':o.name} for o in Industry.objects.all()]
     return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def companystatus(request):
-    css = Companystatus.objects.all()
-    data = list()
-    for cs in css:
-        tmp = dict()
-        tmp['id'] = cs.id
-        tmp['status_name'] = cs.name
-        data.append(tmp)
+    data = [{'id':o.id, 'status_name':o.name} for o in Companystatus.objects.all()]
     return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def investorqualification(request):
-    iqs = Qualification.objects.all()
-    data = list()
-    for iq in iqs:
-        tmp = dict()
-        tmp['id'] = iq.id
-        tmp['desc'] = iq.desc
-        data.append(tmp)
+    data = [{'id':o.id, 'desc':o.desc} for o in Qualification.objects.all()]
     return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def fundsizerange(request):
-    fsrs = FundSizeRange.objects.all()
-    data = list()
-    for fsr in fsrs:
-        tmp = dict()
-        tmp['id'] = fsr.id
-        tmp['desc'] = fsr.desc
-        data.append(tmp)
+    data = [{'id':o.id, 'desc':o.desc} for o in FundSizeRange.objects.all()]
     return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
@@ -713,29 +643,27 @@ def authenticate(request):
 def businesscard(request, pk):
     investor = Investor.objects.get(pk=pk)
     mystorage_file(
-            investor.card,
-            request.data.get('file'),
-            'investor/%Y/%m'
-        )
+        investor.card,
+        request.data.get('file'),
+        'investor/%Y/%m'
+    )
     return Response({'status':0, 'msg':'名片上传成功'})
 
 @api_view(['POST'])
 @islogin()
 def idfore(request):
-    uid = request.session.get('login')
-    upload_file = request.data.get('file')
-    user = User.objects.get(pk=uid)
-    mystorage_file(user.idfore, upload_file)
+    img = request.data.get('file')
+    user = User.objects.get(pk=request.session.get('login'))
+    mystorage_file(user.idfore, img)
     return Response({'status':0, 'msg':'身份证上传成功'})
 
 @api_view(['POST', 'GET'])
 @islogin()
 def userimg(request):
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
+    user = User.objects.get(pk=request.session.get('login'))
     if request.method == 'POST':
-        upload_file = request.data.get('file')
-        mystorage_file(user.img, upload_file)
+        img = request.data.get('file')
+        mystorage_file(user.img, img)
         return Response({'status':0, 'msg':'图像设置成功'})
     elif request.method == 'GET':
         data = dict()
@@ -745,13 +673,7 @@ def userimg(request):
 
 @api_view(['GET','POST'])
 def position(request):
-    pts = Position.objects.all()
-    data = list()
-    for pt in pts:
-        tmp = dict()
-        tmp['id'] = pt.id
-        tmp['type_name'] = pt.name
-        data.append(tmp)
+    data = [{'id':o.id, 'type_name':o.name} for o in Position.objects.all()]
     return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST'])
@@ -761,32 +683,16 @@ def like(request, pk):
     action = request.data.get('action') 
     if action == '1':
         LikeShip.objects.create(
-                user = User.objects.get(pk=uid),
-                project = Project.objects.get(pk=pk)
-            )
+            user = User.objects.get(pk=uid),
+            project = Project.objects.get(pk=pk)
+        )
         return Response({'status':0, 'msg':'点赞成功'})
     else:
         LikeShip.objects.filter(
-                user__pk=uid,
-                project__pk=pk
-            ).delete()
+            user__pk=uid,
+            project__pk=pk
+        ).delete()
         return Response({'status':0, 'msg':'取消点赞'})
-
-@api_view(['POST'])
-@islogin()
-def vote(request, pk): 
-    project = getinstance(Project, pk)
-    if not project: return NOENTITY
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
-    if VoteShip.objects.filter(project=project, user=user).exists():
-        return Response({'status':0, 'msg':'投票成功'})
-    VoteShip.objects.create(
-        project = project,
-        user = user 
-    )
-    return Response({'status':0, 'msg':'投票成功'})
-
 
 @api_view(['POST'])
 @islogin()
@@ -795,24 +701,24 @@ def collect(request, pk):
     action = request.data.get('action') 
     if action == '1':
         CollectShip.objects.create(
-                user = User.objects.get(pk=uid),
-                project = Project.objects.get(pk=pk)
-            )
+            user = User.objects.get(pk=uid),
+            project = Project.objects.get(pk=pk)
+        )
         return Response({'status':0, 'msg':'收藏成功'})
     else:
         CollectShip.objects.filter(
-                user__pk=uid,
-                project__pk=pk
-            ).delete()
+            user__pk=uid,
+            project__pk=pk
+        ).delete()
         return Response({'status':0, 'msg':'取消收藏'})
 
 @api_view(['POST'])
 @islogin()
 def modifyposition(request):
     position = request.data.get('position_type', '').strip()
-    if not MTM_RE.match(position): return ARG
-    uid = request.session.get('login')
-    User.objects.get(pk=uid).position = position.split(',')
+    if not MTM_RE.match(position): return myarg('position')
+    user = User.objects.get(pk=request.session.get('login'))
+    user.position = position.split(',')
     return Response({'status':0, 'msg':'职位设置成功'})
 
 def lcv(project, uid=0): # like collect vote
@@ -831,12 +737,11 @@ def collectfinancing(request, page):
     uid = request.session.get('login')
     now = timezone.now()
     queryset = CollectShip.objects.filter(
-            user__pk=uid, 
-            project__roadshow_start_datetime__lte=now, 
-            project__finance_stop_datetime__gte=now,
-        )
-    ret = g_project( queryset, page )
-    return ret
+        user__pk=uid, 
+        project__roadshow_start_datetime__lte=now, 
+        project__finance_stop_datetime__gte=now,
+    )
+    return  g_project(queryset, page)
 
 @api_view(['GET', 'POST'])
 @islogin()
@@ -844,11 +749,10 @@ def collectfinanced(request, page):
     uid = request.session.get('login')
     now = timezone.now()
     queryset = CollectShip.objects.filter(
-            user__pk=uid,
-            project__finance_stop_datetime__lt=now
-        )
-    ret = g_project( queryset, page )
-    return ret
+        user__pk=uid,
+        project__finance_stop_datetime__lt=now
+    )
+    return g_project(queryset, page)
 
 @api_view(['GET', 'POST'])
 @islogin()
@@ -860,8 +764,7 @@ def collectroadshow(request, page=0):
         Q(project__roadshow_start_datetime__gt=now),
         user__pk=uid, 
     )
-    ret = g_project( queryset, page )
-    return ret
+    return g_project(queryset, page)
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -895,8 +798,7 @@ def projectsearch(request, pk, page):
         if not value: return myarg('value')
         queryset = Project.objects.filter(company__name__contains=value)
     else: queryset = Project.objects.filter(company__industry__in=[int(pk),])
-    ret = g_project(queryset, page)
-    return ret
+    return g_project(queryset, page)
 
 @api_view(['GET', 'POST'])
 @islogin()
@@ -940,7 +842,6 @@ def wantinvest(request, pk):
     investor = request.data.get('investor', '').strip() # 投资人id
     if not PK_RE.match(investor): 
         return  Response({'status':1, 'msg':'请选择您的投资人身份'})
-        return ARG 
     project = getinstance(Project, pk) # 项目
     if not project: return NOENTITY
     fund = project.leadfund if flag=='1' else project.followfund
@@ -1121,8 +1022,8 @@ def ismyproject(request, pk):
     if not project: return NOENTITY
     uid = request.session.get('login')
     if project.roadshow and  project.roadshow.user.id == uid: 
-        return Response({'status':1, 'msg':'你不可以给自己的项目投资'})
-    return Response({'status':0, 'msg':'可以投资'})
+        return Response({'status':1, 'msg':'你不可以给自己的项目投资哦'})
+    return Response({'status':0, 'msg':''})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -1134,9 +1035,9 @@ def isinvestor(request):
     elif investors.filter(valid=True).exists():
         return Response({'status':0, 'msg':'您已经认证'})
     elif investors.filter(valid=None).exists():
-        return Response({'status':1, 'msg':'您认证在审核中'})
+        return Response({'status':1, 'msg':'您的认证尚在审核中'})
     else:
-        return Response({'status':1, 'msg':'您认证失败'})
+        return Response({'status':1, 'msg':'对不起, 您的认证失败'})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -1157,7 +1058,7 @@ def investorinfo(request, pk):
         data['city'] = user.city
         data['company'] = investor.comment
         data['position'] = investor.position
-    return Response({'status':0, 'msg':'投资人信息', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST'])
 @islogin()
@@ -1170,21 +1071,21 @@ def contactus(request):
         'telephone':settings.Michael,
         'name':'徐力'
     }
-    return Response({'status':0, 'msg':'联系我们', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def checkupdate(request, system):
     return Response({'status':1, 'msg':'没有更新'})
     queryset = Version.objects.filter(system__id=system)
     if not queryset: 
-        return Response({'status':0, 'msg':'没有更新'})
+        return Response({'status':0, 'msg':''})
     version = queryset[0] 
     data = dict()
     data['force'] = True #False
     data['edition'] = version.edition
     data['item'] = version.item
     data['href'] = version.href 
-    return Response({'status':0, 'msg':'检查更新', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def shareproject(request, pk):
@@ -1193,7 +1094,7 @@ def shareproject(request, pk):
     data['img'] = '%s/static/app/img/icon.png' % settings.RES_URL
     data['url'] = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
     data['content'] = '项目分享'
-    return Response({'status':0, 'msg':'分享', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def shareapp(request):
@@ -1202,18 +1103,18 @@ def shareapp(request):
     data['img'] = '%s/static/app/img/icon.png' % settings.RES_URL
     data['url'] = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
     data['content'] = '金指投App分享'
-    return Response({'status':0, 'msg':'分享', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})
 
 def document(name):
     cur_dir = os.path.dirname(__file__)
     f = os.path.join(cur_dir, 'document/%s' %name )
     if not os.path.exists(f):
-        return Response({'status':0, 'msg':'没有数据', 'data':'no data'})
+        return Response({'status':1, 'msg':'数据加载有误', 'data':'no data'})
 
     import codecs
     with codecs.open(f, 'r', 'utf-8') as fp:
         data = fp.read()
-        return Response({'status':0, 'msg':'协议', 'data':data})
+        return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def privacy(request):
@@ -1289,8 +1190,8 @@ def g_topiclist(queryset, page, at=True):
         tmp['content'] = item.content
         tmp['investor'] = Investor.objects.filter(user=item.user, valid=True).exists()
         data.append(tmp) 
-    status, msg = (0,'') if len(queryset)==6 else (-1, '加载完毕')
-    return Response({'status':status, 'msg':msg, 'data':data})
+    status = -int(len(queryset)<6)
+    return Response({'status':status, 'msg':'加载完毕', 'data':data})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -1316,8 +1217,8 @@ def g_news(queryset, page):
         tmp['readcount'] = item.readcount
         tmp['href'] = '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, item.name)
         data.append(tmp)
-    status, msg = (0, '') if len(queryset) == PAGE_SIZE else (-1, '加载完毕')
-    return Response({'status': status, 'msg':msg, 'data':data})
+    status = -int(len(queryset)<PAGE_SIZE)
+    return Response({'status': status, 'msg':'加载完毕', 'data':data})
 
 @api_view(['POST', 'GET'])
 def news(request, pk, page):
@@ -1338,7 +1239,7 @@ def sharenews(request, pk):
     data['src'] = news.src 
     data['title'] = news.title
     data['content'] = news.content
-    return Response({'status':0, 'msg':'newsshare', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def newssharecount(request, pk):
@@ -1346,7 +1247,7 @@ def newssharecount(request, pk):
     if not news: return NOENTITY 
     news.sharecount += 1
     news.save()
-    return Response({'status':0, 'msg':'分享数加'})
+    return Response({'status':0, 'msg':''})
         
 @api_view(['POST', 'GET'])
 def newsreadcount(request, pk):
@@ -1354,7 +1255,7 @@ def newsreadcount(request, pk):
     if not news: return NOENTITY 
     news.readcount += 1
     news.save()
-    return Response({'status':0, 'msg':'阅读数加'})
+    return Response({'status':0, 'msg':''})
     
 @api_view(['POST', 'GET'])
 def newssearch(request, pk, page):
@@ -1367,7 +1268,7 @@ def newssearch(request, pk, page):
 @api_view(['POST', 'GET'])
 def newstype(request):
     data = [{'key':item.id, 'value':item.name} for item in NewsType.objects.filter(~Q(valid=False))]
-    return Response({'status':0, 'msg':'newstag', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def knowledgetag(request):
@@ -1380,7 +1281,7 @@ def hassysteminform(request):
     uid = request.session.get('login')
     queryset = SystemInform.objects.filter(user__pk=uid, read=False)
     data = {'count': queryset.count()}
-    return Response({'status':0, 'msg':'系统消息', 'data':data})    
+    return Response({'status':0, 'msg':'', 'data':data})    
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -1402,7 +1303,7 @@ def systeminform(request, page):
         tmp['create_datetime'] = timeformat(item.create_datetime)
         tmp['read'] = item.read
         data.append(tmp)
-    return Response({'status':0, 'msg':'系统通知', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -1411,7 +1312,7 @@ def setsysteminform(request, pk):
     if not systeminform: return myarg('systeminform')
     systeminform.read = True
     systeminform.save()
-    return Response({'status':0, 'msg':'设置消息已读', 'data':systeminform.read})
+    return Response({'status':0, 'msg':'', 'data':systeminform.read})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -1423,7 +1324,7 @@ def deletesysteminform(request, pk):
     if systeminform.user == user:
         systeminform.delete()
         return Response({'status':0, 'msg':'删除msg'})
-    return Response({'status': 1, 'msg':'不能删除别人的msg啊'})
+    return Response({'status': 1, 'msg':'不能删除别人的消息'})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -1447,7 +1348,7 @@ def settopicread(request, pk):
     if pk == '0':
         queryset = Topic.objects.filter(at_topic__user__id=uid, read=False) 
         queryset.update(read=True)
-        return Response({'status':0, 'msg':'全部设为已读'})
+        return Response({'status':0, 'msg':'全部设为已读成功'})
     topic = getinstance(Topic, pk)
     if not topic: return myarg('topic')
     topic.read = None 
@@ -1458,13 +1359,13 @@ def settopicread(request, pk):
 def latestnewscount(request):
     yesterday = timezone.now() - timedelta(days=1)
     queryset = News.objects.filter(~Q(newstype=4), create_datetime__gt=yesterday)
-    return Response({'status':0, 'msg':'新三板数量', 'data':{'count':queryset.count()}})
+    return Response({'status':0, 'msg':'', 'data':{'count':queryset.count()}})
     
 @api_view(['POST', 'GET'])
 def latestknowledgecount(request):
     yesterday = timezone.now() - timedelta(days=1)
     queryset = News.objects.filter(newstype=4, create_datetime__gt=yesterday)
-    return Response({'status':0, 'msg':'新三板数量', 'data':{'count':queryset.count()}})
+    return Response({'status':0, 'msg':'', 'data':{'count':queryset.count()}})
 
 def g_feelinglikers(queryset, page, pagesize=settings.FEELINGLIKERS_INITAL_PAGESIZE): 
     queryset = g_queryset(queryset, page, pagesize)
@@ -1523,6 +1424,15 @@ def __feeling(item, user): # 获取发表的状态的关联信息
     tmp['remain_comment_num'] = 0 if remain_comment_num <=0 else remain_comment_num 
     return tmp  
 
+@api_view(['GET'])
+@islogin()
+def getfeeling(request, pk):
+    item = getinstance(Feeling, pk)
+    if not item: return NOENTITY
+    user = User.objects.get(pk = request.session.get('login'))
+    data = __feeling(item, user) 
+    return Response({'status':0, 'msg':'', 'data':data})
+
 @api_view(['POST', 'GET'])
 @islogin()
 def feeling(request, page):
@@ -1532,7 +1442,7 @@ def feeling(request, page):
     data = list()
     for item in queryset: data.append( __feeling(item, user) )
     status = -(len(data) < pagesize)
-    return Response({'status':status, 'msg':'状态圈', 'data':data})
+    return Response({'status':status, 'msg':'', 'data':data})
 
 @api_view(['POST'])
 @islogin()
@@ -1541,11 +1451,11 @@ def postfeeling(request):
     relative_path = datetime.now().strftime('media/feeling/%Y/%m')
     absolute_path = os.path.join(settings.BASE_DIR, relative_path)   
     if request.FILES: mkdirp(absolute_path)
-    elif not content: return Response({'status':1, 'msg':'发表内容为空'})
+    elif not content: return Response({'status':1, 'msg':'发表内容不能为空'})
     relative_path_list = list()
     for k, v in request.FILES.items():
         ext = imghdr.what(v)
-        if ext not in settings.ALLOW_IMG: return Response({'status':1, 'msg':'图片格式错误'})
+        if ext not in settings.ALLOW_IMG: return Response({'status':1, 'msg':'图片格式不正确'})
         img_name = '{}.{}'.format(uuid.uuid4().hex, ext)
         img = os.path.join(absolute_path, img_name)
         with open(img, 'wb') as fp:
@@ -1559,7 +1469,7 @@ def postfeeling(request):
         pics = ';'.join(relative_path_list),
     )
     data = __feeling(obj, user) 
-    return Response({'status':0, 'msg':'postfeeling', 'data':data})
+    return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST'])
 @islogin()
@@ -1583,9 +1493,12 @@ def likefeeling(request, pk, is_like):
     data['name'] = user.name
     data['uid'] = user.id
     data['photo'] = myimg(user.img)
-    if is_like == '0': item.likers.add(user)
-    else: item.likers.remove(user)
-    return Response({'status':0, 'msg':'操作成功', 'data':data})
+    if is_like == '0': 
+        item.likers.add(user)
+        return Response({'status':0, 'msg':'点赞成功', 'data':data})
+    else: 
+        item.likers.remove(user)
+        return Response({'status':0, 'msg':'取消点赞', 'data':data})
 
 @api_view(['GET'])
 @islogin()
@@ -1596,7 +1509,7 @@ def feelinglikers(request, pk, page):
     pagesize = settings.FEELINGLIKERS_PAGESIZE
     data = g_feelinglikers(queryset, page, pagesize)
     status = -(len(data)<pagesize)
-    return Response({'status':status, 'msg':'状态点赞', 'data':data})
+    return Response({'status':status, 'msg':'', 'data':data})
 
 @api_view(['GET'])
 @islogin()
@@ -1608,7 +1521,7 @@ def feelingcomment(request, pk, page):
     pagesize = settings.FEELINGCOMMENT_PAGESIZE
     data = g_feelingcomment(queryset, user, page)
     status = -(len(data)<pagesize)
-    return Response({'status':status, 'msg':'评论列表', 'data':data})
+    return Response({'status':status, 'msg':'', 'data':data})
 
 @api_view(['POST'])
 @islogin()
@@ -1617,12 +1530,11 @@ def postfeelingcomment(request, pk):
     content = request.data.get('content', '').rstrip()
     at = atid = request.data.get('at', None)
     if not item: return NOENTITY
-    if not content: return Response({'status':1, 'msg':'回复内容为空'})
+    if not content: return Response({'status':1, 'msg':'回复内容不能为空'})
     user = User.objects.get(pk = request.session.get('login'))
     if at:
         at = getinstance(Feelingcomment, at)
-        if at and user == at.user: 
-            return Response({'status':1, 'msg':'不能给自己回复'})
+        if at and user == at.user: return Response({'status':1, 'msg':'不能给自己回复哦'})
     obj = Feelingcomment.objects.create(
         feeling = item,
         user = user,
@@ -1639,21 +1551,22 @@ def hidefeelingcomment(request, pk):
     if not item: return NOENTITY
     user = User.objects.get(pk=request.session.get('login'))
     if item.user == user:
-        item.valid = False
-        item.save()
-        return Response({'status':0, 'msg':'删除评论'})
+        item.valid = False; item.save()
+        return Response({'status':0, 'msg':'删除评论成功'})
     return Response({'status':0, 'msg':'不能删除别人的评论'})
 
 @api_view(['POST', 'GET'])
+@islogin()
 def feelingbackground(request):
-    user = User.objects.get(pk = request.session.get('login'))
+    user = User.objects.get(pk=request.session.get('login'))
     if request.method == 'GET':
         data = dict()
         data['background'] = myimg(user.background) 
-        return Response({'status': 0, 'msg': '用户朋友圈图像', 'data': data})
+        data['photo'] = myimg(user.img)
+        return Response({'status': 0, 'msg': '', 'data': data})
     elif request.method == 'POST':
         img = request.data.get('file')
         ext = imghdr.what(img)
-        if ext not in settings.ALLOW_IMG: return Response({'status':1, 'msg':'图片格式错误'})
+        if ext not in settings.ALLOW_IMG: return Response({'status':1, 'msg':'图片格式不正确'})
         mystorage_file(user.background, img) 
         return Response({'status': 0, 'msg': '背景设置成功'})
