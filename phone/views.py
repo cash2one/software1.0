@@ -409,7 +409,7 @@ def participate(request, pk):
     return Response({'status':0, 'msg':'恭喜您, 申请成功'})
 
 @api_view(['GET'])
-def defaultclassify(request): return Response({'status':0, 'msg':'', 'data':3})
+def defaultclassify(request): return Response({'status':0, 'msg':'', 'data':0})
 
 def g_project(queryset, page): 
     queryset = g_queryset(queryset, page)
@@ -806,6 +806,7 @@ def generalinformation(request, pk=None):
     if pk: uid = pk
     else: uid = request.session.get('login')
     data = dict()
+    data['uid'] = uid
     data['telephone'] = User.objects.get(pk=uid).telephone
     user = User.objects.get(pk=uid)
     data['user_img'] = myimg(user.img)
@@ -1323,7 +1324,7 @@ def deletesysteminform(request, pk):
     user = User.objects.get(pk=uid)
     if systeminform.user == user:
         systeminform.delete()
-        return Response({'status':0, 'msg':'删除msg'})
+        return Response({'status':0, 'msg':'删除成功'})
     return Response({'status': 1, 'msg':'不能删除别人的消息'})
 
 @api_view(['POST', 'GET'])

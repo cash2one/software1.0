@@ -7,6 +7,7 @@ from django.core.files.storage import FileSystemStorage
 from django.db import IntegrityError, transaction
 
 from .utils import *
+from jinzht.config import *
 
 class MyFileStorage(FileSystemStorage):
     def get_available_name(self, name):
@@ -214,16 +215,14 @@ class Roadshow(models.Model):
             if roadshow.valid != self.valid:
                 extras = {'api':'roadshow', 'url':'www.jinzht.com'}
                 if self.valid == True:
-                    text = '你的路演申请已安排'
-                    JiGuang(text, extras).single(self.user.regid)
-                    MobSMS().remind(self.user.telephone, text) 
+                    JiGuang(ROADSHOW_VALID_TRUE, extras).single(self.user.regid)
+                    MobSMS().remind(self.user.telephone, ROADSHOW_VALID_TRUE) 
                 elif self.valid == False:
-                    text = '您的路演申请提交失败'
-                    JiGuang(text, extras).single(self.user.regid)
-                    MobSMS().remind(self.user.telephone, text) 
+                    JiGuang(ROADSHOW_VALID_FALSE, extras).single(self.user.regid)
+                    MobSMS().remind(self.user.telephone, ROADSHOW_VALID_FALSE) 
         else:
-            text = '%s于 %s 申请路演, 处理一下吧' % (self.user.telephone, timeformat())
-            MAIL('路演申请', text).send()
+            MobSMS().remind(self.user.telephone, ROADSHOW_SUBMIT)
+            MAIL( '路演申请', '%s于%s申请路演' %(self.user.telephone, timeformat()) ).send()
 
 class Investor(models.Model):
     user = models.ForeignKey('User', verbose_name='认证用户', on_delete=models.PROTECT)
@@ -258,16 +257,14 @@ class Investor(models.Model):
                     'url':'www.jinzht.com'
                 }
                 if self.valid == True:
-                    text = '您的投资认证已经通过'
-                    JiGuang(text, extras).single(self.user.regid) 
-                    MobSMS().remind(self.user.telephone, text)
+                    JiGuang(INVESTOR_VALID_TRUE, extras).single(self.user.regid) 
+                    MobSMS().remind(self.user.telephone, INVESTOR_VALID_TRUE)
                 elif self.valid == False:
-                    text = '您的投资认证失败'
-                    JiGuang(text, extras).single(self.user.regid) 
-                    MobSMS().remind(self.user.telephone, text)
+                    JiGuang(INVESTOR_VALID_FALSE, extras).single(self.user.regid) 
+                    MobSMS().remind(self.user.telephone, INVESTOR_VALID_FALSE)
         else:
-            text = '%s 于 %s 申请了认证, 是否给ta通过' %(self.user.telephone, timeformat())
-            MAIL('认证申请', text).send()
+            MobSMS().remind(self.user.telephone, INVESTOR_SUBMIT)
+            MAIL( '认证申请', '%s于%s申请认证' %(self.user.telephone, timeformat()) ).send()
 
 class Project(models.Model):
     roadshow = models.OneToOneField('Roadshow', verbose_name='路演', null=True, blank=True)
@@ -391,18 +388,18 @@ class ParticipateShip(models.Model):
         if edit:
             if participateship.valid != self.valid:
                 extras = {'api':'participate', 'url':''}
+                summary = self.project.summary
+                dt = datetime_filter(self.create_datetime)
                 if self.valid == True:
-                    text = '您的来现场申请通过审核' 
+                    text = PARTICIPATE_VALID_TRUE %(dt, summary)
                     JiGuang(text, extras).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
                 elif self.valid == False:
-                    text = '您的来现场申请未通过审核'
+                    text = PARTICIPATE_VALID_FALSE %(dt, summary )
                     JiGuang(text, extras).single(self.user.regid) 
                     MobSMS().remind(self.user.telephone, text)
         else:
-            text = '您的来现场申请已经提交, 请耐心等待审核'
-            #MobSMS().remind(self.user.telephone, text)
-            text = '%s 于 %s 申请来 %s' % (self.user.telephone, timeformat(), self.project.summary)
+            text = '%s于%s申请来%s' % (self.user.telephone, timeformat(), self.project.summary)
             MAIL(subject='来现场', text=text).send()
             MAIL(subject='来现场', text=text, to=settings.invest_manager).send()
             self.project.participators.add(self.user)
@@ -462,19 +459,15 @@ class InvestShip(models.Model):
         if edit:
             pass
         else:
-            telephone = self.investor.user.telephone 
-            name = self.project.summary
-            regid = self.investor.user.regid
-            text = '您投资%s项目%s万, 如有问题请联系 %s, 或致邮 %s' % (name, self.invest_amount, settings.Michael, settings.EMAIL) 
-            MobSMS().remind(telephone, text)
-            JiGuang(text).single(regid) 
-            text = '%s 于 %s 投资 "%s", %s万' % (
-                telephone, 
-                timeformat(), 
-                name, 
-                self.invest_amount
-            ) 
-            MAIL('投资申请', text).send()
+            tp = self.investor.user.telephone 
+            ri = self.investor.user.regid
+            dt = timeformat(self.create_datetime)
+            pj = self.project.summary
+            ia = self.invest_amount
+            text = INVEST_VALID_TRUE %(dt, pj, ia)
+            JiGuang(text).single(ri) 
+            MobSMS().remind(tp, text)
+            MAIL( '投资申请', '%s于%s投资"%s"%s万' %(tp, dt, pj, ia) ).send()
             self.project.investors.add(self.investor)
     
     def delete(self):
