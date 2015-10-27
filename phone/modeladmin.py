@@ -111,11 +111,14 @@ class CompanyAdmin(admin.ModelAdmin):
    
 class RoadshowAdmin(admin.ModelAdmin):
     form = RoadshowForm
-    list_display = ('id', 'user', 'company', 'contact_name', 'contact_phone', 'vcr', 'create_datetime', 'summary', 'valid', 'roadshow_datetime')
+    list_display = ('id', 'user', '_company', 'contact_name', 'contact_phone', 'vcr', 'create_datetime', 'summary', 'valid', 'roadshow_datetime')
     list_editable = ('valid',)
+
+    def _company(self, obj):
+        return obj.comment 
     
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        self.queryset = Company.objects.filter(roadshow__pk=object_id)
+        #self.queryset = Company.objects.filter(roadshow__pk=object_id)
         return super(RoadshowAdmin, self).change_view(request, object_id, form_url, extra_context)
 
     def add_view(self, request, form_url='', extra_context=None):
@@ -123,9 +126,9 @@ class RoadshowAdmin(admin.ModelAdmin):
         return super(RoadshowAdmin, self).add_view(request, form_url, extra_context)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'company':
-            if hasattr(self, 'queryset'):
-                kwargs['queryset'] = self.queryset
+        #if db_field.name == 'company':
+        #    if hasattr(self, 'queryset'):
+        #        kwargs['queryset'] = self.queryset
         return super(RoadshowAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 

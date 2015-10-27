@@ -276,8 +276,8 @@ def thinktank(request, page):
     return Response({'status':status, 'msg':'加载完毕', 'data':data})
 
 def videourl(name):
-    q = Auth(settings.access_key, settings.secret_key)
-    base_url = 'http://%s/%s' % (settings.bucket_domain, name)
+    q = Auth(settings.AK, settings.SK)
+    base_url = 'http://%s/%s' % (settings.BD, name)
     private_url = q.private_download_url(base_url, expires=3600)
     return private_url
 
@@ -290,7 +290,7 @@ def investamountsum(flag, project):
     else: return project.finance2get
 
 @api_view(['POST', 'GET'])
-@islogin()
+#@islogin()
 def projectdetail(request, pk):
     project = getinstance(Project, pk)
     if not project: return NOENTITY
@@ -300,18 +300,10 @@ def projectdetail(request, pk):
     data['participator2plan'] = project.participator2plan
     data['plan_finance'] = project.planfinance
     data['project_img'] = '%s%s' %(RES_URL, project.img.url)
-    data['project_video'] = project.url
-    data['url'] = videourl(project.url.split('/')[-1])
+    data['project_video'] = project.url or createurl(project.roadshow.vcr if project.roadshow else '')
     data['invest_amount_sum'] = investamountsum(data['stage']['flag'], project)
     uid = request.session.get('login')
-    ls = LikeShip.objects.filter(project__pk=pk)
-    data['is_like'] =  ls.filter(user__pk=uid).exists()
-    cs = CollectShip.objects.filter(project__pk=pk)
-    data['is_collect'] = cs.filter(user__pk=uid).exists()
-    ps = ParticipateShip.objects.filter(project__pk=pk)
-    data['is_participator'] = ps.filter(user__pk=uid).exists()
-    vs = VoteShip.objects.filter(project__pk=pk)
-    data['is_vote'] = vs.filter(user__pk=uid).exists()
+    data['is_participator'] = ParticipateShip.objects.filter(project__pk=pk, user__pk=uid).exists()
     ret = lcv(project)
     data['like_sum'] = ret['like_sum']
     data['collect_sum'] = ret['collect_sum']
@@ -467,18 +459,19 @@ def wantroadshow(request):
     uid = request.session.get('login')
     if Roadshow.objects.filter(~Q(valid=True), user__pk=uid).exists(): return Response({'status':1, 'msg':'您还有路演申请仍在审核中'})
     user = User.objects.get(pk=uid)
-    contact_name = request.data.get('contact_name')
-    contact_phone = request.data.get('contact_phone')
-    company = request.data.get('company', 0)
-    if not PK_RE.match(company): return myarg('company')
-    vcr = request.data.get('vcr', 'http://www.jinzht.com')
-    company = getinstance(Company, company)
-    if not company: return Response({'status':1, 'msg':'该公司不存在, 请重新选择'})
+    name = request.data.get('name', '').strip()
+    company = request.data.get('company', '').strip()
+    if not name or not company: return myarg('name or company')
+    telephone = request.data.get('telephone', '').strip()
+    if validate_telephone(telephone) == False: return Response({'status':1, 'msg':'手机格式不正确'})
+    vcr = request.data.get('vcr')
+    print(vcr)
     obj = Roadshow.objects.create(
         user=user, 
-        company=company, 
-        contact_name=contact_name, 
-        contact_phone=contact_phone,
+        comment=company, 
+        contact_name=name, 
+        contact_phone=telephone,
+        vcr = vcr,
     )
     return Response({'status':0, 'msg':'上传项目成功, 您的项目已成功入选项目库', 'data':obj.id})
 
@@ -511,63 +504,63 @@ def signin(request, pk):
     Signin.objects.create(user=user, activity=item)
     return Response({'status':0, 'msg':'恭喜您, 签到成功!'})
 
-@api_view(['POST'])
-@islogin()
-def addcompany(request):
-    uid = request.session.get('login')
-    user = User.objects.get(pk=uid)
-    invalids = JoinShip.objects.filter(~Q(valid=True), user=user)
-    if invalids.exists(): return Response({'status':1, 'msg':'您尚有公司在审核中, 请耐心等待'})
-    name = request.data.get('company_name')
-    company = Company.objects.filter(name=name)
-    if company.exists(): company = company[0]
-    else:
-        province = request.data.get('province')
-        city = request.data.get('city')
-        industry= request.data.get('industry_type').split(',')
-        companystatus = request.data.get('company_status')
-        company = Company.objects.create(
-            name = name,
-            province = province,
-            city = city,
-            companystatus = Companystatus.objects.get(pk=companystatus)
-        )
-        company.industry= industry
-
-    if not JoinShip.objects.filter(user__pk=uid, company__pk=company.id).exists():
-        JoinShip.objects.create(user=user,company=company)
-    data = dict()
-    data['id'] = company.id
-    data['company'] = company.name
-    return Response({'status':0, 'msg':'公司添加成功', 'data':data})
+#@api_view(['POST'])
+#@islogin()
+#def addcompany(request):
+#    uid = request.session.get('login')
+#    user = User.objects.get(pk=uid)
+#    invalids = JoinShip.objects.filter(~Q(valid=True), user=user)
+#    if invalids.exists(): return Response({'status':1, 'msg':'您尚有公司在审核中, 请耐心等待'})
+#    name = request.data.get('company_name')
+#    company = Company.objects.filter(name=name)
+#    if company.exists(): company = company[0]
+#    else:
+#        province = request.data.get('province')
+#        city = request.data.get('city')
+#        industry= request.data.get('industry_type').split(',')
+#        companystatus = request.data.get('company_status')
+#        company = Company.objects.create(
+#            name = name,
+#            province = province,
+#            city = city,
+#            companystatus = Companystatus.objects.get(pk=companystatus)
+#        )
+#        company.industry= industry
+#
+#    if not JoinShip.objects.filter(user__pk=uid, company__pk=company.id).exists():
+#        JoinShip.objects.create(user=user,company=company)
+#    data = dict()
+#    data['id'] = company.id
+#    data['company'] = company.name
+#    return Response({'status':0, 'msg':'公司添加成功', 'data':data})
 
 @api_view(['POST'])
 @islogin()
 def editcompany(request, pk):
     return Response({'status':0, 'msg':''})
 
-@api_view(['POST', 'GET'])
-def companyinfo(request, pk):
-    item = getinstance(Company, pk)
-    if not item: return NOENTITY
-    data = dict()
-    data['industry_type'] = [it.name for it in item.industry.all()]
-    data['province'] = item.province
-    data['city'] = item.city
-    data['company_status'] = item.companystatus.name
-    return Response({'status':0, 'msg':'', 'data':data})
+#@api_view(['POST', 'GET'])
+#def companyinfo(request, pk):
+#    item = getinstance(Company, pk)
+#    if not item: return NOENTITY
+#    data = dict()
+#    data['industry_type'] = [it.name for it in item.industry.all()]
+#    data['province'] = item.province
+#    data['city'] = item.city
+#    data['company_status'] = item.companystatus.name
+#    return Response({'status':0, 'msg':'', 'data':data})
 
-@api_view(['POST', 'GET'])
-@islogin()
-def mycompanylist(request):
-    user = User.objects.get(pk=request.session.get('login'))
-    data = [{'id':o.id, 'company_name':o.name} for o in user.company.all()]
-    return Response({'status':0, 'msg':'', 'data':data})
+#@api_view(['POST', 'GET'])
+#@islogin()
+#def companylist(request):
+#    user = User.objects.get(pk=request.session.get('login'))
+#    data = [{'id':o.id, 'company_name':o.name} for o in user.company.all()]
+#    return Response({'status':0, 'msg':'', 'data':data})
 
-@api_view(['POST', 'GET'])
-def industry(request):
-    data = [{'id':o.id, 'type_name':o.name} for o in Industry.objects.all()]
-    return Response({'status':0, 'msg':'', 'data':data})
+#@api_view(['POST', 'GET'])
+#def industry(request):
+#    data = [{'id':o.id, 'type_name':o.name} for o in Industry.objects.all()]
+#    return Response({'status':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def companystatus(request):
@@ -587,56 +580,30 @@ def fundsizerange(request):
 @api_view(['POST', 'GET'])
 @islogin()
 def authenticate(request):
-    uid = request.session.get('login')
-    flag = request.data.get('investor_type','').strip()  #认证人的类型
-    name = request.data.get('real_name','').strip()
+    name = request.data.get('name','').strip()
     position = request.data.get('position', '').strip()
     company = request.data.get('company','').strip()
-    fundsizerange = request.data.get('fund_size_range', '1').strip()
-    qualification = request.data.get('investor_qualification','').strip()
-    industry = request.data.get('industry_type', '').strip()
-    if not re.match('^[01]$', flag): return ARG
-    if not name: return ARG
-    if flag == '0' and not position: return ARG
-    if flag == '0' and not company: return ARG
-    if not PK_RE.match(fundsizerange): return ARG
-    if not MTM_RE.match(qualification): return ARG
-    if flag == '1' and not MTM_RE.match(industry): return ARG
-    if flag == '1':
-        company = getinstance(Company, company)
-        if not company: return NOENTITY
-    else:
-        company = None
-    fundsizerange = getinstance(FundSizeRange, fundsizerange)
-    if not fundsizerange: return NOENTITY
-     
-    user = User.objects.get(pk=uid)
-    investors = Investor.objects.filter(user=user, company=company)
+    if not name or not position or not company: return myarg('请完善信息')
+    qualification = request.data.get('qualification','').strip()
+    if not MTM_RE.match(qualification): return myarg('qualification')
 
-    if investors.exists():
-        valid = investors[0].valid
-        if valid == None:
-            return Response({'status':1, 'msg':'该身份认证正在审核中'})
-        elif valid == False:
-            return Response({'status':1, 'msg':'认证失败, 请去用户中心查看详情'})
-        else:
-            return Response({'status':1, 'msg':'认证成功'})
+    user = User.objects.get(pk=request.session.get('login'))
+    queryset = Investor.objects.filter(user=user)
+
+    if queryset.exists():
+        valid = queryset[0].valid
+        if valid == None: return Response({'status':1, 'msg':'该身份认证正在审核中'})
+        elif valid == False: return Response({'status':1, 'msg':'认证失败, 请去用户中心查看详情'})
+        else: return Response({'status':1, 'msg':'认证成功'})
     
     investor = Investor.objects.create(
          user=user,
-         company = company,
          position = position,
-         fundsizerange = fundsizerange,
+         comment = company
     )
     investor.qualification = qualification.split(',')
-    if flag == '0': investor.comment = request.data.get('company').strip() 
-    else: investor.industry= industry.split(',')
-    investor.save() 
-    data = investor.id
-    user = User.objects.get(pk=uid)
-    user.name = name
-    user.save()
-    return Response({'status':0, 'msg':'提交成功, 等待审核', 'data':data})
+    user.name = name; user.save()
+    return Response({'status':0, 'msg':'提交成功, 等待审核'})
 
 @api_view(['POST', 'GET'])
 @islogin()
@@ -955,63 +922,54 @@ def myinvestproject(request, page):
     ret = g_project( InvestShip.objects.filter(investor__user__pk=uid), page )
     return ret
 
-@api_view(['POST', 'GET'])
+@api_view(['POST'])
 @islogin()
 def token(request):
-    key = request.data.get('key','').strip()
-    if not key: return Response({'status':1, 'msg':'key不能为空'})
-    print(key, 'key')
-    q = Auth(settings.access_key, settings.secret_key)
-    token = q.upload_token(settings.bucket_name, key)
-    uid = request.session.get('login')
-    token2 = q.upload_token(settings.bucket_name, 
-            key, 
-            7200, 
-            {'callbackUrl':'http://115.28.177.22/phone/callback/', 
-            'callbackBody':'name=$(fname)&hash=$(etag)',
-            #'callbackBodyType':'application/json'
-            }
-        )
-    return Response({'start':0, 'msg':'token', 'data':token2})
+    uid = request.session.get('uid')
+    if Roadshow.objects.filter(~Q(valid=True), user__pk=uid).exists(): return Response({'status':1, 'msg':'您还有路演申请仍在审核中'})
+    key = request.data.get('key', '').strip()
+    print(key)
+    if not key: return myarg('key')
+    q = Auth(settings.AK, settings.SK)
+    token = q.upload_token(settings.BN, key)
+    token2 = q.upload_token(settings.BN, key, 7200, {'callbackUrl':'http://115.28.177.22:8000/phone/callback/', 
+        'callbackBody':'name=$(fname)&hash=$(etag)'})
+    print(token2)
+    return Response({'status':0, 'msg':'', 'data':token2})
+
+def createurl(name):
+    if not name: return ''
+    q = Auth(settings.AK, settings.SK)
+    url = 'http://%s/%s' % (settings.BD, name)
+    url = q.private_download_url(url, expires=3600)
+    print(url)
+    return url
 
 @api_view(['POST', 'GET'])
 def callback(request):
-    name = request.data.get('name')
-    q = Auth(settings.access_key, settings.secret_key)
-    base_url = 'http://%s/%s' % (settings.bucket_domain, name)
-    private_url = q.private_download_url(base_url, expires=3600)
-    print(private_url)
-    return Response({'status':0, 'msg':'视频上传成功', 'data':private_url})
+    name = request.data.get('name', '').strip()
+    if not name: return myarg('name')
+    url = createurl(name)
+    return Response({'status':0, 'msg':'视频上传成功', 'data':url})
 
 @api_view(['POST', 'GET'])
 def qiniudelete(request):
     key = ''
-    q = Auth(settings.access_key, settings.secret_key)
+    q = Auth(settings.AK, settings.SK)
     bucket = BucketManager(q)
-    ret, info = bucket.delete(settings.bucket_name, key)
+    ret, info = bucket.delete(settings.BN, key)
     print(info)
     assert ret is None
     assert info.status_code == 612
     
-
-@api_view(['POST', 'GET'])
-@islogin()
-def urlsave(request, pk):
-    roadshow = Roadshow.objects.filter(pk=pk)
-    if not roadshow.exists(): return Response({'status':1, 'msg':'路演项目不存在'})
-    roadshow = roadshow[0]
-    roadshow.vcr = vcr
-    roadshow.save()
-    return Response({'status':0, 'msg':''})
-
-@api_view(['POST', 'GET'])
+@api_view(['POST'])
 @islogin()
 def deletevideo(request):
     key = request.data.get('key','').strip()
     if not key: return Response({'status':1, 'msg':'参数错误'})
-    q = Auth(settings.access_key, settings.secret_key)
+    q = Auth(settings.AK, settings.SK)
     bucket = BucketManager(q)
-    ret, info = bucket.delete(settings.bucket_name, key)
+    ret, info = bucket.delete(settings.BN, key)
     assert ret is None
     assert info.status_code == 612
     return Response({'status':0, 'msg':'删除视频成功'})
@@ -1351,7 +1309,7 @@ def settopicread(request, pk):
         queryset.update(read=True)
         return Response({'status':0, 'msg':'全部设为已读成功'})
     topic = getinstance(Topic, pk)
-    if not topic: return myarg('topic')
+    if not topic: return NOENTITY
     topic.read = None 
     topic.save()
     return Response({'status':0, 'msg':'删除成功'})
@@ -1470,7 +1428,7 @@ def postfeeling(request):
         pics = ';'.join(relative_path_list),
     )
     data = __feeling(obj, user) 
-    return Response({'status':0, 'msg':'', 'data':data})
+    return Response({'status':0, 'msg':'发表成功', 'data':data})
 
 @api_view(['POST'])
 @islogin()

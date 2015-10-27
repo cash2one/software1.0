@@ -186,11 +186,11 @@ class Company(models.Model):
         verbose_name = verbose_name_plural = '公司'
 
 class Roadshow(models.Model):
-    company = models.ForeignKey('Company', verbose_name='公司', null=True, blank=True, on_delete=models.PROTECT)
+    company = models.ForeignKey('Company', verbose_name='公司', null=True, blank=True, default=None, on_delete=models.PROTECT)
     user = models.ForeignKey('User', verbose_name='申请人', on_delete=models.PROTECT)
     contact_name = models.CharField('联系人', max_length=16)
     contact_phone = CharField('联系电话', max_length=11, validators=[validate_telephone])
-    vcr = models.URLField('vcr', blank=True)
+    vcr = models.CharField('vcr', max_length=64, blank=True)
     summary = models.TextField('项目概述', blank=True)
     valid = NullBooleanField('是否安排路演', default=None)
     reason = models.TextField('拒绝原因', blank=True)
@@ -226,7 +226,8 @@ class Roadshow(models.Model):
 
 class Investor(models.Model):
     user = models.ForeignKey('User', verbose_name='认证用户', on_delete=models.PROTECT)
-    company = models.ForeignKey('Company', verbose_name='机构', blank=True, null=True, on_delete=models.PROTECT)
+    company = models.ForeignKey('Company', verbose_name='机构', blank=True, null=True, default=None, on_delete=models.PROTECT)
+    #co = models.CharField('公司', max_length=64)
     position = models.CharField('职位', max_length=32, blank=True)
     card = models.ImageField('用户名片', upload_to=UploadTo('investor/card/%Y/%m'), blank=True)
     fundsizerange = models.ForeignKey('FundSizeRange', verbose_name="基金规模", null=True, blank=True, on_delete=models.PROTECT)
@@ -497,7 +498,7 @@ class LikeShip(models.Model):
             self.project.likers.add(self.user)
 
     def delete(self):
-        self.project.likes.remove(self.user)
+        self.project.likers.remove(self.user)
         print('call delete', self.project.id)
         super(LikeShip, self).delete()
 
