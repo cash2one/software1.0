@@ -302,7 +302,7 @@ class Project(models.Model):
 
     participators = ManyToManyField('User', related_name='project_participators', verbose_name='与会者', blank=True)
     investors = ManyToManyField('Investor', related_name='project_investors', verbose_name='投资人', blank=True)
-    likers = ManyToManyField('User', related_name='project_likes', verbose_name='点赞', blank=True)
+    likers = ManyToManyField('User', related_name='project_likers', verbose_name='点赞', blank=True)
     voters  = models.ManyToManyField('User', related_name='project_voters', verbose_name='投票', blank=True)
     collectors = ManyToManyField('User', related_name='project_collects', verbose_name='收藏', blank=True)
 
@@ -866,7 +866,8 @@ class Feeling(models.Model):
     user = models.ForeignKey('User', verbose_name='用户')
     content = models.TextField('内容', blank=True, null=True)
     pics = models.TextField('图片地址', blank=True)
-    likers = models.ManyToManyField('User', related_name='feeling_likes', verbose_name='点赞', blank=True)
+    likers = models.ManyToManyField('User', related_name='feeling_likers', verbose_name='点赞', blank=True)
+    news = models.ForeignKey('News', verbose_name='资讯', blank=True, null=True, default=None)
     create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
 
     def __str__(self):
@@ -905,6 +906,6 @@ class Feelingcomment(models.Model):
             if self.user == self.feeling.user:
                 pass
             else:
-                extras = {'api': 'feeling', 'id':self.id}
+                extras = {'api': 'feeling', 'id':self.feeling.id}
                 JiGuang('有人提及到您, 点击查看', extras).single(self.feeling.user.regid)
                 self.at and self.at.user != self.feeling.user and  JiGuang('有人回复了你, 点击查看', extras).single(self.at.user.regid)

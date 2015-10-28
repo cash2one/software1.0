@@ -18,6 +18,7 @@ from phone.utils import *
 
 NOENTITY = Response({'status':1, 'msg':'no entity'})
 def getinstance(Model, pk):
+    if not pk: return None
     model = Model.objects.filter(pk=pk)
     return model[0] if model.exists() else None
 
@@ -925,7 +926,7 @@ def myinvestproject(request, page):
 @api_view(['POST'])
 @islogin()
 def token(request):
-    uid = request.session.get('uid')
+    uid = request.session.get('login')
     if Roadshow.objects.filter(~Q(valid=True), user__pk=uid).exists(): return Response({'status':1, 'msg':'您还有路演申请仍在审核中'})
     key = request.data.get('key', '').strip()
     print(key)
@@ -1369,10 +1370,19 @@ def __feeling(item, user): # 获取发表的状态的关联信息
     tmp['name'] = item.user.name
     tmp['photo'] = myimg(item.user.img)
     tmp['content'] = item.content
-    tmp['pics'] = [] if item.pics==''  else [ os.path.join(settings.RES_URL, v) for v in item.pics.split(';') ]
+    news = item.news
+    if news: 
+        tmp['share'] = {
+            'id': news.id,
+            'title': news.title, 
+            'src': news.src,
+            'href': '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, news.name)
+        }
+    else:
+        tmp['pics'] = [] if item.pics==''  else [ os.path.join(settings.RES_URL, v) for v in item.pics.split(';') ]
     tmp['is_like'] = user in item.likers.all()
     tmp['likers'] = g_feelinglikers(item.likers.all(), 0) # page_size=3
-    remain_likers_num = item.likers.all().count() - 3
+    remain_likers_num = item.likers.all().count() - settings.FEELINGLIKERS_INITAL_PAGESIZE
     tmp['remain_likers_num'] = 0 if remain_likers_num <=0 else remain_likers_num
     tmp['position'] = [ v.name for v in item.user.position.all() ]
     tmp['city'] = item.user.city 
@@ -1383,7 +1393,7 @@ def __feeling(item, user): # 获取发表的状态的关联信息
     tmp['remain_comment_num'] = 0 if remain_comment_num <=0 else remain_comment_num 
     return tmp  
 
-@api_view(['GET'])
+@api_view(['GET','POST'])
 @islogin()
 def getfeeling(request, pk):
     item = getinstance(Feeling, pk)
@@ -1395,7 +1405,7 @@ def getfeeling(request, pk):
 @api_view(['POST', 'GET'])
 @islogin()
 def feeling(request, page):
-    user = User.objects.get(pk = request.session.get('login'))
+    user = User.objects.get(pk=request.session.get('login'))
     pagesize = settings.FEELING_PAGESIZE
     queryset = g_queryset(Feeling.objects.all(), page, pagesize) 
     data = list()
@@ -1409,8 +1419,10 @@ def postfeeling(request):
     content = request.data.get('content', '').rstrip()
     relative_path = datetime.now().strftime('media/feeling/%Y/%m')
     absolute_path = os.path.join(settings.BASE_DIR, relative_path)   
+    news = request.data.get('news', 0)
+    news = getinstance(News, news)
     if request.FILES: mkdirp(absolute_path)
-    elif not content: return Response({'status':1, 'msg':'发表内容不能为空'})
+    elif not content and not news: return Response({'status':1, 'msg':'发表内容不能为空'})
     relative_path_list = list()
     for k, v in request.FILES.items():
         ext = imghdr.what(v)
@@ -1426,6 +1438,7 @@ def postfeeling(request):
         user = user,
         content = content,
         pics = ';'.join(relative_path_list),
+        news = news
     )
     data = __feeling(obj, user) 
     return Response({'status':0, 'msg':'发表成功', 'data':data})
