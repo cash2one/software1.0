@@ -13,24 +13,13 @@ import pytz
 from datetime import datetime, timedelta, date
 from rest_framework.response import Response
 
-import os, re, functools, uuid, time, random, pytz, hashlib, codecs
+import os, re, uuid, time, random, pytz, hashlib, codecs
 import imghdr
 import jpush as jpush
 import requests
 from qiniu import Auth, BucketManager
-try:
-    from jinzht import settings
-except ImportError:
-    print('ImportError')
-else:
-    ISEXISTS = Response({'status':1, 'msg':'不存在实体'})                 
-    ARG = Response({'status':1, 'msg':'参数错误'})
+from jinzht import settings
 
-RES_URL = settings.RES_URL 
-PHONE_RE = re.compile(r'(13[0-9]|15[012356789]|17[678]|18[0-9]|14[57])[0-9]{8}$')
-PAGE_SIZE = 4        
-PK_RE = re.compile(r'^[1-9]\d*$')
-MTM_RE = re.compile(r'^[1-9]\d*(,[1-9]\d*)*$')
 
 def mystorage_file(file_field, upload_file, upload_to=''):
     name = upload_file.name
@@ -41,10 +30,8 @@ def myarg(field='参数'):
     return Response({'status':1, 'msg':'%s 错误' % field})
 
 def myimg(file, default=''):
-    if not file:
-        return '%s/media/default/coremember.png' % settings.RES_URL
-    else:
-        return '%s%s' % (settings.RES_URL, file.url)
+    if not file: return '%s/media/default/coremember.png' % settings.RES_URL
+    return '%s%s' % (settings.RES_URL, file.url)
 
 def timeformat(now=timezone.now()):
     if not now: return '待定'
@@ -54,11 +41,12 @@ def dateformat(now=timezone.now()):
     if not now: return '待定' 
     return timezone.localtime(now).strftime('%Y-%m-%d')
 
-def validate_telephone(telephone):
-    if telephone and PHONE_RE.match(telephone): return True
+def validtel(tel):
+    PHONE_RE = re.compile(r'(13[0-9]|15[012356789]|17[678]|18[0-9]|14[57])[0-9]{8}$')
+    if tel and PHONE_RE.match(tel): return True
     return False                              
 
-def datetime_filter(t):
+def dt_(t):
     t = time.mktime(timezone.localtime(t).timetuple())
     delta = int(time.time() - t)
     if delta < 60:
@@ -68,33 +56,12 @@ def datetime_filter(t):
     if delta < 86400:
         return '%s小时前' % (delta//3600)
     if delta < 604800:
-        return '%s天前' % (delta//86400)
-    dt = datetime.fromtimestamp(t)
+        return '%s天前' % (delta//86400) 
+    dt = datetime.fromtimestamp(t) 
     return '%s年%s月%s日' % (dt.year, dt.month, dt.day)
 
-def start_end(page=0, page_size=PAGE_SIZE):        
-    page = int(page)
-    page_size = int(page_size)
-    start = page * page_size
-    end = (page+1) * page_size
-    return start, end
 
-def g_queryset(QuerySet, page, pagesize=settings.DEFAULT_PAGESIZE):
-    page, pagesize = int(page), int(pagesize)
-    start = page * pagesize
-    end = (page+1) * pagesize
-    return QuerySet[start:end]
 
-def islogin(text=''):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kw):
-            uid = args[0].session.get('login')
-            if not uid or not PK_RE.match('%s' %uid):
-                return Response({'status':-99, 'msg':'请登录'})
-            return func(*args, **kw)
-        return wrapper
-    return decorator
 
 def mkdirp(path):
     import errno
@@ -103,76 +70,42 @@ def mkdirp(path):
         if e.errno == errno.EEXIST and os.path.isdir(path): pass
         else: raise
 
-class MobSMS:
-    userid = settings.userid 
-    account = settings.account
-    password = settings.password 
-    remainpoint = re.compile(r'<remainpoint>(\d{1,})</remainpoint>')
-    overage = re.compile(r'<overage>(\d{1,})</overage>')
-    def __init__(self, code='123456'):
-        self.code = code
-        self.msg = "验证码%s. 金指投科技, 十分钟内有效" % (code)
-        self.url = settings.msg_url % 'send' 
+class SMS(object):
 
-    def send(self, mobile, sendTime=''):
-        data = {
-            'userid': MobSMS.userid, 
-            'account': MobSMS.account,
-            'password': MobSMS.password, 
-            'mobile': mobile, 
-            'content': self.msg, 
-            'sendtime': sendTime
-        }
-        req = requests.post(self.url, data=data, verify=False)
+    def __init__(self, tel, msg=''):
+        
+        self.code = ''
+        if not msg: 
+            self.code = random.randint(1000, 9999)
+            msg = "验证码 %s , 十分钟内有效" % self.code
+        self.data = { 'userid': settings.SMS_USERID,
+            'account': settings.SMS_ACCOUNT,
+            'password': settings.SMS_PASSWORD, 
+            'mobile': tel, 
+            'content': msg}
+
+    def send(self):
+        req = requests.post(settings.SMS_URL, data=self.data, verify=False)
         ret = req.content.decode('utf-8')
-        m = MobSMS.remainpoint.search(ret)
-        if m: return m.group(1)
-        else: return -1
+        remainpoint = re.compile(r'<remainpoint>(\d{1,})</remainpoint>')
+        m = remainpoint.search(ret)
+        if m: return self.code 
+        else: return False
     
-    def remind(self, mobile, msg='test', sendTime=''):
-        data = {
-            'userid': MobSMS.userid, 
-            'account': MobSMS.account,
-            'password': MobSMS.password, 
-            'mobile': mobile, 
-            'content': msg, 
-            'sendtime': sendTime
-        }
-        req = requests.post(self.url, data=data, verify=False)
-        ret = req.content.decode('utf-8')
-        m = MobSMS.remainpoint.search(ret)
-        if m: return m.group(1)
-        else: return -1
-    
-    def check(self):
-        data = {
-            'userid': MobSMS.userid, 
-            'account': MobSMS.account,
-            'password': MobSMS.password, 
-        }
-        url = settings.msg_url % 'overage'
-        req = requests.post(url, data=data, verify=False)
-        ret = req.content.decode('utf-8')
-        m = MobSMS.overage.search(ret)
-        if m: return m.group(1)
-        else: return -1
 
 class MAIL(object):
-    server =  settings.mail_server
-    fro = settings.mail_server['user'] 
     
-    def __init__(self, subject, text, files=[], to=settings.mail_to):
+    def __init__(self, subject, text, files=[], to=settings.MAIL_TO):
         self.subject = subject
         self.text = text
         self.files = files
         self.to = to
 
     def send(self):
-        assert type(MAIL.server) == dict
         assert type(self.to) == tuple 
         assert type(self.files) == list
         msg = MIMEMultipart()
-        msg['From'] = MAIL.fro
+        msg['From'] = settings.MAIL_SERVER_USER
         msg['Subject'] = self.subject
         msg['To'] = COMMASPACE.join(self.to)
         msg['Date'] = formatdate(localtime=True)
@@ -187,12 +120,12 @@ class MAIL(object):
             msg.attach(part)
         
         import smtplib
-        smtp = smtplib.SMTP(MAIL.server['name'])
-        smtp.login(MAIL.server['user'], MAIL.server['passwd'])
-        smtp.sendmail(MAIL.fro, self.to, msg.as_string())
+        smtp = smtplib.SMTP(settings.MAIL_SERVER_NAME)
+        smtp.login(settings.MAIL_SERVER_USER, settings.MAIL_SERVER_PASSWD)
+        smtp.sendmail(settings.MAIL_SERVER_USER, self.to, msg.as_string())
         smtp.close()
 
-class JiGuang(object):
+class JG(object):
     app_key = settings.app_key 
     master_secret = settings.master_secret
 
@@ -209,8 +142,8 @@ class JiGuang(object):
             extras=extras
         )
         self.push = jpush.JPush(
-            JiGuang.app_key, 
-            JiGuang.master_secret
+            JG.app_key, 
+            JG.master_secret
         ).create_push() 
 
     def all(self):

@@ -29,570 +29,303 @@ class UploadTo(object):
         filename = '{}{}'.format(uuid.uuid4().hex, ext)
         return '{}/{}'.format(self.sub_path, filename)
 
-class Qualification(models.Model):
-    desc = models.TextField('描述')
 
-    def __str__(self):
-        return '%s' %  self.desc
+class Qualification(Model):
+
+    desc = TextField('描述')
+
+    def __str__(self): return '%s' %  self.desc
 
     class Meta:
         ordering = ('pk',)
         verbose_name = verbose_name_plural = '认证条件'
     
 
-class FundSizeRange(models.Model):
-    desc = models.CharField('描述', max_length=32)
+class Institute(Model):
 
-    def __str__(self):
-        return '%s' % self.desc
+    name = CharField('机构名称', max_length=64, unique=True)
+    province = CharField('省份', max_length=32)
+    city = CharField('城市', max_length=32)
+    logo = ImageField('公司图片', upload_to=UploadTo('institute/logo/%Y/%m'), blank=True)
+    profile = TextField('机构介绍', blank=True)
+    license = ImageField('营业执照', upload_to=UploadTo('institute/license/%Y/%m'), blank=True)
+    orgcode = ImageField('组织机构代码证', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
+    create_datetime = DateTimeField('添加时间', auto_now_add=True)
+
+    def __str__(self): return '%s' % self.name
 
     class Meta:
-        ordering = ('pk',)
-        verbose_name = verbose_name_plural = '☏基金规模'
+        ordering = ('-pk',)
+        verbose_name = verbose_name_plural = '机构'
 
-class User(models.Model):
-    telephone = CharField('手机', max_length=11, unique=True, validators=[validate_telephone])
-    password = CharField('密码', max_length=32)
-    system = models.ForeignKey('System', verbose_name='系统', null=True, editable=False, on_delete=models.PROTECT)
-    regid = models.CharField('唯一识别码', max_length=32, blank=True)
-    company = models.ManyToManyField('Company', verbose_name='公司', blank=True)
-    position= models.ManyToManyField('Position', verbose_name='职位', blank=True)
-    img = models.ImageField('图像', upload_to=UploadTo('user/img/%Y/%m'),blank=True)
-    idfore = models.ImageField('ID正', upload_to=UploadTo('user/idfore/%Y/%m'), blank=True)
-    idback = models.ImageField('ID背', upload_to=UploadTo('user/idback/%Y/%m'), blank=True)
-    gender = models.NullBooleanField('性别("男")', default=None)
-    name = CharField('姓名', max_length=16, blank=True)
-    weixin = CharField('微信', max_length=64, blank=True)
-    province = models.CharField('省份', max_length=16, blank=True)
-    city = models.CharField('城市', max_length=32, blank=True)
+    def save(self, *args, **kwargs):
+        edit = self.pk
+        if edit: item = Institute.objects.get(pk=self.pk)
+        super(Institute, self).save(*args, **kwargs)
+        if edit:
+            osremove(item.logo, self.logo)
+            osremove(item.license, self.license)
+            osremove(item.orgcode,self.orgcode)
+
+
+class User(Model):
+   
+    ''' 微信授权登录 '''
+    openid = CharField('微信', max_length=64, unique=True, null=True, blank=True) # 微信授权登录的返回序列号
+    photo = ImageField('图像', upload_to=UploadTo('user/photo/%Y/%m'), blank=True) # 微信的图像, 用户可以自己设置, 默认为微信没有的图像
+    nickname = CharField('昵称', max_length=64, blank=True, default='匿名用户') # 微信的昵称, 用户可以自己设置, 默认为匿名用户 
+    bg = ImageField('微信背景', upload_to=UploadTo('user/bg/%Y/%m/'), blank=True)
+
+    ''' 手机登录 '''
+    tel = CharField('手机', max_length=11, unique=True, validators=[validtel])
+    passwd = CharField('密码', max_length=32)
+
+    ''' 系统, 极光, 版本 '''
+    os = ForeignKey('OS', verbose_name='系统', null=True, on_delete=PROTECT, blank=True) # 系统类别
+    regid = CharField('唯一识别码', max_length=32, blank=True) # 极光推送
+    version = CharField('版本', max_length=64, blank=True) # 版本号, 用户更新检测
+    create_datetime = DateTimeField('注册时间', auto_now_add=True)
+
+    ''' 必填信息 '''
+    name = CharField('姓名', max_length=16, blank=True) # 真实姓名 cation
+    idno = CharField('身份证号码', max_length=18, blank=True) # 身份证号码 cation 
+    email = EmailField('邮件地址', max_length=64, blank=True) # 邮件地址
+    
+    ''' 可选信息 '''
+    company = CharField('公司', max_length=64, blank=True) # cation
+    position= CharField('职位', max_length=64, blank=True) # cation
+    province = CharField('省份', max_length=16, blank=True) # 所在省份
+    city = CharField('城市', max_length=32, blank=True) # 所在城市
     comment = TextField('备注信息', blank=True)
-    create_datetime = models.DateTimeField('注册时间', auto_now_add=True)
-    background = models.ImageField('微信背景', upload_to=UploadTo('user/background/%Y/%m/'), blank=True)
+
+    ''' 自动维护 '''
+    gender = NullBooleanField('性别("男")', default=None)
+    birthplace = CharField('出生地', max_length=128, blank=True)
+    birthday = DateField('生日', null=True, blank=True)
+
+    ''' 认证信息 '''
+    qualification = ManyToManyField('Qualification', verbose_name='认证条件', blank=True)
+    Institute = ForeignKey('Institute', verbose_name='机构', null=True, blank=True)
 
     def save(self, *args, **kwargs): #密码的问题
-        edit = self.pk is not None
+        edit = self.pk
         if edit: user = User.objects.get(pk=self.pk)
         super(User, self).save(*args, **kwargs)
         if edit:
-            osremove(user.img, self.img)
-            osremove(user.idfore, self.idfore)
-            osremove(user.idback, self.idback)
-            osremove(user.background, self.background)
+            osremove(user.photo, self.photo)
+            osremove(user.bg, self.bg)
         else:
-            MobSMS().remind(self.telephone, settings.REGISTER) 
-            MAIL('用户注册', '%s 在 %s 注册' % (self.telephone, timeformat(self.create_datetime)) ).send()
+            SMS(self.tel, REGISTE).send()
+            MAIL('用户注册', '%s 在 %s 注册' % (self.tel, timeformat(self.create_datetime)) ).send()
 
     def __str__(self):
-        return '%s:%s' % (self.name, self.telephone)
+        return '%s:%s' % (self.name, self.tel)
 
     class Meta:
         ordering = ('-pk', )
         verbose_name = verbose_name_plural = '注册用户'
 
-class Position(models.Model):
-    name = models.CharField('职位名称', max_length=16, unique=True)
 
-    def __str__(self):
-        return '%s' % self.name
+class Company(Model):
 
-    class Meta:
-        ordering = ('-pk',)
-        verbose_name = verbose_name_plural = '职位选择'
-
-class JoinShip(models.Model):
-    user = models.ForeignKey('User', verbose_name='用户', on_delete=models.PROTECT)
-    company = models.ForeignKey('Company', verbose_name='公司')
-    join_date = models.DateField('加入公司的时间', blank=True, null=True)
-    position = models.ManyToManyField('Position', verbose_name='职位', blank=True)
-    valid = models.NullBooleanField('是否属实', default=None)
-    comment = models.TextField('备注', blank=True)
-    create_datetime = models.DateTimeField('添加时间', auto_now_add=True)
+    name = CharField('公司名称', max_length=64, unique=True)
+    province = CharField('省份', max_length=32)
+    city = CharField('城市', max_length=32)
+    logo = ImageField('公司图片', upload_to=UploadTo('company/logo/%Y/%m'), blank=True)
+    profile = TextField('公司介绍', blank=True)
+    license = ImageField('营业执照', upload_to=UploadTo('company/license/%Y/%m'), blank=True)
+    orgcode = ImageField('组织机构代码证', upload_to=UploadTo('company/orgcode/%Y/%m'), blank=True)
+    homepage = URLField('网站主页', max_length=64, blank=True)
+    create_datetime = DateTimeField('添加时间', auto_now_add=True)
 
     def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit: joinship = JoinShip.objects.get(pk=self.pk)
-        super(JoinShip, self).save(*args, **kwargs)
-        if edit:
-            pass
-        else:
-            self.user.company.add(self.company)
-            
-    def delete(self):
-        self.user.company.remove(self.company)
-        return super(JoinShip, self).delete()
-
-    def __str__(self):
-        return '%s/%s' % (self.user, self.company) 
-
-    class Meta:
-        ordering = ('-pk',)
-        unique_together = ('user', 'company')
-        verbose_name = verbose_name_plural = '公司加入情况'
-
-
-class Companystatus(models.Model):
-    name = models.CharField('状态名称', max_length=64, unique=True)
-
-    def __str__(self):
-        return '%s' % self.name
-
-    class Meta:
-        ordering = ('pk',)
-        verbose_name = verbose_name_plural = '公司状态'
-
-class Industry(models.Model):
-    name = models.CharField('行业类别', max_length=16, unique=True)
-    valid = models.NullBooleanField('是否合法', default=None)
-
-    def __str__(self):
-        return '%s' % self.name
-
-    class Meta:
-        ordering = ('-pk', )
-        verbose_name = verbose_name_plural = '行业一览表'
-
-class Company(models.Model):
-    name = models.CharField('公司名称', max_length=64, unique=True)
-    province = models.CharField('省份', max_length=32)
-    city = models.CharField('城市', max_length=32)
-    logo = models.ImageField('公司图片', upload_to=UploadTo('company/logo/%Y/%m'), blank=True)
-    profile = TextField('公司简介', blank=True)
-    technology = CharField('核心产品及技术', max_length=64, blank=True)
-    industry = models.ManyToManyField('Industry', verbose_name='所属行业')
-    companystatus = models.ForeignKey('Companystatus', verbose_name='公司状态', on_delete=models.PROTECT)
-    license = models.ImageField('营业执照', upload_to=UploadTo('company/license/%Y/%m'), blank=True)
-    organizationcode = models.ImageField('组织机构代码证', upload_to=UploadTo('company/organizationcode/%Y/%m'), blank=True)
-    homepage = models.URLField('网站主页', max_length=64, blank=True)
-    contact_name = models.CharField('事务人', max_length=16, blank=True)
-    contact_phone = CharField('联系手机', max_length=11, validators=[validate_telephone], blank=True)
-    create_datetime = models.DateTimeField('添加时间', auto_now_add=True)
-
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
+        edit = self.pk
         if edit: company = Company.objects.get(pk=self.pk)
         super(Company, self).save(*args, **kwargs)
         if edit:
             osremove(company.logo, self.logo)
             osremove(company.license, self.license)
-            osremove(company.organizationcode,self.organizationcode)
-        else:
-            pass
+            osremove(company.orgcode,self.orgcode)
 
-    def __str__(self):
-        return '%s' % self.name
+    def __str__(self): return '%s' % self.name
 
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '公司'
 
-class Roadshow(models.Model):
-    company = models.ForeignKey('Company', verbose_name='公司', null=True, blank=True, default=None, on_delete=models.PROTECT)
-    user = models.ForeignKey('User', verbose_name='申请人', on_delete=models.PROTECT)
-    contact_name = models.CharField('联系人', max_length=16)
-    contact_phone = CharField('联系电话', max_length=11, validators=[validate_telephone])
-    vcr = models.CharField('vcr', max_length=64, blank=True)
-    summary = models.TextField('项目概述', blank=True)
-    valid = NullBooleanField('是否安排路演', default=None)
-    reason = models.TextField('拒绝原因', blank=True)
-    roadshow_datetime = models.DateTimeField('路演时间', blank=True, null=True)
-    comment = models.TextField('备注信息', blank=True)
-    create_datetime = models.DateTimeField('申请日期', auto_now_add=True)
-    handle_datetime = models.DateTimeField('处理时间', auto_now=True)
-    
-    def __str__(self):
-        return '%s/%s' % (self.user.telephone, self.user.name) 
+
+class Upload(Model):        
+
+    ''' 上传的项目 '''
+    name = CharField('姓名', max_length=32)
+    tel = CharField('手机', max_length=11, validators=[validtel])
+    company = CharField('公司名称', max_length=64)
+    vcr = CharField('vcr', max_length=64, blank=True)
+    create_datetime = DateTimeField('添加时间', auto_now_add=True)
+    valid = NullBooleanField('是否合法')
+
+    def __str__(self): return '%s' % self.name
 
     class Meta:
-        unique_together = (('company', 'roadshow_datetime'))
-        ordering = ('-pk', )
-        verbose_name = verbose_name_plural = '路演申请情况Ⅰѫ'
-
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit: roadshow = Roadshow.objects.get(pk=self.pk)
-        super(Roadshow, self).save(*args, **kwargs)
-        if edit:
-            if roadshow.valid != self.valid:
-                extras = {'api':'roadshow', 'url':'www.jinzht.com'}
-                if self.valid == True:
-                    JiGuang(ROADSHOW_VALID_TRUE, extras).single(self.user.regid)
-                    MobSMS().remind(self.user.telephone, ROADSHOW_VALID_TRUE) 
-                elif self.valid == False:
-                    JiGuang(ROADSHOW_VALID_FALSE, extras).single(self.user.regid)
-                    MobSMS().remind(self.user.telephone, ROADSHOW_VALID_FALSE) 
-        else:
-            MobSMS().remind(self.user.telephone, ROADSHOW_SUBMIT)
-            MAIL( '路演申请', '%s于%s申请路演' %(self.user.telephone, timeformat()) ).send()
-
-class Investor(models.Model):
-    user = models.ForeignKey('User', verbose_name='认证用户', on_delete=models.PROTECT)
-    company = models.ForeignKey('Company', verbose_name='机构', blank=True, null=True, default=None, on_delete=models.PROTECT)
-    #co = models.CharField('公司', max_length=64)
-    position = models.CharField('职位', max_length=32, blank=True)
-    card = models.ImageField('用户名片', upload_to=UploadTo('investor/card/%Y/%m'), blank=True)
-    fundsizerange = models.ForeignKey('FundSizeRange', verbose_name="基金规模", null=True, blank=True, on_delete=models.PROTECT)
-    industry = models.ManyToManyField('Industry', verbose_name='关注领域', blank=True)
-    qualification = models.ManyToManyField('Qualification', verbose_name='认证条件')
-    valid = models.NullBooleanField('是否合格', default=None)
-    certificate_datetime = models.DateTimeField('认证日期', auto_now_add=True) # depracated
-    reason = models.TextField('认证失败原因', blank=True)
-    comment = models.TextField('备注', blank=True)
-    create_datetime= models.DateTimeField('申请认证日期', auto_now_add=True) 
-    handle_datetime = models.DateTimeField('处理时间', auto_now=True)
-
-    def __str__(self):
-        return '%s' % self.user 
-
-    class Meta:
-        unique_together = ('user', 'company')
         ordering = ('-pk',)
-        verbose_name = verbose_name_plural = '投资人★★★'
+        verbose_name = verbose_name_plural = '上传项目'
 
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit: investor = Investor.objects.get(pk=self.pk)
-        super(Investor, self).save(*args, **kwargs)
-        if edit:
-            if investor.valid != self.valid:
-                extras = {'api':'investor',
-                    'url':'www.jinzht.com'
-                }
-                if self.valid == True:
-                    JiGuang(INVESTOR_VALID_TRUE, extras).single(self.user.regid) 
-                    MobSMS().remind(self.user.telephone, INVESTOR_VALID_TRUE)
-                elif self.valid == False:
-                    JiGuang(INVESTOR_VALID_FALSE, extras).single(self.user.regid) 
-                    MobSMS().remind(self.user.telephone, INVESTOR_VALID_FALSE)
-        else:
-            MobSMS().remind(self.user.telephone, INVESTOR_SUBMIT)
-            MAIL( '认证申请', '%s于%s申请认证' %(self.user.telephone, timeformat()) ).send()
 
-class Project(models.Model):
-    roadshow = models.OneToOneField('Roadshow', verbose_name='路演', null=True, blank=True)
-    company = models.ForeignKey('Company', verbose_name='公司', on_delete=models.PROTECT)
-    summary = models.CharField('项目概述', max_length=64)
-    desc = TextField('项目描述')
-    img = models.ImageField('图片', upload_to=UploadTo('project/img/%Y/%m'))
-    thumbnail = models.ImageField('小图', upload_to=UploadTo('project/thumbnail/%Y/%m'))
-    video = models.FileField('视频', upload_to=UploadTo('project/video/%Y/%m'), blank=True)
-    url = models.URLField('视频地址', blank=True)
-    model = models.TextField('商业模式')
-    business = models.TextField('主营业务')
-    service = models.TextField('产品服务', blank=True, null=True)
-    planfinance = PositiveIntegerField('计划融资', default=0)
-    finance2get = PositiveIntegerField('已获得融资', default=0)
-    pattern = CharField('融资方式', max_length=32, default='股权融资')
-    share2give = DecimalField('让出股份', max_digits=4, decimal_places=2, default=0)
-    tmpshare = models.CharField('临时股份', max_length=16, default='3')
-    quitway = CharField('退出方式', max_length=32)
+class Project(Model):
+
+    upload = ForeignKey('Upload', verbose_name='上传项目', null=True, blank=True) # 关联项目
+
+    ''' 项目所关联的公司 '''
+    company = ForeignKey('Company', verbose_name='公司', on_delete=PROTECT, blank=True)
+    video = URLField('视频地址', blank=True)
+    tag = TextField('标签', blank=True)
+   
+    ''' 项目概况 '''
+    img = ImageField('图片', upload_to=UploadTo('project/img/%Y/%m'), blank=True) 
+    summary = CharField('项目概述', max_length=64, blank=True)
+    detail = TextField('项目详情', blank=True)
+    pattern = TextField('商业模式', blank=True)
+    business = TextField('主营业务', blank=True)
+
+    ''' 路演时的具体情况 '''
+    planfinance = PositiveIntegerField('计划融资', blank=True)
+    finance2get = PositiveIntegerField('已获得融资', blank=True)
+    pattern = CharField('融资方式', max_length=32, blank=True)
+    share2give = DecimalField('让出股份', max_digits=4, decimal_places=2, blank=True)
+    quitway = CharField('退出方式', max_length=32, blank=True)
     usage = TextField('资金用途')
-    investor2plan = PositiveIntegerField('股东人数', default=0)
-    participator2plan = models.PositiveIntegerField('报名人数', default=0)
+    investor2plan = PositiveIntegerField('股东人数', blank=True)
+    leadfund = PositiveIntegerField('领投金额', blank=True)
+    followfund = PositiveIntegerField('跟投金额', blank=True)
+   
+    ''' 时间 '''
+    roadshow_start_datetime = DateTimeField('路演时间', blank=True)
+    roadshow_stop_datetime = DateTimeField('路演结束', blank=True)
+    finance_stop_datetime = DateTimeField('融资结束', blank=True)
+    over = NullBooleanField('众筹完成')
+    create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
-    leadfund = models.PositiveIntegerField('领投金额', default=0)
-    followfund = models.PositiveIntegerField('跟投金额', default=0)
+    ''' 人数情况 '''
+    attend = ManyToManyField('User', related_name='attend', verbose_name='与会者', blank=True)
+    like = ManyToManyField('User', related_name='like', verbose_name='点赞', blank=True)
+
+    ''' 公司新闻 '''
+    event = TextField('公司新闻')
+
+    def __str__(self): return '%s%s' % (self.pk, self.company)
     
-    roadshow_start_datetime = models.DateTimeField('路演时间', blank=True, null=True)
-    roadshow_stop_datetime = models.DateTimeField('路演结束', blank=True, null=True)
-    finance_stop_datetime = models.DateTimeField('融资结束', blank=True, null=True)
-    over = models.NullBooleanField('众筹完成', default=None)
-
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
-    tag = models.TextField('标签', blank=True)
-
-    participators = ManyToManyField('User', related_name='project_participators', verbose_name='与会者', blank=True)
-    investors = ManyToManyField('Investor', related_name='project_investors', verbose_name='投资人', blank=True)
-    likers = ManyToManyField('User', related_name='project_likers', verbose_name='点赞', blank=True)
-    voters  = models.ManyToManyField('User', related_name='project_voters', verbose_name='投票', blank=True)
-    collectors = ManyToManyField('User', related_name='project_collects', verbose_name='收藏', blank=True)
+    class Meta:
+        ordering = ('-pk', )
+        verbose_name = verbose_name_plural = '项目具体信息'
 
     def save(self, *args, **kwargs):
-        edit = self.pk is not None
+        edit = self.pk
         if edit: project = Project.objects.get(pk=self.pk)
         super(Project, self).save(*args, **kwargs)
-        if edit:
-            osremove(project.img ,self.img)
-            osremove(project.video ,self.video)
+        if edit: osremove(project.img ,self.img)
 
-    def __str__(self):
-        return '%s%s' % (self.pk, self.company)
-    
-    class Meta:
-        ordering = ('-pk', )
-        verbose_name = verbose_name_plural = '项目具体信息☏☏☏'
 
-#class Reply(models.Model):
-#    project = models.ForeignKey('Project', verbose_name='项目', on_delete=models.PROTECT)
-#    user = models.ForeignKey('User', verbose_name='认证用户', on_delete=models.PROTECT)
-#    msg = models.CharField('信息', max_length='128')
-#    valid = models.NullBooleanField('是否合法', default=None)
-#    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
-#
-#    def __str__(self):
-#        return '%s/%s' % (self.user, self.project)
-#
-#    class Meta:
-#        ordering = ('-pk',)
-#        verbose_name = verbose_name_plural = '项目回复'
+class Member(Model):
 
-class ProjectEvent(models.Model):
-    project = models.ForeignKey('Project', verbose_name='项目', on_delete=models.PROTECT)
-    title = models.CharField('新闻标题', max_length=32)
-    happen_datetime = models.DateTimeField('发生时间')
-    detail = models.TextField('事件')
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
-
-    def __str__(self):
-        return '%s' % self.title
-
-    class Meta:
-        unique_together = (('title', 'happen_datetime'),)
-        ordering = ('pk',)
-        verbose_name = verbose_name_plural = '项目重大事件'
-
-class CoreMember(models.Model):
-    project = ForeignKey(Project, verbose_name='项目', on_delete=models.PROTECT)  
+    project = ForeignKey(Project, verbose_name='项目')  
     name = CharField('姓名', max_length=32)
-    img = ImageField('头像', upload_to=UploadTo('coremember/img/%Y/%m'), blank=True)
-    title = CharField('职位', max_length=32)
+    photo = ImageField('头像', upload_to=UploadTo('coremember/photo/%Y/%m'), blank=True)
+    position = CharField('职位', max_length=32)
     profile = TextField('简介')
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
+    create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit:
-            coremember = CoreMember.objects.get(pk=self.pk)
-        super(CoreMember, self).save(*args, **kwargs)
-        if edit:
-            osremove(coremember.img, self.img)
-
-    def __str__(self):
-        return '%s' % self.project
+    def __str__(self): return '%s' % self.project
 
     class Meta:
         ordering = ('-pk', )
         verbose_name = verbose_name_plural = '核心成员'
 
-class ParticipateShip(models.Model):
-    project = models.ForeignKey('Project', verbose_name='项目方', on_delete=models.PROTECT)
-    user = models.ForeignKey('User', verbose_name='参加人', on_delete=models.PROTECT)
-    valid = models.NullBooleanField('是否同意来现场', default=None) 
-    reason = models.TextField('告知客户不能来现场原因', blank=True)
-    comment = models.TextField('备注', blank=True)
-    create_datetime = models.DateTimeField('申请参加日期', auto_now_add=True)
-    handle_datetime = models.DateTimeField('处理时间', auto_now=True)
-
     def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit: participateship = ParticipateShip.objects.get(pk=self.pk)
-        super(ParticipateShip, self).save(*args, **kwargs)
-        if edit:
-            if participateship.valid != self.valid:
-                extras = {'api':'participate', 'url':''}
-                summary = self.project.summary
-                dt = datetime_filter(self.create_datetime)
-                if self.valid == True:
-                    text = PARTICIPATE_VALID_TRUE %(dt, summary)
-                    JiGuang(text, extras).single(self.user.regid) 
-                    MobSMS().remind(self.user.telephone, text)
-                elif self.valid == False:
-                    text = PARTICIPATE_VALID_FALSE %(dt, summary )
-                    JiGuang(text, extras).single(self.user.regid) 
-                    MobSMS().remind(self.user.telephone, text)
-        else:
-            text = '%s于%s申请来%s' % (self.user.telephone, timeformat(), self.project.summary)
-            MAIL(subject='来现场', text=text).send()
-            MAIL(subject='来现场', text=text, to=settings.invest_manager).send()
-            self.project.participators.add(self.user)
+        edit = self.pk
+        if edit: member = Member.objects.get(pk=self.pk)
+        super(Member, self).save(*args, **kwargs)
+        if edit: osremove(member.photo, self.photo)
 
-    def delete(self):
-        self.project.participators.remove(self.user)
-        super(ParticipateShip, self).delete()
 
-    def __str__(self):
-        return '%s' % self.project
+class Invest(Model):
 
+    project = ForeignKey('Project', verbose_name='项目方', on_delete=PROTECT)
+    user = ForeignKey('User', verbose_name='投资人', on_delete=PROTECT)
+    amount = PositiveIntegerField('投资金额')
+    valid = NullBooleanField('是否合法', default=None)
+    create_datetime = DateTimeField('投资日期', auto_now_add=True)
+
+    def __str__(self): return '%s/%s/%s' % (self.project, self.user, self.amount)
+    
     class Meta:
-        ordering = ('-pk',)
-        unique_together = (('project', 'user'), ('user', 'create_datetime'))
-        verbose_name = verbose_name_plural = '来现场报名表'
-
-class VoteShip(models.Model):
-    project = models.ForeignKey('Project', verbose_name='项目方', on_delete=models.PROTECT)
-    user = models.ForeignKey('User', verbose_name='认证用户', on_delete=models.PROTECT)
-    comment = models.CharField('备注', max_length=64,  blank=True)
-    create_datetime = models.DateTimeField('投票日期', auto_now_add=True)
-
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit: voteship = VoteShip.objects.get(pk=self.pk)
-        super(VoteShip, self).save(*args, **kwargs)
-        if edit:
-            pass
-        else:
-            self.project.voters.add(self.user)
-
-    def delete(self):
-        self.project.voters.remove(self.user)
-        super(VoteShip, self).delete()
-
-    def __str__(self):
-        return '%s/%s' % (self.project, self,user)
-
-    class Meta:
-        ordering = ('-pk',)
         unique_together = ('project', 'user')
-        verbose_name = verbose_name_plural = '投票'
-
-class InvestShip(models.Model):
-    project = ForeignKey('Project', verbose_name='项目方', on_delete=models.PROTECT)
-    investor = ForeignKey('Investor', verbose_name='投资人', on_delete=models.PROTECT)
-    invest_amount = PositiveIntegerField('投资金额')
-    share2get = models.DecimalField('占用股份', max_digits=4, decimal_places=2, default=0)
-    lead = models.NullBooleanField('是否领投', default=None)
-    valid = models.NullBooleanField('是否合法', default=None)
-    comment = TextField('备注', blank=True)
-    create_datetime = models.DateTimeField('投资日期', auto_now_add=True)
-
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        super(InvestShip, self).save(*args, **kwargs)
-        if edit:
-            pass
-        else:
-            tp = self.investor.user.telephone 
-            ri = self.investor.user.regid
-            dt = timeformat(self.create_datetime)
-            pj = self.project.summary
-            ia = self.invest_amount
-            text = INVEST_VALID_TRUE %(dt, pj, ia)
-            JiGuang(text).single(ri) 
-            MobSMS().remind(tp, text)
-            MAIL( '投资申请', '%s于%s投资"%s"%s万' %(tp, dt, pj, ia) ).send()
-            self.project.investors.add(self.investor)
-    
-    def delete(self):
-        self.project.investors.remove(self.investor)
-        super(InvestShip, self).delete()
-
-    def __str__(self):
-        return '%s/%s/%s' % (self.project, self.investor, self.invest_amount)
-    
-    class Meta:
-        unique_together = ('project', 'investor')
         ordering = ('-pk', )
         verbose_name = verbose_name_plural = '$$$投资关系$$$'
     
-class LikeShip(models.Model):
-    project = ForeignKey(Project, verbose_name='项目', on_delete=models.PROTECT)
-    user = ForeignKey(User, verbose_name='点赞人', on_delete=models.PROTECT)
-    comment = TextField('备注', blank=True)
-    create_datetime = models.DateTimeField('点赞日期', auto_now_add=True)
-    
     def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        super(LikeShip, self).save(*args, **kwargs)
-        if edit:
-            pass
+        edit = self.pk
+        super(Invest, self).save(*args, **kwargs)
+        if edit: pass
         else:
-            self.project.likers.add(self.user)
+            tp = self.user.tel 
+            ri = self.user.regid
+            dt = timeformat(self.create_datetime)
+            pj = self.project.summary
+            am = self.amount
+            text = INVEST_VALID_TRUE %(dt, pj, am)
+            JG(text).single(ri); SMS().remind(tp, text)
+            MAIL( '投资申请', '%s于%s投资"%s"%s万' %(tp, dt, pj, am) ).send()
 
-    def delete(self):
-        self.project.likers.remove(self.user)
-        print('call delete', self.project.id)
-        super(LikeShip, self).delete()
 
-    def __str__(self):
-        return '%s/%s' % (self.project, self.user)
+class Collect(Model):
 
-    class Meta:
-        ordering = ('-pk', )
-        unique_together = (('project', 'user'),)
-        verbose_name = verbose_name_plural = '项目点赞情况'
+    project = ForeignKey(Project, verbose_name='项目')
+    user = ForeignKey(User, verbose_name='收藏人')
+    create_datetime = DateTimeField('收藏日期', auto_now_add=True)
 
-class CollectShip(models.Model):
-    project = ForeignKey(Project, verbose_name='项目', on_delete=models.PROTECT)
-    user = ForeignKey(User, verbose_name='收藏人', on_delete=models.PROTECT)
-    comment = TextField('备注', blank=True)
-    create_datetime = models.DateTimeField('收藏日期', auto_now_add=True)
-
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        super(CollectShip, self).save(*args, **kwargs)
-        if edit:
-            pass
-        else:
-            self.project.collectors.add(self.user)
-
-    def delete(self):
-        self.project.collectors.remove(self.user)
-        super(CollectShip, self).delete()
-
-    def __str__(self):
-        return '%s/%s' % (self.user.name, self.project)
+    def __str__(self): return '%s/%s' % (self.user.name, self.project)
 
     class Meta:
         ordering = ('pk', )
         unique_together = (('project', 'user'),)
         verbose_name = verbose_name_plural = '项目收藏情况'
 
-class RecommendProject(models.Model):
-    project = models.OneToOneField('Project', verbose_name='项目')
-    reason = models.TextField('推荐理由')
-    star = models.PositiveSmallIntegerField('推荐指数')
-    start_datetime = models.DateTimeField('开始日期')
-    end_datetime   = models.DateTimeField('截至日期')
-    create_datetime = models.DateTimeField('创建日期', auto_now_add=True)
 
-    def __str__(self):
-        return '%s/%s' % (self.project, self.star)
+class Banner(Model):
 
-    class Meta:
-        ordering = ('-pk', )
-        verbose_name = verbose_name_plural = '推荐项目'
+    title = CharField('题目', max_length=16)
+    project = OneToOneField('Project', verbose_name='项目', blank=True, null=True)
+    img = ImageField('图片', upload_to=UploadTo('banner/img/%Y/%m'))
+    url = URLField('链接地址', max_length=64, blank=True)
+    create_datetime = DateTimeField('创建日期', auto_now=True)
+    comment = TextField('备注信息', blank=True)
 
-class Banner(models.Model):
-    title = models.CharField('题目', max_length=16)
-    project = models.OneToOneField('Project', verbose_name='项目', blank=True, null=True)
-    img = models.ImageField('图片', upload_to=UploadTo('banner/img/%Y/%m'))
-    desc = models.TextField('介绍', blank=True)
-    url = models.URLField('链接地址', max_length=64, blank=True)
-    create_datetime = models.DateTimeField('创建日期', auto_now_add=True)
-
-    def __str__(self):
-        return '%s' % self.title
+    def __str__(self): return '%s' % self.title
 
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '旗标栏'
 
     def save(self, *args, **kwargs):
-        edit = self.pk is not None
+        edit = self.pk
         if edit: banner = Banner.objects.get(pk=self.pk)
         super(Banner, self).save(*args, **kwargs)
-        if edit:
-            osremove(banner.img, self.img) 
+        if edit: osremove(banner.img, self.img) 
 
 
-class Thinktank(models.Model):
-    name = models.CharField('姓名', max_length=16)
-    company = models.CharField('公司', max_length=64)
-    title = models.CharField('职位', max_length=64)
-    img = models.ImageField('图像', upload_to=UploadTo('thinktank/img/%Y/%m'))
-    thumbnail = models.ImageField('小图', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'))
-    video = models.URLField('链接地址', max_length=64, blank=True)
-    experience = models.TextField('经历')
-    success_cases = models.TextField('成功案例')
-    good_at_field = models.TextField('擅长领域')
-    create_datetime = models.DateTimeField('创建日期', auto_now_add=True)
+class Thinktank(Model):
 
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit: thinktank = Thinktank.objects.get(pk=self.pk)
-        super(Thinktank, self).save(*args, **kwargs)
-        if edit:
-            osremove(thinktank.img, self.img)
-            osremove(thinktank.thumbnail, self.thumbnail)
+    name = CharField('姓名', max_length=16)
+    company = CharField('公司', max_length=64)
+    title = CharField('职位', max_length=64)
+    photo = ImageField('图像', upload_to=UploadTo('thinktank/img/%Y/%m'))
+    thumbnail = ImageField('小图', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'))
+    video = URLField('链接地址', max_length=64, blank=True)
+    experience = TextField('经历')
+    case = TextField('成功案例')
+    domain = TextField('擅长领域')
+    create_datetime = DateTimeField('创建日期', auto_now_add=True)
+
     def __str__(self):
         return '%s' % self.name
 
@@ -600,213 +333,98 @@ class Thinktank(models.Model):
         ordering = ('pk',)
         verbose_name = verbose_name_plural = '智囊团'
 
-class ThinktankCollect(models.Model):
-    thinktank = models.ForeignKey('Thinktank', verbose_name='智囊', on_delete=models.PROTECT)
-    user = models.ForeignKey('User', verbose_name='用户', on_delete=models.PROTECT)
-    create_datetime = models.DateTimeField('收藏日期', auto_now_add=True)
+    def save(self, *args, **kwargs):
+        edit = self.pk
+        if edit: thinktank = Thinktank.objects.get(pk=self.pk)
+        super(Thinktank, self).save(*args, **kwargs)
+        if edit:
+            osremove(thinktank.img, self.img)
+            osremove(thinktank.thumbnail, self.thumbnail)
 
-    def __str__(self):
-        return '%s' % (self.thinktank)
-    class Meta:
-        ordering = ('-pk', )
-        unique_together = ('user', 'thinktank')
-        verbose_name = verbose_name_plural = '智囊团收藏'
 
-class System(models.Model):
-    name = models.CharField('系统名称', max_length=16, unique=True)
+class OS(Model): 
+    name = CharField('系统名称', max_length=16, unique=True)
     
-    def __str__(self):
-        return '%s' % self.name
+    def __str__(self): return '%s' % self.name
 
-    class Meta:
+    class Meta: 
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '操作系统'
 
-class Version(models.Model):
-    edition = models.CharField('版本号', max_length=16)
-    system = models.ForeignKey('System', verbose_name='系统类型', on_delete=models.PROTECT)
-    item = models.TextField('更新条目')
-    href = models.URLField('地址')
-    create_datetime = models.DateTimeField('创建日期', auto_now=True)
 
-    def __str__(self):
-        return '%s/%s' % (self.system, self.edition)
+class Version(Model):
+    edition = CharField('版本号', max_length=16)
+    os = ForeignKey('OS', verbose_name='系统类型', on_delete=PROTECT)
+    item = TextField('更新条目')
+    url = URLField('地址')
+    create_datetime = DateTimeField('创建日期', auto_now=True)
+
+    def __str__(self): return '%s/%s' % (self.os, self.edition)
 
     class Meta:
         ordering = ('-pk',)
-        unique_together = ('edition', 'system')
+        unique_together = ('edition', 'os')
         verbose_name = verbose_name_plural = '版本'
 
-class Informlist(models.Model):
-    project = models.ForeignKey('Project', verbose_name='项目', on_delete=models.PROTECT)
-    user = models.ForeignKey('User', verbose_name='举报人', on_delete=models.PROTECT)
-    reason = models.TextField('举报原因')
-    valid = models.NullBooleanField('是否真实')
-    msg = models.TextField('回显信息')
-    comment = models.TextField('备注', blank=True)
-    create_datetime = models.DateTimeField('举报时间', auto_now_add=True)
 
-    def __str__(self):
-        return '%s' % self.project 
+class NewsType(Model):
 
-    class Meta:
-        ordering = ('-pk', )
-        verbose_name = verbose_name_plural = '举报'
+    name = CharField('资讯类型名', max_length=16, unique=True)
+    valid = NullBooleanField('是否真实', default=None)
+    eng = CharField('对应英文', max_length=64)
 
-
-class Blacklist(models.Model):
-    user = models.ForeignKey('User', verbose_name='黑名人', on_delete=models.PROTECT)
-    reason = models.TextField('黑名原因')
-    comment = models.CharField('备注', max_length=32, blank=True)
-    create_datetime = models.DateTimeField('黑名时间', auto_now_add=True)
-
-    def __str__(self):
-        return '%s' % self.user
-
-    class Meta:
-        ordering = ('-pk', )
-        verbose_name = verbose_name_plural = '黑名单'
-
-class Activity(models.Model):
-    summary = models.CharField('活动概述', max_length=32)
-    start_datetime = models.DateTimeField('开始时间')
-    stop_datetime = models.DateTimeField('结束时间')
-    desc = models.TextField('活动描述', blank=True)
-    coordinate = models.CharField('地点', max_length=128)
-    latitude = models.DecimalField('纬度', max_digits=8, decimal_places=6)
-    longitude = models.DecimalField('经度', max_digits=9, decimal_places=6)
-    comment = models.CharField('备注', max_length=32, blank=True)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
-
-    def __str__(self):
-        return '%s' % self.summary
-
-    class  Meta:
-        ordering = ('-pk', )
-        verbose_name = verbose_name_plural = '活动'
-
-class Signin(models.Model):
-    user = models.ForeignKey('User', verbose_name='签到人', on_delete=models.PROTECT)
-    activity = models.ForeignKey('Activity', verbose_name='活动', on_delete=models.PROTECT)
-    signin_datetime = models.DateTimeField('签到日期', auto_now_add=True)
-    signout_datetime = models.DateTimeField('签出日期', null=True, blank=True)
-    comment = models.TextField('备注', blank=True)
-
-    def __str__(self):
-        return '%s' % self.user
-
-    class Meta:
-        unique_together = (('user', 'activity'),)
-        ordering = ('-pk', )
-        verbose_name = verbose_name_plural = '签到'
-
-class NewsType(models.Model):
-    name = models.CharField('资讯类型名', max_length=16, unique=True)
-    valid = models.NullBooleanField('是否真实', default=None)
-    eng = models.CharField('对应英文', max_length=64)
-
-    
-    def __str__(self):
-        return '%s' % self.name
+    def __str__(self): return '%s' % self.name
 
     class Meta:
         ordering = ('pk', )
         verbose_name = verbose_name_plural = '资讯类型'
     
-class News(models.Model):
-    newstype = models.ForeignKey('NewsType', verbose_name='资讯类型', blank=True, null=True, default=1)
-    title = models.CharField('标题', max_length=64)
-    src = models.URLField('图片url', blank=True)
-    href = models.URLField('网页url', blank=True)
-    name = models.CharField('网页名', max_length=128)
-    source = models.CharField('来源', max_length=64, default='金指投')
-    content = models.TextField('内容', max_length=256)
-    keyword = models.CharField('关键词', max_length=64)
-    sharecount = models.PositiveIntegerField('分享', default=0)
-    readcount = models.PositiveIntegerField('阅读数', default=0)
-    pub_date = models.DateField('发布时间', null=True, blank=True)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
-    valid = models.NullBooleanField('合法', default=None)
+class News(Model):
 
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if edit: news = News.objects.get(pk=self.pk)
-        super(News, self).save(*args, **kwargs)
+    newstype = ForeignKey('NewsType', verbose_name='资讯类型', blank=True, null=True)
+    title = CharField('标题', max_length=64)
+    img = URLField('图片url', blank=True)
+    url = URLField('网页url', blank=True)
+    name = CharField('网页名', max_length=128)
+    source = CharField('来源', max_length=64, default='金指投')
+    content = TextField('内容', max_length=256)
+    sharecount = PositiveIntegerField('分享', default=0)
+    readcount = PositiveIntegerField('阅读数', default=0)
+    pub_date = DateField('发布时间', null=True, blank=True)
+    create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
-    def __str__(self):
-        return '%s' % self.title
+    def __str__(self): return '%s' % self.title
 
     class Meta:
         ordering = ('-pk', )
         unique_together = ('title', 'pub_date')
         verbose_name = verbose_name_plural = '资讯'
 
-class KnowledgeType(models.Model):
-    pass
-
-class Knowledge(models.Model):
-    pass
-
-class Keyword(models.Model):
-    word = models.CharField('热词', max_length=16, unique=True)
-    hotgrade= models.PositiveIntegerField('热度', default=0)
-    comment = models.CharField('备注', max_length=64, blank=True)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
-
-    def __str__(self):
-        return '%s' % self.word
-
-    class Meta:
-        ordering = ('pk', )
-        verbose_name = verbose_name_plural = '热词'
-    
-
-class Topic(models.Model):
-    project = models.ForeignKey('Project', verbose_name='项目', on_delete=models.PROTECT)
-    user = models.ForeignKey('User', verbose_name='发表话题者', on_delete=models.PROTECT)
-    content = models.CharField('内容', max_length=128)
-    at_topic = models.ForeignKey('self', verbose_name='@话题', null=True, blank=True, on_delete=models.PROTECT)
-    valid = models.NullBooleanField('是否真实', default=None)
-    read = models.NullBooleanField('是否阅读', default=False)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
+class Topic(Model):
+    project = ForeignKey('Project', verbose_name='项目', on_delete=PROTECT)
+    user = ForeignKey('User', verbose_name='发表话题者', on_delete=PROTECT)
+    content = CharField('内容', max_length=128)
+    at = ForeignKey('self', verbose_name='@话题', null=True, blank=True, on_delete=PROTECT)
+    valid = NullBooleanField('是否真实', default=None)
+    read = NullBooleanField('是否阅读', default=False)
+    create_datetime = DateTimeField('创建时间', auto_now_add=True)
    
-    def __str__(self):
-        return '%s' % self.content
+    def __str__(self): return '%s' % self.content
 
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '话题'
 
     def save(self, *args, **kwargs):
-        edit = self.pk is not None
+        edit = self.pk
         super(Topic, self).save(*args, **kwargs)
         if edit == False and self.at_topic:
-            extras = {'api': 'msg'}
-            JiGuang('%s 回复了你, 点击查看' % self.user.name, extras).single(self.at_topic.user.regid)
+            JG('%s 回复了你' % self.user.name, {'api': 'msg'}).single(self.at.user.regid)
             
-class Feedback(models.Model):
-    user = models.ForeignKey('User', verbose_name='用户')
-    advice = models.TextField('用户吐槽')
-    valid = models.NullBooleanField('是否合法', default=None)
-    comment = models.CharField('备注', max_length=64, blank=True)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
 
-    def __str__(self):
-        return '%s/%s' % (self.user, self.advice)
-
-    class Meta:
-        ordering = ('-pk',)
-        verbose_name = verbose_name_plural = '用户反馈'
-
-    def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        if not edit:
-            MobSMS().remind(self.user.telephone, '感谢你对金指投的支持, 我们会第一时间处理你的建议')
-        super(Feedback, self).save(*args, **kwargs)
-
-class MsgType(models.Model):
-    name = models.CharField('消息类型', max_length=32, unique=True)
-    desc = models.CharField('描述', max_length=32, blank=True, null=True)
+class MsgType(Model):
+    name = CharField('消息类型', max_length=32, unique=True)
+    desc = CharField('描述', max_length=32, blank=True, null=True)
 
     def __str__(self):
         return '%s' % self.name
@@ -815,16 +433,16 @@ class MsgType(models.Model):
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '消息类型'
 
-class Push(models.Model):
-    msgtype = models.ForeignKey('MsgType', verbose_name='消息类型')
-    user = models.ManyToManyField('User', verbose_name='推送给', blank=True)
-    title = models.CharField('标题', max_length=32, default='金指投')
-    content = models.CharField('内容', max_length=64)
-    _id = models.PositiveIntegerField('对应的id', blank=True, null=True)
-    url = models.URLField('地址', blank=True, default='www.jinzht.com')
-    comment = models.CharField('备注', max_length=64, blank=True)
-    valid = models.NullBooleanField('是否合法', default=None)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
+class Push(Model):
+    msgtype = ForeignKey('MsgType', verbose_name='消息类型')
+    user = ManyToManyField('User', verbose_name='推送给', blank=True)
+    title = CharField('标题', max_length=32, default='金指投')
+    content = CharField('内容', max_length=64)
+    _id = PositiveIntegerField('对应的id', blank=True, null=True)
+    url = URLField('地址', blank=True, default='www.jinzht.com')
+    comment = CharField('备注', max_length=64, blank=True)
+    valid = NullBooleanField('是否合法', default=None)
+    create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
     def __str__(self):
         return '%s,%s' % (self.id, self.msgtype.desc)
@@ -834,7 +452,7 @@ class Push(models.Model):
         verbose_name = verbose_name_plural = '推送'
 
     def save(self, *args, **kwargs):
-        edit = self.pk is not None
+        edit = self.pk
         super(Push, self).save(*args, **kwargs)
         if self.valid == True:
             if self.msgtype.name == 'web':
@@ -845,67 +463,67 @@ class Push(models.Model):
                 'url': self.url
             }
             if not self.user:
-                JiGuang(self.content, extras).all()
+                JG(self.content, extras).all()
                 queryset = User.objects.all()
             else:
                 for user in self.user.all(): 
-                    user.regid and JiGuang(self.content, extras).single(user.regid)
+                    user.regid and JG(self.content, extras).single(user.regid)
                 queryset = self.user.all() 
             try:
                 for user in queryset:
-                    with transaction.atomic(): SystemInform.objects.create(user=user, push=self)
+                    with transaction.atomic(): Inform.objects.create(user=user, push=self)
             except IntegrityError as e: pass
                     
-class SystemInform(models.Model):
-    user = models.ForeignKey('User', verbose_name='用户')
-    push = models.ForeignKey('Push', verbose_name='push')
-    read = models.NullBooleanField('是否阅读', default=False)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
+class Inform(Model):
+    user = ForeignKey('User', verbose_name='用户')
+    push = ForeignKey('Push', verbose_name='push')
+    read = NullBooleanField('是否阅读', default=False)
+    create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
-class Feeling(models.Model):
-    user = models.ForeignKey('User', verbose_name='用户')
-    content = models.TextField('内容', blank=True, null=True)
-    pics = models.TextField('图片地址', blank=True)
-    likers = models.ManyToManyField('User', related_name='feeling_likers', verbose_name='点赞', blank=True)
-    news = models.ForeignKey('News', verbose_name='资讯', blank=True, null=True, default=None)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
 
-    def __str__(self):
-        return '%s' % self.id
+class Feeling(Model):
+
+    user = ForeignKey('User', verbose_name='用户')
+    content = TextField('内容', blank=True, null=True)
+    pic = TextField('图片地址', blank=True)
+    like = ManyToManyField('User', related_name='feeling_like', verbose_name='点赞', blank=True)
+    news = ForeignKey('News', verbose_name='资讯', blank=True, null=True, default=None)
+    create_datetime = DateTimeField('创建时间', auto_now_add=True)
+
+    def __str__(self): return '%s' % self.id
     
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '状态发表'
 
     def delete(self):
-        for v in self.pics.split(';'):
+        for v in self.pic.split(';'):
             pic = os.path.join(settings.BASE_DIR, v)
             os.path.isfile(pic) and imghdr.what(pic) in settings.ALLOW_IMG and os.remove(pic) 
         return super(Feeling, self).delete()
         
 
-class Feelingcomment(models.Model):
-    feeling = models.ForeignKey('Feeling', verbose_name='状态')
-    user = models.ForeignKey('User', verbose_name='发表话题者', on_delete=models.PROTECT)
-    content = models.TextField('内容')
-    at = models.ForeignKey('self', verbose_name='@', null=True, blank=True)
-    create_datetime = models.DateTimeField('创建时间', auto_now_add=True)
-    valid = models.NullBooleanField('是否合法', default=None)
+class FeelingComment(Model):
 
-    def __str__(self):
-        return '%s' % self.user
+    user = ForeignKey('User', verbose_name='发表话题者')
+    feeling = ForeignKey('Feeling', verbose_name='状态')
+    content = TextField('内容')
+    at = ForeignKey('self', verbose_name='@', null=True, blank=True)
+    create_datetime = DateTimeField('创建时间', auto_now_add=True)
+    valid = NullBooleanField('是否合法', default=None)
+
+    def __str__(self): return '%s' % self.user
 
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '话题评论'
 
     def save(self, *args, **kwargs):
-        edit = self.pk is not None
-        super(Feelingcomment, self).save(*args, **kwargs)
+        edit = self.pk
+        super(FeelingComment, self).save(*args, **kwargs)
         if edit == False:
-            if self.user == self.feeling.user:
-                pass
+            if self.user == self.feeling.user: pass
             else:
                 extras = {'api': 'feeling', 'id':self.feeling.id}
-                JiGuang('有人提及到您, 点击查看', extras).single(self.feeling.user.regid)
-                self.at and self.at.user != self.feeling.user and  JiGuang('有人回复了你, 点击查看', extras).single(self.at.user.regid)
+                JG('有人提及到您', extras).single(self.feeling.user.regid)
+                self.at and self.at.user != self.feeling.user and  JG('有人回复了你', extras).single(self.at.user.regid)
