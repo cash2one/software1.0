@@ -94,8 +94,7 @@ class User(Model):
     ''' 可选信息 '''
     company = CharField('公司', max_length=64, blank=True) # cation
     position= CharField('职位', max_length=64, blank=True) # cation
-    province = CharField('省份', max_length=16, blank=True) # 所在省份
-    city = CharField('城市', max_length=32, blank=True) # 所在城市
+    addr = CharField('地址', max_length=64, blank=True)
     comment = TextField('备注信息', blank=True)
 
     ''' 自动维护 '''

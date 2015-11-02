@@ -3,33 +3,34 @@ from django.conf.urls import url
 from phone import views
 
 urlpatterns = [
-    url(r'^idfore/$', views.idfore, name='idfore'),
-    url(r'^positiontype', views.position, name='position'),
+    ''' 用户相关 '''
     url(r'^sendcode/(?P<flag>[01])/$', views.sendcode, name='sendcode'), # 发送验证码 0 新注册用户 1 重置密码
     url(r'^registe/(?P<os>[12])/$', views.registe, name='registe'), # 注册
+    url(r'^login/$', views.login_, name='login'),
+    url(r'^resetpasswd/$', views.resetpasswd, name='resetpasswd'),
+    url(r'^modifypasswd/$', views.modifypasswd, name='modifypasswd'),
+    url(r'^logout/$', views.logout, name='logout'),
+
+    ''' 个人信息 '''
+    url(r'^userinfo/$', views.userinfo, name='userinfo'),
+    url(r'^photo/$', views.photo, name='photo'),
+    url(r'^nickname/$', views.nickname, name='nickname'),
+    url(r'^company/$', views.company, name='company'),
+    url(r'^position/$', views.position, name='position'),
+    url(r'^addr/$', views.addr, name='addr'),
+    
+
     url(r'^activity/$', views.activity, name='activity'),
     url(r'^signin/(?P<pk>[1-9]\d*)/$', views.signin, name='signin'),
-    #url(r'^addcompany/$', views.addcompany, name='addcompany'),
-    #url(r'^companyinfo/(?P<pk>[1-9]\d*)/$', views.companyinfo, name='companyinfo'),
-    url(r'^editcompany/(?P<pk>[1-9]\d*)/$', views.editcompany, name='editcompany'),
-    #url(r'^companylist/$', views.companylist, name='companylist'),
     url(r'^companystatus/$', views.companystatus, name='companystatus'),
     url(r'^wantroadshow/$', views.wantroadshow, name='wantroadshow'),
     url(r'^myinvestorlist/$', views.myinvestorlist, name='myinvestorlist'),
     url(r'^wantinvest/(?P<pk>[1-9]\d*)/$', views.wantinvest, name='wantinvest'),
     url(r'^investorqualification/$', views.investorqualification, name='investorqualification'),
     url(r'^fundsizerange/$', views.fundsizerange, name='fundsizerange'), 
-    #url(r'^industrytype/$', views.industry, name='industry'),
     url(r'^authenticate/$', views.authenticate, name='authenticate'),
     url(r'^businesscard/(?P<pk>[1-9]\d*)/$', views.businesscard, name='businesscard'),
-    url(r'^gender/$', views.gender, name='gender'),
-    url(r'^realname/$', views.realname, name='realname'),
     url(r'^weixin/$', views.weixin, name='weixin'),
-    url(r'^userimg', views.userimg, name='userimg'),
-    url(r'^login/$', views.login_, name='login_'), # 登录
-    url(r'^logout/$', views.logout, name='logout'),# 登出
-    url(r'^resetpasswd/$', views.resetpasswd, name='resetpasswd'),
-    url(r'^modifypasswd/$', views.modifypasswd, name='modifypasswd'),
     url(r'^banner/$', views.banner, name='banner'), # 旗标
     url(r'^project/(?P<page>\d+)/$', views.project, name='project'),
     url(r'^projectdetail/(?P<pk>[1-9]\d*)/$', views.projectdetail, name='projectdetail'),
@@ -45,7 +46,6 @@ urlpatterns = [
     url(r'^finishfinance/(?P<page>\d+)/$', views.finishfinance, name='finishfinance'),
     url(r'^thinktank/(?P<page>\d+)/$', views.thinktank, name='thinktank'),
     url(r'^thinktankdetail/(?P<pk>[1-9]\d*)/$', views.thinktankdetail, name='thinktankdetail'),
-    url(r'^provincecity/$', views.provincecity, name='provincecity'),
     url(r'^like/(?P<pk>[1-9]\d*)/$', views.like, name='like'),
     url(r'^collect/(?P<pk>[1-9]\d*)/$', views.collect, name='collect'),
     url(r'^modifypositiontype/$', views.modifyposition, name='modifyposition'),

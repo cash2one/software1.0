@@ -20,6 +20,37 @@ PK_RE = re.compile(r'^[1-9]\d*$')
 MTM_RE = re.compile(r'^[1-9]\d*(,[1-9]\d*)*$')
 NOENTITY = Response({'code':1, 'msg':'操作异常'})
 
+''' without data '''
+LOGIN = 0
+DEBUG = 1
+INFO = 2
+NOTICE = 3
+WARNING = 4
+ERR = 5
+CRIT = 6
+ALERT = 7
+EMERG = 8
+
+''' data '''
+DEBUG_ = 9
+INFO_ = 10
+NOTICE_ = 11
+WARNING_ = 12
+ERR_ = 13
+CRIT_ = 14
+ALERT_ = 15
+EMERG_ = 16
+
+''' fail '''
+_DEBUG = -1
+_INFO = -2
+_NOTICE = -3
+_WARNING = -4
+_ERR = -5
+_CRIT = -6
+_ALERT = -7
+_EMERG = -8
+
 def q_(QuerySet, page, size=4):
     page, size = int(page), int(size)
     s = page * size
@@ -34,133 +65,179 @@ def i_(Model, pk):
 def s_(req):
     return req.session.get('uid')
 
+def u_(req):
+    return User.objects.get(pk=request.session.get('uid'))
+
 def login(text=''):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kw):
             uid = args[0].session.get('uid')
             if not uid or not PK_RE.match('%s' %uid):
-                #return Response({'code':-99, 'msg':'请登录'})
-                return Response({'code':-99, 'msg':func.__name__})
+                return Response({'code': LOGIN, 'msg': func.__name__})
             return func(*args, **kw)
         return wrapper
     return decorator
 
+def store_(file_field, upload_file, upload_to=''):
+
+    name = upload_file.name
+    pth = datetime.now().strftime(upload_to)
+    file_field.save('%s/%s' % (pth, name), File(upload_file)) 
+
+def arg_(field='参数'):
+    return Response({'status': ERR, 'msg': '%s' % field})
+
+def img_(file, default=''):
+    if not file: return '%s/media/default/coremember.png' % settings.RES_URL
+    return '%s%s' % (settings.RES_URL, file.url)
+
 @api_view(['POST'])
 def sendcode(req, flag):
-    tel = req.data.get('tel')
-    if validtel(tel) == False: return Response({'code':1, 'msg':'手机格式不正确'})
-    user = User.objects.filter(tel=tel)
-    if flag == '0' and user.exists(): return Response({'code':1, 'msg':'该手机已注册, 请直接登录'})
-    elif flag == '1' and not user.exists(): return Response({'code':1, 'msg':'您尚未注册, 请先注册'})
-    code = SMS(tel).send() # 验证码
-    print(code)
-    if not code: return Response({'code':1, 'msg': '获取验证码失败'})
-    req.session[tel] = code; req.session.set_expiry(60 * 10)
 
-    return Response({'code':0, 'msg':'短信验证码已发送, 请耐心等待'})
+    tel = req.data.get('tel')
+
+    if not validtel(tel): 
+        return Response({'code': ERR, 'msg': '手机格式不正确'})
+
+    user = User.objects.filter(tel=tel)
+    if flag == '0' and user.exists():
+        return Response({'code': ERR, 'msg': '该手机已注册, 请直接登录'})
+    elif flag == '1' and not user.exists():
+        return Response({'code': ERR, 'msg': '您尚未注册, 请先注册'})
+
+    code = SMS(tel).send() # 验证码
+    if not code: 
+        return Response({'code': ERR, 'msg': '获取验证码失败'})
+
+    req.session[tel] = code
+    req.session.set_expiry(60 * 10)
+
+    return Response({'code': ERR, 'msg': '验证码已发送, 请耐心等待'})
 
 @api_view(['POST'])
 def registe(req, os):
+
     tel = req.data.get('tel')
     code = req.data.get('code')
     passwd = req.data.get('passwd')
-    regid = req.data.get('regid', '').strip()
-    session_code = req.session.get(tel)
+    regid = req.data.get('regid', '')
+    version = req.data.get('version', '')
+    sode = req.session.get(tel)
 
-    if validtel(tel) == False: return Response({'code':1, 'msg':'手机格式不正确'})
-    if not session_code: return Response({'code':1, 'msg':'请先获取验证码'})
-    if not passwd: Response({'code':1, 'msg':'请输入密码'})
+    if not validtel(tel):
+        return Response({'code': ERR, 'msg': '手机格式不正确'})
+    if not sode:
+        return Response({'code': ERR, 'msg': '请先获取验证码'})
+    if not passwd:
+        Response({'code': ERR, 'msg': '请输入密码'})
+    if User.objects.filter(tel=tel).exists(): 
+        return Response({'code': ERR, 'msg': '您的手机号码已注册, 请直接登录'})
+    if code != str(sode):
+        return Response({'code': ERR, 'msg': '验证码错误'})
 
-    if User.objects.filter(tel=tel).exists(): return Response({'code':2, 'msg':'您的手机号码已注册, 请直接登录'})
-    if code != str(session_code): return Response({'code':1, 'msg':'验证码错误'})
-    print(tel, passwd, i_(OS, os))
     user = User.objects.create(
         tel=tel, 
         passwd=passwd, 
         os=i_(OS, os),
-        regid = regid
-    ) 
-    req.session[tel] = ''; req.session['uid'] = user.id; req.session.set_expiry(3600 * 24)
+        regid = regid,
+        version = version,) 
 
-    return Response({'code':0 , 'msg':'恭喜您, 注册成功!'})
+    req.session[tel] = ''
+    req.session['uid'] = user.id
+    req.session.set_expiry(3600 * 24)
+
+    return Response({'code': INFO , 'msg': '恭喜您, 注册成功!'})
+
 
 @api_view(['POST'])
 def login_(req):
-    tel = req.data.get('tel', '').strip()
-    passwd = req.data.get('passwd')
-    regid = req.data.get('regid', '').strip()
 
-    if validtel(tel) == False: return Response({'code':1, 'msg':'手机格式不正确'})
+    tel = req.data.get('tel')
+    passwd = req.data.get('passwd')
+    regid = req.data.get('regid', '')
+    version = req.data.get('version', '')
+
+    if not validtel(tel): 
+        return Response({'code': ERR, 'msg': '手机格式不正确'})
 
     user = User.objects.filter(tel=tel)
     if user.exists():
         user = user[0]
         if passwd == user.passwd:
-            req.session['uid'] = user.id; req.session.set_expiry(3600 * 24)
+            req.session['uid'] = user.id 
+            req.session.set_expiry(3600 * 24)
             if regid: # 如果redid存在
-                user.regid = regid; user.save()
-            return Response({'code': 0, 'msg': '登录成功'})
-        return Response({'code': 1, 'msg': '手机号码或密码错误'})
-    return Response({'code':1, 'msg':'您尚未注册, 请先注册'})
+                user.regid = regid
+                user.version=version
+                user.save()
+            return Response({'code': INFO, 'msg': '登录成功'})
+        return Response({'code': ERR, 'msg': '手机号码或密码错误'})
+    return Response({'code': ERR, 'msg':'您尚未注册, 请先注册'})
 
-@api_view(['POST', 'GET'])
+
+@api_view(['GET'])
 def logout(req):
+
     req.session['uid'] = ''
-    return Response({'code':0, 'msg':'退出成功'})
+    return Response({'code': INFO, 'msg': '退出成功'})
+
 
 @api_view(['POST'])
 def resetpasswd(req):
+
     tel = req.data.get('tel')
-    if validtel(tel) == False: return Response({'code':1, 'msg':'手机格式不正确'})
-    user = User.objects.filter(tel=tel)
-    if not user.exists(): return Response({'code':1, 'msg':'您尚未注册, 请先注册'})
     code = req.data.get('code')
-    code_session = str(req.session[tel])
-    if code != code_session: return Response({'code':1, 'msg':'验证码错误'})
-    user = user[0]
     passwd = req.data.get('passwd')
-    user.passwd = passwd; user.save()
-    req.session['uid'] = user.id; req.session.set_expiry(3600 * 24)
+
+    if not validtel(tel): 
+        return Response({'code': ERR, 'msg': '手机格式不正确'})
+
+    user = User.objects.filter(tel=tel)
+    if not user.exists(): 
+        return Response({'code': ERR, 'msg': '您尚未注册, 请先注册'})
+
+    sode = str(req.session[tel])
+    if code != sode: 
+        return Response({'code': ERR, 'msg': '验证码错误'})
+
+    user = user[0]
+    user.passwd = passwd
+    user.save()
+
+    req.session['uid'] = user.id
+    req.session.set_expiry(3600 * 24)
     req.session[tel] = ''
+
     return Response({'code':0, 'msg':'设置密码成功'})
+
 
 @api_view(['POST'])
 @login()
 def modifypasswd(req):
-    user = User.objects.get(pk=req.session.get('uid'))
-    old_passwd = req.data.get('old_passwd')
-    new_passwd = req.data.get('new_passwd')
-    if old_passwd != user.passwd: return Response({'code':1, 'msg':'旧密码输入有误'})
-    user.passwd = new_passwd; user.save()
-    return Response({'code':0, 'msg':'修改密码成功'})
 
-@api_view(['POST'])
-@login()
-def gender(req):
-    gender = req.data.get('gender', '').strip()
-    if not re.match('^[01]$', gender): return myarg('gender')
-    user = User.objects.get(pk=req.session.get('uid'))
-    user.gender = int(gender); user.save()
-    return Response({'code':0, 'msg':'性别设置成功'})
+    user = User.objects.get(pk=s_(req))
+    old = req.data.get('old')
+    new = req.data.get('new')
+
+    if old != user.passwd: 
+        return Response({'code': ERR, 'msg': '旧密码输入有误'})
+
+    user.passwd = new
+    user.save()
+
+    return Response({'code': ERR, 'msg':'修改密码成功'})
+
             
 @api_view(['POST'])
 @login()
 def weixin(req):
     weixin = req.data.get('weixin','').strip()
-    if not weixin: return myarg('weixin')
+    if not weixin: return arg_('weixin')
     user = User.objects.get(pk=req.session.get('uid'))
     user.weixin = weixin; user.save()
     return Response({'code':0, 'msg':'微信设置成功'})
 
-@api_view(['POST'])
-@login()
-def realname(req):
-    name = req.data.get('real_name', '').strip()
-    if not name: return myarg('name')
-    user = User.objects.get(pk=req.session.get('uid'))
-    user.name = name; user.save()
-    return Response({'code':0, 'msg':'姓名设置成功'})
 
 @api_view(['GET', 'POST'])
 def banner(rquest):
@@ -168,21 +245,12 @@ def banner(rquest):
     data = list()
     for item in queryset:
         data.append({
-            'img': myimg(item.img),
+            'img': img_(item.img),
             'project': item.project.id if item.project else None,
             'url': item.url
         })
     return Response({'code':0, 'msg': '', 'data':data})
 
-@api_view(['POST'])
-@login()
-def provincecity(req):
-    province = req.data.get('province', '').strip()
-    city = req.data.get('city', '').strip()
-    if not province or not city: return myarg('province or city') 
-    user = User.objects.get(pk=req.session.get('uid'))
-    user.province, user.city = province, city; user.save()
-    return Response({'code':0, 'msg': '地区设置成功'})
 
 def project_stage(project):
     now = timezone.now()
@@ -365,7 +433,7 @@ def coremember(req, pk):
     for item in queryset:
         tmp = dict()
         tmp['id'] = item.id
-        tmp['img'] = myimg(item.img)
+        tmp['img'] = img_(item.img)
         tmp['name'] = item.name
         tmp['title'] = item.title
         tmp['profile'] = item.profile
@@ -391,7 +459,7 @@ def projectinvestorlist(req, pk):
         tmp['certificate_datetime'] = dateformat(investor.certificate_datetime)
         tmp['invest_amount'] = item.invest_amount
         tmp['real_name'] = user.name
-        tmp['user_img'] = myimg(user.img)
+        tmp['user_img'] = img_(user.img)
         data.append(tmp)
     return Response({'code':0, 'msg':'', 'data':data})
 
@@ -479,7 +547,7 @@ def wantroadshow(req):
     user = User.objects.get(pk=uid)
     name = req.data.get('name', '').strip()
     company = req.data.get('company', '').strip()
-    if not name or not company: return myarg('name or company')
+    if not name or not company: return arg_('name or company')
     tel = req.data.get('tel', '').strip()
     if validtel(tel) == False: return Response({'code':1, 'msg':'手机格式不正确'})
     vcr = req.data.get('vcr')
@@ -601,9 +669,9 @@ def authenticate(req):
     name = req.data.get('name','').strip()
     position = req.data.get('position', '').strip()
     company = req.data.get('company','').strip()
-    if not name or not position or not company: return myarg('请完善信息')
+    if not name or not position or not company: return arg_('请完善信息')
     qualification = req.data.get('qualification','').strip()
-    if not MTM_RE.match(qualification): return myarg('qualification')
+    if not MTM_RE.match(qualification): return arg_('qualification')
 
     user = User.objects.get(pk=req.session.get('uid'))
     queryset = Investor.objects.filter(user=user)
@@ -627,37 +695,119 @@ def authenticate(req):
 @login()
 def businesscard(req, pk):
     investor = Investor.objects.get(pk=pk)
-    mystorage_file(
+    store_(
         investor.card,
         req.data.get('file'),
         'investor/%Y/%m'
     )
     return Response({'code':0, 'msg':'名片上传成功'})
 
-@api_view(['POST'])
-@login()
-def idfore(req):
-    img = req.data.get('file')
-    user = User.objects.get(pk=req.session.get('uid'))
-    mystorage_file(user.idfore, img)
-    return Response({'code':0, 'msg':'身份证上传成功'})
 
 @api_view(['POST', 'GET'])
 @login()
-def userimg(req):
+def photo(req):
+
     user = User.objects.get(pk=s_(req))
+
     if req.method == 'POST':
         photo = req.data.get('file')
-        mystorage_file(user.photo, photo)
-        return Response({'code':0, 'msg':'图像设置成功'})
-    elif req.method == 'GET':
-        data = {'img':myimg(user.photo), 'name':user.name} 
-        return Response({'code':0, 'msg':'', 'data':data})
+        store_(user.photo, photo)
+        return Response({'code': INFO, 'msg': '图像设置成功'})
 
-@api_view(['GET','POST'])
+    elif req.method == 'GET':
+        data = {'photo': img_(user.photo), 'name': user.name} 
+        return Response({'code': INFO, 'msg':'', 'data':data})
+
+
+@api_view(['POST'])
+@login()
+def nickname(req):
+
+    nickname = request.data.get('nickname', '').rstrip()
+    if not nickname:
+        return arg_('昵称不能为空')
+
+    user = User.objects.get(pk=s_(req))
+    user.nickname = nickname
+    user.save()
+
+    return Response({'code': INFO, 'msg': '昵称设置成功'})
+
+
+@api_view(['POST'])
+@login()
+def company(req):
+
+    company = request.data.get('company', '').strip()
+    if not company:
+        return arg_('公司不能为空')
+
+    user = User.objects.get(pk=s_(req))
+    user.company = company
+    user.save()
+
+    return Response({'code': INFO, 'msg': '公司设置成功'})
+
+
+@api_view(['POST'])
+@login()
 def position(req):
-    data = [{'id':o.id, 'type_name':o.name} for o in Position.objects.all()]
-    return Response({'code':0, 'msg':'', 'data':data})
+
+    position = request.data.get('position', '').strip()
+    if not position:
+        return arg_('职位不能为空')
+
+    user = User.objects.get(pk=s_(req))
+    user.position = position
+    user.save()
+
+    return Response({'code': INFO, 'msg': '职位设置成功'})
+
+
+@api_view(['POST'])
+@login()
+def addr(req):
+
+    addr = request.data.get('addr', '').strip()
+    if not addr:
+        return arg_('地址不能为空')
+
+    user = User.objects.get(pk=s_(req))
+    user.addr = addr
+    user.save()
+
+    return Response({'code': INFO, 'msg': '地址设置成功'})
+
+
+@api_view(['POST', 'GET'])
+@login()
+def userinfo(req):
+
+    u = u_(req) 
+
+    if req.method == 'GET':
+        data = { 'uid': s_(req),
+            'photo': img_(u.photo)
+            'nickname': u.nickname,
+            'name': u.name,
+            'idno': u.idno,
+            'company': u.company,
+            'position': u.position,
+            'email': u.email,
+            'addr': u.addr}
+        return Response({'code': INFO_, 'msg': '用户信息', 'data': data})
+
+    elif req.method == 'POST':
+        name = req.data.get('name', '').strip() 
+        idno = req.data.get('idno', '').strip()
+        email = req.data.get('email', '').strip()
+        company = req.data.get('company', '').strip()
+        position = req.data.get('position', '').strip()
+        addr = req.data.get('position', '').strip()
+
+        
+
+    
 
 @api_view(['POST'])
 @login()
@@ -699,7 +849,7 @@ def collect(req, pk):
 @login()
 def modifyposition(req):
     position = req.data.get('position_type', '').strip()
-    if not MTM_RE.match(position): return myarg('position')
+    if not MTM_RE.match(position): return arg_('position')
     user = User.objects.get(pk=req.session.get('uid'))
     user.position = position.split(',')
     return Response({'code':0, 'msg':'职位设置成功'})
@@ -778,7 +928,7 @@ def keyword(req):
 def projectsearch(req, pk, page):
     if pk == '0': 
         value = req.data.get('value').strip()
-        if not value: return myarg('value')
+        if not value: return arg_('value')
         queryset = Project.objects.filter(company__name__contains=value)
     else: queryset = Project.objects.filter(company__industry__in=[int(pk),])
     return g_project(queryset, page)
@@ -792,7 +942,7 @@ def generalinformation(req, pk=None):
     data['uid'] = uid
     data['tel'] = User.objects.get(pk=uid).tel
     user = User.objects.get(pk=uid)
-    data['user_img'] = myimg(user.img)
+    data['user_img'] = img_(user.img)
     data['real_name'] = user.name
     data['gender'] = user.gender
     data['position_type'] = [pt.name for pt in user.position.all()]
@@ -945,7 +1095,7 @@ def token(req):
     if Roadshow.objects.filter(~Q(valid=True), user__pk=uid).exists(): return Response({'code':1, 'msg':'您还有路演申请仍在审核中'})
     key = req.data.get('key', '').strip()
     print(key)
-    if not key: return myarg('key')
+    if not key: return arg_('key')
     q = Auth(settings.AK, settings.SK)
     token = q.upload_token(settings.BN, key)
     token2 = q.upload_token(settings.BN, key, 7200, {'callbackUrl':'http://115.28.177.22:8000/phone/callback/', 
@@ -964,7 +1114,7 @@ def createurl(name):
 @api_view(['POST', 'GET'])
 def callback(req):
     name = req.data.get('name', '').strip()
-    if not name: return myarg('name')
+    if not name: return arg_('name')
     url = createurl(name)
     return Response({'code':0, 'msg':'视频上传成功', 'data':url})
 
@@ -1120,7 +1270,7 @@ def leadfunding(req):
 @login()
 def topic(req, pk):
     content = req.data.get('content','')
-    if content.strip() == '': return myarg('content') 
+    if content.strip() == '': return arg_('content') 
     project = i_(Project, pk)
     if not project: return NOENTITY
     at_topic = req.data.get('at_topic',0)
@@ -1151,7 +1301,7 @@ def g_topiclist(queryset, page, at=True):
         tmp = dict()
         tmp['pid'] = item.project.id
         tmp['id'] = item.id
-        tmp['img'] = myimg(item.user.img)
+        tmp['img'] = img_(item.user.img)
         if item.at_topic: 
             if at == True:
                 tmp['name'] = '%s@%s' % (item.user.name, item.at_topic.user.name)
@@ -1229,7 +1379,7 @@ def newsreadcount(req, pk):
 @api_view(['POST', 'GET'])
 def newssearch(req, pk, page):
     value = req.data.get('value', '').strip()
-    if not value: return myarg('value')
+    if not value: return arg_('value')
     if pk == '0': queryset = News.objects.filter(title__contains=value)
     else: queryset = News.objects.filter(newstype__id=pk)
     return __news(queryset, page)
@@ -1278,7 +1428,7 @@ def systeminform(req, page):
 @login()
 def setsysteminform(req, pk):
     systeminform = i_(SystemInform, pk)
-    if not systeminform: return myarg('systeminform')
+    if not systeminform: return arg_('systeminform')
     systeminform.read = True
     systeminform.save()
     return Response({'code':0, 'msg':'', 'data':systeminform.read})
@@ -1287,7 +1437,7 @@ def setsysteminform(req, pk):
 @login()
 def deletesysteminform(req, pk):
     systeminform = i_(SystemInform, pk)
-    if not systeminform: return myarg('systeminform')
+    if not systeminform: return arg_('systeminform')
     uid = req.session.get('uid')
     user = User.objects.get(pk=uid)
     if systeminform.user == user:
@@ -1343,7 +1493,7 @@ def g_feelinglikers(queryset, page, pagesize=settings.FEELINGLIKERS_INITAL_PAGES
         tmp = dict()
         tmp['name'] = item.name
         tmp['uid'] = item.id
-        tmp['photo'] = myimg(item.img)
+        tmp['photo'] = img_(item.img)
         data.append(tmp)
     return data
 
@@ -1353,7 +1503,7 @@ def __feelingcomment(item, user):
     tmp['flag'] = item.user == user
     tmp['name'] = '%s' % (item.user.name)
     tmp['uid'] = item.user.id
-    tmp['photo'] = myimg(item.user.img)
+    tmp['photo'] = img_(item.user.img)
     if item.at:
         tmp['at_label'] = settings.AT_LABEL
         tmp['at_uid'] = item.at.user.id
@@ -1377,7 +1527,7 @@ def __feeling(item, user): # 获取发表的状态的关联信息
     tmp['flag'] = item.user == user
     tmp['datetime'] = dt_(item.create_datetime)
     tmp['name'] = item.user.name
-    tmp['photo'] = myimg(item.user.img)
+    tmp['photo'] = img_(item.user.img)
     tmp['content'] = item.content
     news = item.news
     if news: 
@@ -1473,7 +1623,7 @@ def likefeeling(req, pk, is_like):
     data['is_like'] = not int(is_like)
     data['name'] = user.name
     data['uid'] = user.id
-    data['photo'] = myimg(user.img)
+    data['photo'] = img_(user.img)
     if is_like == '0': 
         item.likers.add(user)
         return Response({'code':0, 'msg':'点赞成功', 'data':data})
@@ -1540,11 +1690,11 @@ def hidefeelingcomment(req, pk):
 def background(req):
     user = User.objects.get(pk=s_(req))
     if req.method == 'GET':
-        data = {'bg': myimg(user.bg), 'photo': myimg(user.photo)}
+        data = {'bg': img_(user.bg), 'photo': img_(user.photo)}
         return Response({'code': 0, 'msg': '', 'data': data})
     elif req.method == 'POST':
         img = req.data.get('file')
         if not img: return Response({'code': 1, 'msg': '背景上传失败'})
         if imghdr.what(img) not in settings.ALLOW_IMG: return Response({'code':1, 'msg':'图片格式不正确'})
-        mystorage_file(user.bg, img) 
+        store_(user.bg, img) 
         return Response({'code': 0, 'msg': '背景设置成功'})
