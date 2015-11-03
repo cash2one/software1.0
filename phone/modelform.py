@@ -4,11 +4,6 @@ from django import forms
 
 from .models import *
 
-class QualificationForm(forms.ModelForm):
-    class Meta:
-        model = Qualification
-        fields = '__all__'
-
 class InstituteForm(forms.ModelForm):
     class Meta:
         model = Institute
@@ -88,11 +83,6 @@ class ThinktankForm(forms.ModelForm):
         model = Thinktank
         fields = '__all__'
 
-class VersionForm(forms.ModelForm):
-    class Meta:
-        model = Version
-        fields = '__all__'
-
 class NewsTypeForm(forms.ModelForm):
     class Meta:
         model = NewsType
@@ -106,11 +96,6 @@ class NewsForm(forms.ModelForm):
 class TopicForm(forms.ModelForm):
     class Meta:
         model = Topic
-        fields = '__all__'
-
-class MsgTypeForm(forms.ModelForm):
-    class Meta:
-        model = MsgType
         fields = '__all__'
 
 class PushForm(forms.ModelForm):

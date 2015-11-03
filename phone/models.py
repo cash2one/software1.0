@@ -30,17 +30,6 @@ class UploadTo(object):
         return '{}/{}'.format(self.sub_path, filename)
 
 
-class Qualification(Model):
-
-    desc = TextField('描述')
-
-    def __str__(self): return '%s' %  self.desc
-
-    class Meta:
-        ordering = ('pk',)
-        verbose_name = verbose_name_plural = '认证条件'
-    
-
 class Institute(Model):
 
     name = CharField('机构名称', max_length=64, unique=True)
@@ -71,9 +60,9 @@ class Institute(Model):
 class User(Model):
    
     ''' 微信授权登录 '''
-    openid = CharField('微信', max_length=64, unique=True, null=True, blank=True) # 微信授权登录的返回序列号
+    openid = CharField('微信', max_length=64, null=True, blank=True, editable=False) # 微信授权登录的返回序列号
     photo = ImageField('图像', upload_to=UploadTo('user/photo/%Y/%m'), blank=True) # 微信的图像, 用户可以自己设置, 默认为微信没有的图像
-    nickname = CharField('昵称', max_length=64, blank=True, default='匿名用户') # 微信的昵称, 用户可以自己设置, 默认为匿名用户 
+    nickname = CharField('昵称', max_length=64, blank=True) # 微信的昵称, 用户可以自己设置, 默认为匿名用户 
     bg = ImageField('微信背景', upload_to=UploadTo('user/bg/%Y/%m/'), blank=True)
 
     ''' 手机登录 '''
@@ -81,7 +70,7 @@ class User(Model):
     passwd = CharField('密码', max_length=32)
 
     ''' 系统, 极光, 版本 '''
-    os = ForeignKey('OS', verbose_name='系统', null=True, on_delete=PROTECT, blank=True) # 系统类别
+    os = PositiveIntegerField('操作系统', choices=OS) # 系统类别
     regid = CharField('唯一识别码', max_length=32, blank=True) # 极光推送
     version = CharField('版本', max_length=64, blank=True) # 版本号, 用户更新检测
     create_datetime = DateTimeField('注册时间', auto_now_add=True)
@@ -103,7 +92,7 @@ class User(Model):
     birthday = DateField('生日', null=True, blank=True)
 
     ''' 认证信息 '''
-    qualification = ManyToManyField('Qualification', verbose_name='认证条件', blank=True)
+    qualification = PositiveSmallIntegerField('认证条件', choices=QUALIFICATION, null=True, blank=True)
     Institute = ForeignKey('Institute', verbose_name='机构', null=True, blank=True)
 
     def save(self, *args, **kwargs): #密码的问题
@@ -162,6 +151,7 @@ class Upload(Model):
     vcr = CharField('vcr', max_length=64, blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
     valid = NullBooleanField('是否合法')
+    num = PositiveSmallIntegerField('剩余修改次数', default=5, editable=False)
 
     def __str__(self): return '%s' % self.name
 
@@ -340,20 +330,9 @@ class Thinktank(Model):
             osremove(thinktank.img, self.img)
             osremove(thinktank.thumbnail, self.thumbnail)
 
-
-class OS(Model): 
-    name = CharField('系统名称', max_length=16, unique=True)
-    
-    def __str__(self): return '%s' % self.name
-
-    class Meta: 
-        ordering = ('-pk',)
-        verbose_name = verbose_name_plural = '操作系统'
-
-
 class Version(Model):
     edition = CharField('版本号', max_length=16)
-    os = ForeignKey('OS', verbose_name='系统类型', on_delete=PROTECT)
+    os = PositiveIntegerField('操作系统', choices=OS) # 系统类别
     item = TextField('更新条目')
     url = URLField('地址')
     create_datetime = DateTimeField('创建日期', auto_now=True)
@@ -421,30 +400,18 @@ class Topic(Model):
             JG('%s 回复了你' % self.user.name, {'api': 'msg'}).single(self.at.user.regid)
             
 
-class MsgType(Model):
-    name = CharField('消息类型', max_length=32, unique=True)
-    desc = CharField('描述', max_length=32, blank=True, null=True)
-
-    def __str__(self):
-        return '%s' % self.name
-
-    class Meta:
-        ordering = ('-pk',)
-        verbose_name = verbose_name_plural = '消息类型'
-
 class Push(Model):
-    msgtype = ForeignKey('MsgType', verbose_name='消息类型')
+    pushtype = PositiveIntegerField('推送类型', choices=PUSHTYPE)
     user = ManyToManyField('User', verbose_name='推送给', blank=True)
     title = CharField('标题', max_length=32, default='金指投')
     content = CharField('内容', max_length=64)
-    _id = PositiveIntegerField('对应的id', blank=True, null=True)
+    index = PositiveIntegerField('对应的id', blank=True, null=True)
     url = URLField('地址', blank=True, default='www.jinzht.com')
-    comment = CharField('备注', max_length=64, blank=True)
     valid = NullBooleanField('是否合法', default=None)
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
     def __str__(self):
-        return '%s,%s' % (self.id, self.msgtype.desc)
+        return '%s,%s' % (self.id)
 
     class Meta:
         ordering = ('-pk',)

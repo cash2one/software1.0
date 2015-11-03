@@ -3,22 +3,26 @@ from django.conf.urls import url
 from phone import views
 
 urlpatterns = [
-    ''' 用户相关 '''
-    url(r'^sendcode/(?P<flag>[01])/$', views.sendcode, name='sendcode'), # 发送验证码 0 新注册用户 1 重置密码
-    url(r'^registe/(?P<os>[12])/$', views.registe, name='registe'), # 注册
+    url(r'^test/$', views.test, name='test'),
+
+    url(r'^sendcode/(?P<flag>[01])/$', views.sendcode, name='sendcode'),
+    url(r'^registe/(?P<os>[12])/$', views.registe, name='registe'),
     url(r'^login/$', views.login_, name='login'),
     url(r'^resetpasswd/$', views.resetpasswd, name='resetpasswd'),
     url(r'^modifypasswd/$', views.modifypasswd, name='modifypasswd'),
     url(r'^logout/$', views.logout, name='logout'),
 
-    ''' 个人信息 '''
     url(r'^userinfo/$', views.userinfo, name='userinfo'),
+    url(r'^leftslide/$', views.leftslide, name='leftslide'),
     url(r'^photo/$', views.photo, name='photo'),
+    url(r'^bg/$', views.bg, name='bg'),
     url(r'^nickname/$', views.nickname, name='nickname'),
     url(r'^company/$', views.company, name='company'),
     url(r'^position/$', views.position, name='position'),
     url(r'^addr/$', views.addr, name='addr'),
     
+    url(r'^annc/$', views.annc, name='annc'),
+    url(r'^platform/$', views.platform, name='platform'),
 
     url(r'^activity/$', views.activity, name='activity'),
     url(r'^signin/(?P<pk>[1-9]\d*)/$', views.signin, name='signin'),
@@ -31,7 +35,7 @@ urlpatterns = [
     url(r'^authenticate/$', views.authenticate, name='authenticate'),
     url(r'^businesscard/(?P<pk>[1-9]\d*)/$', views.businesscard, name='businesscard'),
     url(r'^weixin/$', views.weixin, name='weixin'),
-    url(r'^banner/$', views.banner, name='banner'), # 旗标
+    url(r'^banner/$', views.banner, name='banner'),
     url(r'^project/(?P<page>\d+)/$', views.project, name='project'),
     url(r'^projectdetail/(?P<pk>[1-9]\d*)/$', views.projectdetail, name='projectdetail'),
     url(r'^financeplan/(?P<pk>[1-9]\d*)/$', views.financeplan, name='financeplan'),
@@ -63,7 +67,7 @@ urlpatterns = [
     url(r'^myroadshow/$', views.myroadshow, name='myroadshow'),
     url(r'^token/$', views.token, name='token'),
     url(r'^callback/$', views.callback, name='callback'),
-    url(r'^deletevideo/$', views.deletevideo, name='deletevideo'),
+    url(r'^delvideo/$', views.delvideo, name='delvideo'),
     url(r'^ismyproject/(?P<pk>[1-9]\d*)/$', views.ismyproject, name='ismyproject'),
     url(r'^isinvestor/$', views.isinvestor, name='isinvestor'),
     url(r'^investorinfo/(?P<pk>[1-9]\d*)/$', views.investorinfo, name='investorinfo'),
@@ -106,5 +110,4 @@ urlpatterns = [
     url(r'^postfeelingcomment/(?P<pk>[1-9]\d*)/$', views.postfeelingcomment, name='postfeelingcomment'),
     url(r'^hidefeelingcomment/(?P<pk>[1-9]\d*)/$', views.hidefeelingcomment, name='hidefeelingcomment'),
     url(r'^background/$', views.background, name='background'),
-        #tmp['sharecount'] = item.sharecount
 ]

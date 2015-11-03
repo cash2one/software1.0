@@ -4,19 +4,13 @@ from django.contrib import messages
 
 from .modelform import *
 
-class QualificationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'desc')
-
 class InstituteAdmin(admin.ModelAdmin):
     form = InstituteForm
 
 class UserAdmin(admin.ModelAdmin):
     form = UserForm
-    list_display = ('id', 'name', 'tel', 'gender', 'province_city', 'company', '_create_datetime')
+    list_display = ('id', 'name', 'tel', 'gender', 'addr', 'company', '_create_datetime')
     search_fields = ('tel',)
-
-    def province_city(self, obj):
-        return '%s %s' % (obj.province, obj.city)
 
     def _create_datetime(self, obj):
         return timeformat(obj.create_datetime)
@@ -168,9 +162,6 @@ class ThinktankAdmin(admin.ModelAdmin):
     _img.allow_tags = True
     _img.short_description = '图像'
 
-class OSAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name')
-
 class NewsTypeAdmin(admin.ModelAdmin):
     form = NewsTypeForm
     list_display = ('id', 'name', 'eng', 'valid')
@@ -192,13 +183,9 @@ class TopicAdmin(admin.ModelAdmin):
             return obj.at.user.name
         return ''
 
-class MsgTypeAdmin(admin.ModelAdmin):
-    form = MsgTypeForm
-    list_display = ('id', 'name', 'desc')
-
 class PushAdmin(admin.ModelAdmin):
     form = PushForm
-    list_display = ('id', 'msgtype', '_id', '_user', 'valid')
+    list_display = ('id', 'index', '_user', 'valid')
     raw_id_fields = ('user',)
     def _user(self, obj):
        return ','.join([user.tel for user in obj.user.all()]) 

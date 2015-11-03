@@ -168,10 +168,9 @@ class MAIL(object):
         smtp.close()
 
 class JG(object):
-    app_key = settings.app_key 
-    master_secret = settings.master_secret
 
     def __init__(self, msg='金指投', extras={}):
+
         self.msg = msg
         self.ios_msg = jpush.ios(
             alert=msg , 
@@ -179,14 +178,9 @@ class JG(object):
             sound="a.caf", 
             extras=extras
         )
-        self.android_msg = jpush.android(
-            alert=msg,
-            extras=extras
-        )
-        self.push = jpush.JPush(
-            JG.app_key, 
-            JG.master_secret
-        ).create_push() 
+        self.android_msg = jpush.android( alert=msg, extras=extras)
+        self.push = jpush.JPush(settings.JAK, settings.JMS).create_push() 
+
 
     def all(self):
         self.push.audience = jpush.all_
