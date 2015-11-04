@@ -55,13 +55,10 @@ class UploadAdmin(admin.ModelAdmin):
 
 class ProjectAdmin(admin.ModelAdmin):
     form = ProjectForm
-    list_display = ('id', 'stage', 'summary', 'company', 'planfinance', 'finance2get', 'leadfollow', 'share2give', 'investor2plan', 'start', 'stop', 'img')
+    list_display = ('id', 'stage', 'company', 'planfinance', 'finance2get', 'share2give', 'invest2plan', 'start', 'stop', 'img')
     raw_id_fields = ('company', 'attend', 'like')
     list_editable = ('img', 'finance2get',)
 
-    def leadfollow(self, obj):
-        return '%s/%s' % (obj.leadfund, obj.followfund)
-    leadfollow.short_description = '领/跟投'
 
     def stage(self, obj):
         now = timezone.now()
@@ -85,17 +82,17 @@ class ProjectAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields':('company', 'summary', 'img', 'video', 'vcr') 
+            'fields':('company', 'upload', 'img', 'video') 
         }),
 
         ('内容', {
-            'fields':('desc', 'model', 'business', 'service')
+            'fields':('model', 'business')
         }),
         ('融资', {
-            'fields':(('planfinance', 'finance2get', 'pattern', 'tmpshare', 'share2give', 'quitway'), 'usage')
+            'fields':(('planfinance', 'finance2get', 'share2give', 'quitway'), 'usage')
         }),
         ('数字', {
-            'fields':(('investor2plan', 'participator2plan', 'leadfund', 'followfund'),)
+            'fields':(('invest2plan', 'minfund'),)
         }),
         ('时间', {
             'fields':(('roadshow_start_datetime', 'roadshow_stop_datetime', 'finance_stop_datetime'), 'over')
@@ -152,7 +149,7 @@ class CollectAdmin(admin.ModelAdmin):
 
 class BannerAdmin(admin.ModelAdmin):
     form = BannerForm
-    list_display = ('id', 'title', 'project', 'img', 'comment', 'url')
+    list_display = ('id', 'title', 'project', 'img', 'url')
 
 class ThinktankAdmin(admin.ModelAdmin):
     form = ThinktankForm

@@ -70,7 +70,7 @@ class User(Model):
     passwd = CharField('密码', max_length=32)
 
     ''' 系统, 极光, 版本 '''
-    os = PositiveIntegerField('操作系统', choices=OS) # 系统类别
+    os = PositiveIntegerField('操作系统', choices=OS, editable=False) # 系统类别
     regid = CharField('唯一识别码', max_length=32, blank=True) # 极光推送
     version = CharField('版本', max_length=64, blank=True) # 版本号, 用户更新检测
     create_datetime = DateTimeField('注册时间', auto_now_add=True)
@@ -117,8 +117,7 @@ class User(Model):
 class Company(Model):
 
     name = CharField('公司名称', max_length=64, unique=True)
-    province = CharField('省份', max_length=32)
-    city = CharField('城市', max_length=32)
+    addr = CharField('地址', max_length=128)
     logo = ImageField('公司图片', upload_to=UploadTo('company/logo/%Y/%m'), blank=True)
     profile = TextField('公司介绍', blank=True)
     license = ImageField('营业执照', upload_to=UploadTo('company/license/%Y/%m'), blank=True)
@@ -170,27 +169,23 @@ class Project(Model):
     tag = TextField('标签', blank=True)
    
     ''' 项目概况 '''
-    img = ImageField('图片', upload_to=UploadTo('project/img/%Y/%m'), blank=True) 
-    summary = CharField('项目概述', max_length=64, blank=True)
-    detail = TextField('项目详情', blank=True)
-    pattern = TextField('商业模式', blank=True)
+    img = ImageField('图片', upload_to=UploadTo('project/img/%Y/%m')) 
+    model = TextField('商业模式', blank=True)
     business = TextField('主营业务', blank=True)
 
     ''' 路演时的具体情况 '''
-    planfinance = PositiveIntegerField('计划融资', blank=True)
-    finance2get = PositiveIntegerField('已获得融资', blank=True)
-    pattern = CharField('融资方式', max_length=32, blank=True)
-    share2give = DecimalField('让出股份', max_digits=4, decimal_places=2, blank=True)
-    quitway = CharField('退出方式', max_length=32, blank=True)
+    planfinance = PositiveIntegerField('计划融资')
+    finance2get = PositiveIntegerField('已获得融资')
+    share2give = DecimalField('让出股份', max_digits=4, decimal_places=2)
+    quitway = CharField('退出方式', max_length=32)
     usage = TextField('资金用途')
-    investor2plan = PositiveIntegerField('股东人数', blank=True)
-    leadfund = PositiveIntegerField('领投金额', blank=True)
-    followfund = PositiveIntegerField('跟投金额', blank=True)
+    invest2plan = PositiveIntegerField('股东人数')
+    minfund = PositiveIntegerField('投资最低额度')
    
     ''' 时间 '''
-    roadshow_start_datetime = DateTimeField('路演时间', blank=True)
-    roadshow_stop_datetime = DateTimeField('路演结束', blank=True)
-    finance_stop_datetime = DateTimeField('融资结束', blank=True)
+    roadshow_start_datetime = DateTimeField('路演时间', null=True, blank=True)
+    roadshow_stop_datetime = DateTimeField('路演结束', null=True, blank=True)
+    finance_stop_datetime = DateTimeField('融资结束', null=True, blank=True)
     over = NullBooleanField('众筹完成')
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
@@ -287,7 +282,6 @@ class Banner(Model):
     img = ImageField('图片', upload_to=UploadTo('banner/img/%Y/%m'))
     url = URLField('链接地址', max_length=64, blank=True)
     create_datetime = DateTimeField('创建日期', auto_now=True)
-    comment = TextField('备注信息', blank=True)
 
     def __str__(self): return '%s' % self.title
 
@@ -330,21 +324,6 @@ class Thinktank(Model):
             osremove(thinktank.img, self.img)
             osremove(thinktank.thumbnail, self.thumbnail)
 
-class Version(Model):
-    edition = CharField('版本号', max_length=16)
-    os = PositiveIntegerField('操作系统', choices=OS) # 系统类别
-    item = TextField('更新条目')
-    url = URLField('地址')
-    create_datetime = DateTimeField('创建日期', auto_now=True)
-
-    def __str__(self): return '%s/%s' % (self.os, self.edition)
-
-    class Meta:
-        ordering = ('-pk',)
-        unique_together = ('edition', 'os')
-        verbose_name = verbose_name_plural = '版本'
-
-
 class NewsType(Model):
 
     name = CharField('资讯类型名', max_length=16, unique=True)
@@ -362,7 +341,6 @@ class News(Model):
     newstype = ForeignKey('NewsType', verbose_name='资讯类型', blank=True, null=True)
     title = CharField('标题', max_length=64)
     img = URLField('图片url', blank=True)
-    url = URLField('网页url', blank=True)
     name = CharField('网页名', max_length=128)
     source = CharField('来源', max_length=64, default='金指投')
     content = TextField('内容', max_length=256)

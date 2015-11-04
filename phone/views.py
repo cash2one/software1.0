@@ -60,7 +60,7 @@ def login(text=''):
 def valimg(img):
     return imghdr.what(img) in ('jpeg', 'png') 
 
-def store(file_field, image, upload_to=''):
+def store(field, image):
      
     #img = Img.open(StringIO.StringIO(self.image.read()))
     #if img.mode != 'RGB':
@@ -70,9 +70,7 @@ def store(file_field, image, upload_to=''):
     #img.save(output, format='JPEG', quality=70)
     #output.seek(0)
     #image= InMemoryUploadedFile(output,'ImageField', "%s.jpg" %self.image.name.split('.')[0], 'image/jpeg', output.len, None)
-    name = image.name
-    pth = datetime.now().strftime(upload_to)
-    file_field.save('%s/%s' % (pth, name), File(image)) 
+    field.save(image.name, File(image)) 
 
 def arg_(field='参数'):
     return Response({'status': ERR, 'msg': '%s' % field})
@@ -233,21 +231,7 @@ def weixin(req):
     user.weixin = weixin; user.save()
     return r(0, '微信设置成功')
 
-
-@api_view(['GET', 'POST'])
-def banner(rquest):
-    queryset= Banner.objects.reverse()[:4]
-    data = list()
-    for item in queryset:
-        data.append({
-            'img': img(item.img),
-            'project': item.project.id if item.project else None,
-            'url': item.url
-        })
-    return Response({'code':0, 'msg': '', 'data':data})
-
-
-def project_stage(project):
+def stage(project):
     now = timezone.now()
     if not project.roadshow_start_datetime:
         stage = {
@@ -323,10 +307,31 @@ def project_stage(project):
                 }
     return stage
 
-@api_view(['POST', 'GET'])
-def project(req, page=0):
-    ret = g_project( Project.objects.all(), page) 
-    return ret
+def _finance(page):
+    now = timezone.now()
+    dct = proj(Project.objects.filter( 
+                    Q(roadshow_start_datetime__isnull=True) | 
+                    Q(roadshow_start_datetime__lte = now, finance_stop_datetime__gte = now)), 
+              page)
+    return dct
+
+def _financed(page):
+    dct = proj(Project.objects.filter(finance_stop_datetime__lt = timezone.now()), page)
+    return dct
+
+@api_view(['GET'])
+def project(req, cursor, page):
+    cursor = int(cursor)
+    if cursor == 0:
+        cursor = 1 # 默认显示
+    if cursor == 1:
+        dct = _finance(0)
+    elif cursor == 2:
+        dct = _financed(0)
+    else:
+        pass
+    data = {'cursor': cursor, 'data': dct['data']}
+    return r_(dct['code'], data, dct['msg'])
 
 @api_view(['POST', 'GET'])
 def thinktankdetail(req, pk):
@@ -377,7 +382,7 @@ def projectdetail(req, pk):
     if not project: return NOENTITY
     data = dict()
     data['company_name'] = project.company.name
-    data['stage'] = project_stage(project)
+    data['stage'] = stage(project)
     data['participator2plan'] = project.participator2plan
     data['plan_finance'] = project.planfinance
     data['project_img'] = '%s%s' %(RES_URL, project.img.url)
@@ -484,48 +489,26 @@ def participate(req, pk):
 @api_view(['GET'])
 def defaultclassify(req): return Response({'code':0, 'msg':'', 'data':0})
 
-def g_project(queryset, page): 
-    queryset = q_(queryset, page)
-    if not queryset: return Response({'code':-1, 'msg':'加载完毕', 'data':[]})
+def proj(queryset, page): 
+    queryset = q(queryset, page)
+    if not queryset:
+        return {'code': 2, 'data': [], 'msg': '加载完毕'}
     if isinstance(queryset[0], Project): flag = 'p'
-    elif isinstance(queryset[0], RecommendProject): flag = 'r'
-    elif isinstance(queryset[0], InvestShip): flag = 'i'
-    elif isinstance(queryset[0], CollectShip): flag= 'c'
+    elif isinstance(queryset[0], Invest): flag = 'i'
+    elif isinstance(queryset[0], Collect): flag= 'c'
     data = list()
-    for i, project in enumerate(queryset):
-        tmp = dict()
-        if flag == 'r': tmp['reason'] = project.reason
-        if flag != 'p': project = project.project
-        tmp['id'] = project.id
-        tmp['thumbnail'] = '%s%s' %(RES_URL, project.thumbnail.url)
-        tmp['project_summary'] = project.summary
-        company_name = re.sub(r'(股份)?有限(责任)?公司', '', project.company.name)
-        tmp['company_name'] = company_name
-        tmp['province'] = project.company.province
-        tmp['city'] = project.company.city
-        tmp['industry_type'] = [it.name for it in project.company.industry.all()]
-        ret = lcv(project)
-        tmp['like_sum'] = ret['like_sum']
-        tmp['collect_sum'] = ret['collect_sum']
-        tmp['vote_sum'] = ret['vote_sum']
-        stage = project_stage(project)
-        tmp['stage'] = stage
-        if stage['flag'] == 3: tmp['invest_amount_sum'] = project.finance2get # 融资完成的显示
-        data.append(tmp)
-    status = -int(len(queryset)<PAGE_SIZE)
-    return Response({'code':status, 'msg':'加载完毕', 'data':data})
-
-@api_view(['POST', 'GET'])
-def recommendproject(req, page):
-    ret = g_project( RecommendProject.objects.all(), page )
-    return ret
-
-@api_view(['POST', 'GET'])
-def waitforfinance(req, page):
-    #ps = Project.objects.filter(roadshow_start_datetime__lt=timezone.now().date()).annotate(invested_sum=Sum('investship__invest_amount')).filter(Q(invested_sum__isnull=True) | Q(invested_sum=0) ) 
-    now = timezone.now()
-    ret = g_project( Project.objects.filter(roadshow_start_datetime__lte=now, finance_stop_datetime__gte=now), page )
-    return ret
+    for project in queryset:
+        if not flag == 'p': 
+            project = project.project
+        data.append({
+            'id': project.id,
+            'img': img(project.img), 
+            'company': re.sub(r'(股份)?有限(责任)?公司', '', project.company.name),
+            'addr': project.company.addr,
+            'stage': stage(project)
+        })
+    code = 2 if len(queryset) < settings.DEFAULT_PAGESIZE else 0
+    return {'code': code, 'data': data, 'msg': '加载完毕'}
 
 @api_view(['POST', 'GET'])
 def finishfinance(req, page):
@@ -720,8 +703,7 @@ def photo(req):
 
     user = u(req)
     store(user.photo, photo)
-    data = {'photo': img(user.photo)}
-    return r_(0, data, '设置图像成功')
+    return r(0, '设置图像成功')
 
 @api_view(['POST'])
 @login()
@@ -730,13 +712,12 @@ def bg(req):
     bg = req.data.get('file')
     if not bg:
         return r(1, '图像不能为空')    
-    if not valimg(photo):
+    if not valimg(bg):
         return r(1, '图片格式不正确')
 
     user = u(req)
     store(user.bg, bg)
-    data = {'bg': img(user.bg)}
-    return r_(0, data, '设置背景成功')
+    return r(0, '设置背景成功')
 
 @api_view(['POST'])
 @login()
@@ -793,35 +774,54 @@ def addr(req):
     user.save()
     return r(0, '地址设置成功')
 
+@api_view(['GET'])
+@login()
+def customservice(req):
+    data = settings.CUSTOMSERVICE
+    return r_(0, data)
 
 @api_view(['GET'])
 @login()
-def annc(req):
+def home(req):
+    queryset= Banner.objects.reverse()[:4]
+    banner = list()
+    for item in queryset:
+        banner.append({
+            'img': img(item.img),
+            'project': item.project.id if item.project else None,
+            'url': item.url
+        })
     data = {
-        'title': '新三板资讯',
-        'url': 'http://www.baidu.com',
+        'banner': banner,
+        'announcement': {'title': '新三版在线', 'url': 'http://www.baidu.com'},
+        'project': [
+            {
+                'id': '1',
+                'img': 'http://www.jinzht.com/static/app/img/two_dimension_code.png',
+                'company': '北京金指投信息科技有限公司',
+                'process': {'key': '已经融资', 'value': '30.2%'},
+                'time': {'key': '截止时间', 'value': '2015-12-32'}
+            }
+        ],
+        'platform': [
+            {'key': '成功融资总额(元)', 'value': '56125895423'},
+            {'key': '项目总数', 'value': '451231'},
+            {'key': '投资人总人数', 'value': '254566'},
+            {'key': '基金池总额(元)', 'value': '452122553144'},
+        ],
     }
-    return r_(0, data)
+    return r_(0, data)    
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @login()
 def credit(req):
-    data = {
-        'title': '新三板资讯',
-        'url': 'http://www.baidu.com',
-    }
-    return r_(0, data)
+    from phone.sanban18 import Credit
+    wd = req.data.get('wd', '').strip()
+    if not wd:
+        return r(1, '关键词不能为空')
 
-@api_view(['GET'])
-@login()
-def platform(req):
-    data = [
-        {'key': '成功融资总额(元)', 'value': '56125895423'},
-        {'key': '项目总数', 'value': '451231'},
-        {'key': '投资人总人数', 'value': '254566'},
-        {'key': '基金池总额(元)', 'value': '452122553144'},
-    ]
+    data = Credit().outcome(wd)
     return r_(0, data)
 
 
@@ -977,17 +977,14 @@ def projectsearch(req, pk, page):
 
 @api_view(['GET', 'POST'])
 @login()
-def generalinformation(req, pk=None):
-    if pk: uid = pk
-    else: uid = req.session.get('uid')
-    data = dict()
-    data['uid'] = uid
-    data['tel'] = User.objects.get(pk=uid).tel
-    user = User.objects.get(pk=uid)
-    data['user_img'] = img(user.img)
-    data['real_name'] = user.name
-    data['gender'] = user.gender
-    data['position_type'] = [pt.name for pt in user.position.all()]
+def userinfo(req, uid=None):
+    uid = uid if uid else s(req)
+    user = i(User, uid)
+    data = {
+        'tel': user.tel,
+        'photo': img(user.photo),
+        'name': user.name,
+    }
     data['province'] = user.province
     data['city'] = user.city
     return Response({'code':0, 'msg':'', 'data':data})

@@ -1,17 +1,13 @@
 #!/usr/bin/python
 # coding=utf8
-import random
-import socket
 from urllib.request import HTTPCookieProcessor, HTTPHandler, install_opener, build_opener
-import re
-import string
 from bs4 import BeautifulSoup
-import os
-import sys
+import os, sys, string, re, random, socket
 from http.cookiejar import CookieJar
 from datetime import datetime
 from jinzht import settings
 from phone.models import News
+from urllib.request import pathname2url
 
 
 AGENT = [
@@ -33,6 +29,33 @@ DE_RE = re.compile('''<a\ class="htn-a-img"\ href="(?P<href>.*?)".*?>.
     <a.*?>(?P<title>.*?)</a>.
     </h3>.
     <p>(?P<content>.*?)</p>''', re.VERBOSE | re.DOTALL)
+
+
+class Credit(object):
+
+    LINK_RE = re.compile(r'href="(?P<url>.*?)" target="_blank">(?P<title>.*?)</a></h3>.*?<div class="c-abstract">(?P<content>.*?)</div>')
+
+    def __init__(self):
+        socket.setdefaulttimeout(20)
+
+    def outcome(self, wd):
+        wb = pathname2url(wd)
+        url = 'http://www.baidu.com/s?wd=' + wb
+        cookie = HTTPCookieProcessor(CookieJar())
+        opener = build_opener(cookie, HTTPHandler)
+        install_opener(opener)
+        agent = random.choice(AGENT)
+        opener.addheaders = [("User-agent", agent), ("Accept", "*/*")]
+        html = opener.open(url)
+        _html = html.read()
+        soup = BeautifulSoup(_html, 'html.parser')
+        divs = soup.findAll('div', {'class':'result c-container '})
+        data = []
+        for div in divs: 
+            m = Credit.LINK_RE.search(str(div))
+            if m:
+                data.append( m.groupdict() )
+        return data
 
 class Browser(object):
     '''模拟浏览器'''

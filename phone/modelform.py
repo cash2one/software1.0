@@ -32,19 +32,6 @@ class ProjectForm(forms.ModelForm):
     
     def clean(self):
         cleaned_data = super(ProjectForm, self).clean()
-        planfinance = cleaned_data.get('planfinance')
-        finance2get= cleaned_data.get('finance2get')
-        share2give = cleaned_data.get('share2give')
-        investor2plan = cleaned_data.get('investor2plan')
-        investor2got = cleaned_data.get('investor2got')
-
-        if planfinance and finance2get:
-            if finance2get > planfinance:
-                raise forms.ValidationError('%s > %s' %(Project._meta.get_field_by_name('finance2get')[0].verbose_name, Project._meta.get_field_by_name('planfinance')[0].verbose_name))
-
-        if investor2plan and investor2got:
-            if investor2got > investor2plan:
-                raise ValidationError('%s > %s' %(Project._meta.get_field_by_name('investor2got')[0].verbose_name, Project._meta.get_field_by_name('investor2plan')[0].verbose_name))
 
         roadshow_start_datetime = cleaned_data.get('roadshow_start_datetime')
         roadshow_stop_datetime = cleaned_data.get('roadshow_stop_datetime')
