@@ -11,6 +11,22 @@ class UserAdmin(admin.ModelAdmin):
     form = UserForm
     list_display = ('id', 'name', 'tel', 'gender', 'addr', 'company', '_create_datetime')
     search_fields = ('tel',)
+    
+    readonly_fields = ('photo', '_photo', 'nickname', 'name', 'tel', 'passwd', 
+        'gender', 'idno',  'email', 'company', 'position', 
+        'addr', 'birthday', 'birthplace', 
+        'bg','regid', 'version', 
+        'last_login', 'qualification')
+    
+    def _photo(self, obj):
+        if  obj.photo:
+            url = obj.photo.url
+        else:
+            url = ''
+        from django.utils.html import format_html
+        return  format_html('<img width="200px" src="%s"/>' % url)
+        _photo.allow_tags = True
+        _photo.short_description = 'fjajf图像'
 
     def _create_datetime(self, obj):
         return timeformat(obj.create_datetime)

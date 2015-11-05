@@ -21,8 +21,8 @@ AGENT = [
     "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:10.0) Gecko/20100101 Firefox/10.0 ",
 ]
 
-TOP_RE = re.compile('class="bule">(?P<source>.*?)</span>.*?(?P<pub>\d{4}\-\d{2}\-\d{2})')
-DE_RE = re.compile('''<a\ class="htn-a-img"\ href="(?P<href>.*?)".*?>.
+TOP_RE = re.compile('class="bule">(?P<src>.*?)</span>.*?(?P<pub_date>\d{4}\-\d{2}\-\d{2})')
+DE_RE = re.compile('''<a\ class="htn-a-img"\ href="(?P<url>.*?)".*?>.
     <img\ src="(?P<img>.*?)".*?/>.
     </a>.
     <h3>.
@@ -79,8 +79,8 @@ class Browser(object):
     def update(self, top, newstype=None):
         m = TOP_RE.search(str(top))
         if not m: return
-        source = m.group('source') # source
-        pub = m.group('pub') # pub
+        src = m.group('src') # src
+        pub_date = m.group('pub_date') # pub_date
         de = top.findNextSibling('div', {'class': 'htn-de clearfix'})
         m = DE_RE.search(str(de))
         if not m: return
@@ -88,7 +88,7 @@ class Browser(object):
         title = m.group('title').strip() # 标题
         if newstype.eng == 'viewpoint': title = re.sub(r'\[.+?\]', '', title)
         content = m.group('content').strip() # 简短介绍
-        url = m.group('href')
+        url = m.group('url')
         url = url.replace('www.sanban18.com', '61.152.104.238')
         try: self.open(url)
         except Exception as e: print(e)
@@ -104,7 +104,7 @@ class Browser(object):
         div = div.replace('src="/', 'src="http://www.sanban18.com/')
         div = div.replace('src=', 'class="img-responsive" src=')
         print(title)
-        try: self.save(name, title, pub, source, div)
+        try: self.save(name, title, pub_date, src, div)
         except Exception as e: print(e)
         else:
             try:
@@ -113,14 +113,14 @@ class Browser(object):
                     title = title, 
                     img = img, 
                     name = name, 
-                    pub_date = pub,
-                    source = source,
+                    pub_date = pub_date,
+                    src = src,
                     content = content, 
                 )
             except Exception as e: print(e) 
-            else: print(name, title, pub, source)
+            else: print(name, title, pub_date, src)
 
-    def save(self, name, title, pub, source, div):
+    def save(self, name, title, pub_date, src, div):
         app = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
         html = '''
 <!DOCTYPE html>                
@@ -146,10 +146,12 @@ class Browser(object):
             </div>
         </div>
     </body>
-</html>''' % (title, app, '金指投科技', app, div, source)
+</html>''' % (title, app, '金指投科技', app, div, src)
 
         import codecs
-        pth = os.path.join(settings.BASE_DIR, settings.NEWS_TEMPLATE) 
+        dirname = os.path.dirname( os.path.abspath(__file__) )
+        app_label = os.path.basename(dirname)
+        pth = os.path.join(dirname, 'templates', app_label, settings.SANBAN) 
         filepath = os.path.join(pth, name)
         try: fp = codecs.open(filepath, 'w+', 'utf-8')
         except IOException as e: print(e) 
@@ -185,7 +187,7 @@ def push():
     else: news = news[0]
     if news.newstype.id == 4: api="news"
     else: api="knowledge"
-    url = "%s/%s/%s" %(settings.RES_URL, settings.NEWS_URL_PATH, news.name)
+    url = "%s/%s/%s" %(settings.DOMAIN, 'phone/sanban', news.name)
     extras = {"api": api, '_id':news.id, "url": url}
     #JiGuang(news.title, extras).all()
     JG(news.title, extras).single('050eb8bcd2f')

@@ -24,8 +24,18 @@ urlpatterns = [
     url(r'^home/$', views.home, name='home'),
     url(r'^customservice/$', views.customservice, name='customservice'),
     url(r'^credit/$', views.credit, name='credit'),
-
+    
+    url(r'^cursor/$', views.cursor, name='cursor'),
     url(r'^project/(?P<cursor>[0123])/(?P<page>\d+)/$', views.project, name='project'),
+
+    
+    url(r'^newstype/$', views.newstype, name='newstype'),
+    url(r'^news/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.news, name='news'),
+    url(r'^newsread/(?P<pk>[1-9]\d*)/$', views.newsread, name='newsread'),
+    url(r'^newsshare/(?P<pk>[1-9]\d*)/$', views.newsshare, name='newsshare'),
+    url(r'^sanban/(?P<name>\d+)/$', views.sanban, name='sanban'),
+    url(r'^newssearch/(?P<pk>\d+)/(?P<page>\d+)/$', views.newssearch, name='newssearch'),
+    url(r'^sharenews/(?P<pk>[1-9]\d*)/$', views.sharenews, name='sharenews'),
 
     url(r'^activity/$', views.activity, name='activity'),
     url(r'^signin/(?P<pk>[1-9]\d*)/$', views.signin, name='signin'),
@@ -84,13 +94,6 @@ urlpatterns = [
     url(r'^privacy/$', views.privacy, name='privacy'),
     url(r'^topic/(?P<pk>[1-9]\d*)/$', views.topic, name='topic'),
     url(r'^topiclist/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.topiclist, name='topiclist'),
-    url(r'^news/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.news, name='news'),
-    url(r'^xinwei/(?P<name>\d+)/$', views.xinwei, name='xinwei'),
-    url(r'^newstype/$', views.newstype, name='newstype'),
-    url(r'^newssearch/(?P<pk>\d+)/(?P<page>\d+)/$', views.newssearch, name='newssearch'),
-    url(r'^newssharecount/(?P<pk>[1-9]\d*)/$', views.newssharecount, name='newssharecount'),
-    url(r'^newsreadcount/(?P<pk>[1-9]\d*)/$', views.newsreadcount, name='newsreadcount'),
-    url(r'^sharenews/(?P<pk>[1-9]\d*)/$', views.sharenews, name='sharenews'),
     url(r'^hasinform/$', views.hasinform, name='hasinform'),
     url(r'^systeminform/(?P<page>\d+)/$', views.systeminform, name='systeminform'),
     url(r'^setsysteminform/(?P<pk>[1-9]\d*)/$', views.setsysteminform, name='setsysteminform'),

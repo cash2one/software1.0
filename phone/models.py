@@ -60,7 +60,7 @@ class Institute(Model):
 class User(Model):
    
     ''' 微信授权登录 '''
-    openid = CharField('微信', max_length=64, null=True, blank=True, editable=False) # 微信授权登录的返回序列号
+    openid = CharField('微信', max_length=64, null=True, blank=True) # 微信授权登录的返回序列号
     photo = ImageField('图像', upload_to=UploadTo('user/photo/%Y/%m'), blank=True) # 微信的图像, 用户可以自己设置, 默认为微信没有的图像
     nickname = CharField('昵称', max_length=64, blank=True) # 微信的昵称, 用户可以自己设置, 默认为匿名用户 
     bg = ImageField('微信背景', upload_to=UploadTo('user/bg/%Y/%m/'), blank=True)
@@ -70,21 +70,21 @@ class User(Model):
     passwd = CharField('密码', max_length=32)
 
     ''' 系统, 极光, 版本 '''
-    os = PositiveIntegerField('操作系统', choices=OS, editable=False) # 系统类别
+    os = PositiveIntegerField('操作系统', choices=OS) # 系统类别
     regid = CharField('唯一识别码', max_length=32, blank=True) # 极光推送
     version = CharField('版本', max_length=64, blank=True) # 版本号, 用户更新检测
     create_datetime = DateTimeField('注册时间', auto_now_add=True)
+    last_login = DateTimeField('上次登录时间', null=True, blank=True)
 
     ''' 必填信息 '''
     name = CharField('姓名', max_length=16, blank=True) # 真实姓名 cation
     idno = CharField('身份证号码', max_length=18, blank=True) # 身份证号码 cation 
-    email = EmailField('邮件地址', max_length=64, blank=True) # 邮件地址
     
     ''' 可选信息 '''
+    email = EmailField('邮件地址', max_length=64, blank=True) # 邮件地址
     company = CharField('公司', max_length=64, blank=True) # cation
     position= CharField('职位', max_length=64, blank=True) # cation
     addr = CharField('地址', max_length=64, blank=True)
-    comment = TextField('备注信息', blank=True)
 
     ''' 自动维护 '''
     gender = NullBooleanField('性别("男")', default=None)
@@ -94,6 +94,9 @@ class User(Model):
     ''' 认证信息 '''
     qualification = PositiveSmallIntegerField('认证条件', choices=QUALIFICATION, null=True, blank=True)
     Institute = ForeignKey('Institute', verbose_name='机构', null=True, blank=True)
+
+    ''' 信息是否属实 '''
+    valid = NullBooleanField('是否属实')
 
     def save(self, *args, **kwargs): #密码的问题
         edit = self.pk
@@ -150,7 +153,7 @@ class Upload(Model):
     vcr = CharField('vcr', max_length=64, blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
     valid = NullBooleanField('是否合法')
-    num = PositiveSmallIntegerField('剩余修改次数', default=5, editable=False)
+    num = PositiveSmallIntegerField('剩余修改次数', default=5)
 
     def __str__(self): return '%s' % self.name
 
@@ -342,10 +345,10 @@ class News(Model):
     title = CharField('标题', max_length=64)
     img = URLField('图片url', blank=True)
     name = CharField('网页名', max_length=128)
-    source = CharField('来源', max_length=64, default='金指投')
+    src = CharField('来源', max_length=64, default='金指投')
     content = TextField('内容', max_length=256)
-    sharecount = PositiveIntegerField('分享', default=0)
-    readcount = PositiveIntegerField('阅读数', default=0)
+    share = PositiveIntegerField('分享', default=0)
+    read = PositiveIntegerField('阅读数', default=0)
     pub_date = DateField('发布时间', null=True, blank=True)
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
@@ -401,7 +404,7 @@ class Push(Model):
         if self.valid == True:
             if self.msgtype.name == 'web':
                 news = News.objects.filter(pk=self._id)
-                if news: self.url = '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, news[0].name)
+                if news: self.url = '%s/%s/%s' %(settings.DOMAIN, settings.NEWS_URL_PATH, news[0].name)
             extras = {'api': self.msgtype.name,
                 '_id': self._id,
                 'url': self.url

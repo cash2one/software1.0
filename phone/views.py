@@ -15,7 +15,7 @@ from collections import OrderedDict
 from phone.models import *
 from phone.utils import *
 import functools
-from PIL import Image as Img
+#from PIL import Image as Img
 #import StringIO
 
 PK_RE = re.compile(r'^[1-9]\d*$')
@@ -57,8 +57,6 @@ def login(text=''):
         return wrapper
     return decorator
 
-def valimg(img):
-    return imghdr.what(img) in ('jpeg', 'png') 
 
 def store(field, image):
      
@@ -70,14 +68,19 @@ def store(field, image):
     #img.save(output, format='JPEG', quality=70)
     #output.seek(0)
     #image= InMemoryUploadedFile(output,'ImageField', "%s.jpg" %self.image.name.split('.')[0], 'image/jpeg', output.len, None)
-    field.save(image.name, File(image)) 
+    
+    ext = imghdr.what(image)
+    if ext in ('jpeg', 'png'):
+        field.save('file.' + ext, File(image)) 
+        return True
+    return False
 
 def arg_(field='参数'):
     return Response({'status': ERR, 'msg': '%s' % field})
 
 def img(file, default=''):
-    if not file: return '%s/media/default/coremember.png' % settings.RES_URL
-    return '%s%s' % (settings.RES_URL, file.url)
+    if not file: return '%s/media/default/coremember.png' % settings.DOMAIN
+    return '%s%s' % (settings.DOMAIN, file.url)
 
 @api_view(['POST'])
 def sendcode(req, flag):
@@ -159,7 +162,8 @@ def login_(req):
             req.session.set_expiry(3600 * 24)
             if regid: # 如果redid存在
                 user.regid = regid
-                user.version=version
+                user.version = version
+                user.last_login = timezone.now()
                 user.save()
             return r(0, '登录成功')
         return r(1, '手机号码或密码错误')
@@ -320,10 +324,15 @@ def _financed(page):
     return dct
 
 @api_view(['GET'])
+@login()
+def cursor(req):
+    return r_(0, data={'cursor': settings.CURSOR})
+
+@api_view(['GET'])
 def project(req, cursor, page):
     cursor = int(cursor)
     if cursor == 0:
-        cursor = 1 # 默认显示
+        cursor = settings.CURSOR # 默认显示
     if cursor == 1:
         dct = _finance(0)
     elif cursor == 2:
@@ -351,8 +360,8 @@ def thinktank(req, page):
     for item in queryset:
         tmp = dict()
         tmp['id'] = item.id
-        tmp['img'] = '%s%s' %(RES_URL, item.img.url)
-        tmp['thumbnail'] = '%s%s' %(RES_URL, item.img.url)
+        tmp['img'] = '%s%s' %(URL, item.img.url)
+        tmp['thumbnail'] = '%s%s' %(URL, item.img.url)
         tmp['name'] = item.name
         tmp['company'] = item.company
         tmp['title'] = item.title
@@ -385,7 +394,7 @@ def projectdetail(req, pk):
     data['stage'] = stage(project)
     data['participator2plan'] = project.participator2plan
     data['plan_finance'] = project.planfinance
-    data['project_img'] = '%s%s' %(RES_URL, project.img.url)
+    data['project_img'] = '%s%s' %(URL, project.img.url)
     data['project_video'] = project.url or createurl(project.roadshow.vcr if project.roadshow else '')
     data['invest_amount_sum'] = investamountsum(data['stage']['flag'], project)
     uid = req.session.get('uid')
@@ -698,11 +707,11 @@ def photo(req):
     photo = req.data.get('file')
     if not photo:
         return r(1, '图像不能为空')    
-    if not valimg(photo):
-        return r(1, '图片格式不正确')
 
     user = u(req)
-    store(user.photo, photo)
+    flag = store(user.photo, photo)
+    if not flag: 
+        return r(1, '设置图像失败')
     return r(0, '设置图像成功')
 
 @api_view(['POST'])
@@ -712,11 +721,11 @@ def bg(req):
     bg = req.data.get('file')
     if not bg:
         return r(1, '图像不能为空')    
-    if not valimg(bg):
-        return r(1, '图片格式不正确')
 
     user = u(req)
-    store(user.bg, bg)
+    flag = store(user.bg, bg)
+    if not flag:
+        return r(1, '设置背景失败') 
     return r(0, '设置背景成功')
 
 @api_view(['POST'])
@@ -825,31 +834,71 @@ def credit(req):
     return r_(0, data)
 
 
-@api_view(['POST', 'GET'])
+@api_view(['GET', 'POST'])
 @login()
-def userinfo(req):
-
-    u = u(req) 
-
+def userinfo(req, uid=None):
     if req.method == 'GET':
-        data = { 'uid': s(req),
-            'photo': img(u.photo),
-            'nickname': u.nickname,
-            'name': u.name,
-            'idno': u.idno,
-            'company': u.company,
-            'position': u.position,
-            'email': u.email,
-            'addr': u.addr}
+        uid = uid if uid else s(req)
+        user = i(User, uid)
+        data = { 
+            'uid': s(req),
+            'tel': user.tel,
+            'gender': user.gender,
+            'photo': img(user.photo),
+            'nickname': user.nickname,
+            'name': user.name,
+            'idno': user.idno,
+            'company': user.company,
+            'position': user.position,
+            'addr': user.addr}
         return r_(0, data)
 
     elif req.method == 'POST':
+        user = u(req)
+        if user.valid == True:
+            return r(1, '信息已被核实, 更改请联系客服')
         name = req.data.get('name', '').strip() 
         idno = req.data.get('idno', '').strip()
-        email = req.data.get('email', '').strip()
         company = req.data.get('company', '').strip()
         position = req.data.get('position', '').strip()
-        addr = req.data.get('position', '').strip()
+        addr = req.data.get('addr', '').strip()
+
+        if not name:
+            return r(1, '姓名不能为空')
+        if not company:
+            return r(1, '公司不能为空')
+        if not position:
+            return r(1, '职位不能为空')
+        if not addr:
+            return r(1, '地址不能为空')
+        if not idno:
+            return r(1, '身份证不能为空')
+
+        from phone.idno import IDNO
+        flag, info = IDNO(idno).ip138() 
+        if not flag:
+            return r(1, info)
+        gender = info['gender']
+        birthday = info['birthday']
+        birthplace = info['birthplace']
+
+        addr = addr.replace('省', '').replace('市', '').replace('区', '')
+        addr = re.sub(r' {2,}', ' ', addr)
+        
+        ret = (name, idno, company, position, addr, gender, birthday, birthplace)
+        user.name = name
+        user.idno = idno
+        user.company = company
+        user.position = position
+        user.addr = addr
+        user.gender = gender
+        user.birthday = birthday
+        user.birthplace = birthplace
+        user.save()
+        print(user.birthday)
+
+        print(ret)
+        return r(0, str(ret))
 
 @api_view(['POST'])
 @login()
@@ -975,19 +1024,6 @@ def projectsearch(req, pk, page):
     else: queryset = Project.objects.filter(company__industry__in=[int(pk),])
     return g_project(queryset, page)
 
-@api_view(['GET', 'POST'])
-@login()
-def userinfo(req, uid=None):
-    uid = uid if uid else s(req)
-    user = i(User, uid)
-    data = {
-        'tel': user.tel,
-        'photo': img(user.photo),
-        'name': user.name,
-    }
-    data['province'] = user.province
-    data['city'] = user.city
-    return Response({'code':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 @login()
@@ -1251,7 +1287,7 @@ def checkupdate(req, system):
 def shareproject(req, pk):
     data = dict()
     data['title'] = '项目分享'
-    data['img'] = '%s/static/app/img/icon.png' % settings.RES_URL
+    data['img'] = '%s/static/app/img/icon.png' % settings.DOMAIN
     data['url'] = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
     data['content'] = '项目分享'
     return Response({'code':0, 'msg':'', 'data':data})
@@ -1260,7 +1296,7 @@ def shareproject(req, pk):
 def shareapp(req):
     data = dict()
     data['title'] = 'app分享'
-    data['img'] = '%s/static/app/img/icon.png' % settings.RES_URL
+    data['img'] = '%s/static/app/img/icon.png' % settings.DOMAIN
     data['url'] = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
     data['content'] = '金指投App分享'
     return Response({'code':0, 'msg':'', 'data':data})
@@ -1361,58 +1397,63 @@ def topiclist(req, pk, page):
     return ret
    
 def __news(queryset, page):
-    size = 6
-    queryset = q_(queryset, page, size)
+    size = settings.NEWS_PAGESIZE
+    queryset = q(queryset, page, size)
     data = list()
     for item in queryset:
-        tmp = dict()
-        tmp['id'] = item.id
-        tmp['title'] = item.title
-        tmp['source'] = item.source
-        tmp['content'] = item.content
-        tmp['img'] = item.img
-        tmp['create_datetime'] = dt_(item.create_datetime) 
-        tmp['readcount'] = item.readcount
-        tmp['sharecount'] = item.sharecount
-        tmp['href'] = '%s/%s/%s/' %(settings.RES_URL, 'phone/xinwei', item.name)
-        data.append(tmp)
-    code = -int(len(queryset)<size)
-    return Response({'code': code, 'msg':'加载完毕', 'data':data})
+        data.append({
+            'id': item.id,
+            'title': item.title,
+            'src': item.src,
+            'content': item.content,
+            'img': item.img,
+            'create_datetime': dt_(item.create_datetime),
+            'read': item.read,
+            'share': item.share,
+            'url': '%s/%s/%s/' % (settings.DOMAIN, 'phone/sanban', item.name),
+        })
+    code = 2 if len(queryset) < size else 0
+    return r_(code, data, '加载完毕')
 
 @api_view(['GET'])
 def news(req, pk, page):
     queryset = News.objects.filter(newstype__id=pk)
     return __news(queryset, page)
 
-def xinwei(request, name):
-    return render(request, 'phone/xinwei/%s' % name)
+def sanban(request, name):
+    return render(request, 'phone/sanban/%s' % name)
 
 @api_view(['POST', 'GET'])
 def sharenews(req, pk):
-    news = i_(News, pk) 
-    if not news: return NOENTITY 
-    data = dict()
-    data['href'] = '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, news.name)
-    data['src'] = news.src 
-    data['title'] = news.title
-    data['content'] = news.content
+    news = i(News, pk) 
+    if not news: 
+        return r(-2)
+
+    data = {
+        'url': '%s/%s/%s' %(settings.DOMAIN, settings.NEWS_URL_PATH, news.name),
+        'src': news.src,
+        'title': news.title,
+        'content': news.content,
+    }
     return Response({'code':0, 'msg':'', 'data':data})
 
-@api_view(['POST', 'GET'])
-def newssharecount(req, pk):
-    news = i_(News, pk) 
-    if not news: return NOENTITY 
-    news.sharecount += 1
+@api_view(['GET'])
+def newsshare(req, pk):
+    news = i(News, pk) 
+    if not news: 
+        return r(-2)
+    news.share += 1
     news.save()
-    return r(0, '')
+    return r(0)
         
 @api_view(['POST', 'GET'])
-def newsreadcount(req, pk):
-    news = i_(News, pk) 
-    if not news: return NOENTITY 
-    news.readcount += 1
+def newsread(req, pk):
+    news = i(News, pk) 
+    if not news:
+        return r(-2)
+    news.read += 1
     news.save()
-    return r(0, '')
+    return r(0)
     
 @api_view(['POST', 'GET'])
 def newssearch(req, pk, page):
@@ -1422,10 +1463,11 @@ def newssearch(req, pk, page):
     else: queryset = News.objects.filter(newstype__id=pk)
     return __news(queryset, page)
 
-@api_view(['POST', 'GET'])
+@api_view(['GET'])
+@login()
 def newstype(req):
     data = [{'key':item.id, 'value':item.name} for item in NewsType.objects.filter(~Q(valid=False))]
-    return Response({'code':0, 'msg':'', 'data':data})
+    return r_(0, data)
 
 @api_view(['POST', 'GET'])
 def knowledgetag(req):
@@ -1573,10 +1615,10 @@ def __feeling(item, user): # 获取发表的状态的关联信息
             'id': news.id,
             'title': news.title, 
             'src': news.src,
-            'href': '%s/%s/%s' %(settings.RES_URL, settings.NEWS_URL_PATH, news.name)
+            'href': '%s/%s/%s' %(settings.DOMAIN, settings.NEWS_URL_PATH, news.name)
         }
     else:
-        tmp['pics'] = [] if item.pics==''  else [ os.path.join(settings.RES_URL, v) for v in item.pics.split(';') ]
+        tmp['pics'] = [] if item.pics==''  else [ os.path.join(settings.DOMAIN, v) for v in item.pics.split(';') ]
     tmp['is_like'] = user in item.likers.all()
     tmp['likers'] = g_feelinglikers(item.likers.all(), 0) # page_size=3
     remain_likers_num = item.likers.all().count() - settings.FEELINGLIKERS_INITAL_PAGESIZE
