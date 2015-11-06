@@ -28,7 +28,8 @@ urlpatterns = [
     url(r'^cursor/$', views.cursor, name='cursor'),
     url(r'^project/(?P<cursor>[0123])/(?P<page>\d+)/$', views.project, name='project'),
 
-    
+    url(r'^auth/$', views.auth, name='auth'),
+
     url(r'^newstype/$', views.newstype, name='newstype'),
     url(r'^news/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.news, name='news'),
     url(r'^newsread/(?P<pk>[1-9]\d*)/$', views.newsread, name='newsread'),
@@ -37,16 +38,12 @@ urlpatterns = [
     url(r'^newssearch/(?P<pk>\d+)/(?P<page>\d+)/$', views.newssearch, name='newssearch'),
     url(r'^sharenews/(?P<pk>[1-9]\d*)/$', views.sharenews, name='sharenews'),
 
-    url(r'^activity/$', views.activity, name='activity'),
-    url(r'^signin/(?P<pk>[1-9]\d*)/$', views.signin, name='signin'),
+    url(r'^feeling/(?P<page>\d+)/$', views.feeling, name='feeling'),
+
     url(r'^companystatus/$', views.companystatus, name='companystatus'),
     url(r'^wantroadshow/$', views.wantroadshow, name='wantroadshow'),
     url(r'^myinvestorlist/$', views.myinvestorlist, name='myinvestorlist'),
     url(r'^wantinvest/(?P<pk>[1-9]\d*)/$', views.wantinvest, name='wantinvest'),
-    url(r'^investorqualification/$', views.investorqualification, name='investorqualification'),
-    url(r'^fundsizerange/$', views.fundsizerange, name='fundsizerange'), 
-    url(r'^authenticate/$', views.authenticate, name='authenticate'),
-    url(r'^businesscard/(?P<pk>[1-9]\d*)/$', views.businesscard, name='businesscard'),
     url(r'^weixin/$', views.weixin, name='weixin'),
     url(r'^projectdetail/(?P<pk>[1-9]\d*)/$', views.projectdetail, name='projectdetail'),
     url(r'^financeplan/(?P<pk>[1-9]\d*)/$', views.financeplan, name='financeplan'),
@@ -80,7 +77,7 @@ urlpatterns = [
     url(r'^ismyproject/(?P<pk>[1-9]\d*)/$', views.ismyproject, name='ismyproject'),
     url(r'^isinvestor/$', views.isinvestor, name='isinvestor'),
     url(r'^investorinfo/(?P<pk>[1-9]\d*)/$', views.investorinfo, name='investorinfo'),
-    url(r'^issessionvalid/$', views.issessionvalid, name='issessionvalid'),
+    url(r'^valsession/$', views.valsession, name='valsession'),
     url(r'^contactus/$', views.contactus, name='contactus'),
     url(r'^checkupdate/(?P<system>[12])/$', views.checkupdate, name='checkupdate'),
     url(r'^shareproject/(?P<pk>[1-9]\d*)/$', views.shareproject, name='shareproject'),
@@ -103,7 +100,6 @@ urlpatterns = [
     url(r'^settopicread/(?P<pk>\d+)/$', views.settopicread, name='settopicread'),
     url(r'^latestnewscount/$', views.latestnewscount, name='latestnewscount'),
     url(r'^getfeeling/(?P<pk>[1-9]\d*)/$', views.getfeeling, name='getfeeling'),
-    url(r'^feeling/(?P<page>\d+)/$', views.feeling, name='feeling'),
     url(r'^postfeeling/$', views.postfeeling, name='postfeeling'),
     url(r'^deletefeeling/(?P<pk>[1-9]\d*)/$', views.deletefeeling, name='deletefeeling'),
     url(r'^likefeeling/(?P<pk>[1-9]\d*)/(?P<is_like>[01])/$', views.likefeeling, name='likefeeling'),

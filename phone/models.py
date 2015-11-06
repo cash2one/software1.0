@@ -33,11 +33,9 @@ class UploadTo(object):
 class Institute(Model):
 
     name = CharField('机构名称', max_length=64, unique=True)
-    province = CharField('省份', max_length=32)
-    city = CharField('城市', max_length=32)
-    logo = ImageField('公司图片', upload_to=UploadTo('institute/logo/%Y/%m'), blank=True)
+    legalperson = CharField('法人', max_length=32, blank=True)
+    addr = CharField('地址', max_length=128, blank=True)
     profile = TextField('机构介绍', blank=True)
-    license = ImageField('营业执照', upload_to=UploadTo('institute/license/%Y/%m'), blank=True)
     orgcode = ImageField('组织机构代码证', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
 
@@ -92,11 +90,13 @@ class User(Model):
     birthday = DateField('生日', null=True, blank=True)
 
     ''' 认证信息 '''
-    qualification = PositiveSmallIntegerField('认证条件', choices=QUALIFICATION, null=True, blank=True)
+    qualification = CharField('认证条件', max_length=32, blank=True) #PositiveSmallIntegerField('认证条件', choices=QUALIFICATION, null=True, blank=True)
     Institute = ForeignKey('Institute', verbose_name='机构', null=True, blank=True)
+    comment = CharField('备注', max_length=64, blank=True)
 
     ''' 信息是否属实 '''
     valid = NullBooleanField('是否属实')
+
 
     def save(self, *args, **kwargs): #密码的问题
         edit = self.pk
