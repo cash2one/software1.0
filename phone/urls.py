@@ -5,6 +5,8 @@ from phone import views
 urlpatterns = [
     url(r'^test/$', views.test, name='test'),
 
+    url(r'finuserinfo/$', views.finuserinfo, name='finuserinfo'),
+
     url(r'^sendcode/(?P<flag>[01])/$', views.sendcode, name='sendcode'),
     url(r'^registe/(?P<os>[12])/$', views.registe, name='registe'),
     url(r'^login/$', views.login_, name='login'),
@@ -20,7 +22,13 @@ urlpatterns = [
     url(r'^company/$', views.company, name='company'),
     url(r'^position/$', views.position, name='position'),
     url(r'^addr/$', views.addr, name='addr'),
-    
+   
+    url(r'^hasinform', views.hasinform, name='hasinform'),
+    url(r'^hastopic/$', views.hastopic, name='hastopic'),
+
+    url(r'^inform/(?P<page>\d+)/$', views.inform, name='inform'),
+    url(r'^readinform(?P<pk>[1-9]\d*)/$', views.readinform, name='readinform'),
+
     url(r'^home/$', views.home, name='home'),
     url(r'^customservice/$', views.customservice, name='customservice'),
     url(r'^credit/$', views.credit, name='credit'),
@@ -91,11 +99,6 @@ urlpatterns = [
     url(r'^privacy/$', views.privacy, name='privacy'),
     url(r'^topic/(?P<pk>[1-9]\d*)/$', views.topic, name='topic'),
     url(r'^topiclist/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.topiclist, name='topiclist'),
-    url(r'^hasinform/$', views.hasinform, name='hasinform'),
-    url(r'^systeminform/(?P<page>\d+)/$', views.systeminform, name='systeminform'),
-    url(r'^setsysteminform/(?P<pk>[1-9]\d*)/$', views.setsysteminform, name='setsysteminform'),
-    url(r'^deletesysteminform/(?P<pk>[1-9]\d*)/$', views.deletesysteminform, name='deletesysteminform'),
-    url(r'^hastopic/$', views.hastopic, name='hastopic'),
     url(r'^topicread/(?P<page>\d+)/$', views.topicread, name='topicread'),
     url(r'^settopicread/(?P<pk>\d+)/$', views.settopicread, name='settopicread'),
     url(r'^latestnewscount/$', views.latestnewscount, name='latestnewscount'),

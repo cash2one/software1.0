@@ -303,9 +303,9 @@ class Thinktank(Model):
 
     name = CharField('姓名', max_length=16)
     company = CharField('公司', max_length=64)
-    title = CharField('职位', max_length=64)
-    photo = ImageField('图像', upload_to=UploadTo('thinktank/img/%Y/%m'))
-    thumbnail = ImageField('小图', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'))
+    position = CharField('职位', max_length=64)
+    photo = ImageField('图像', upload_to=UploadTo('thinktank/photo/%Y/%m'))
+    img = ImageField('详情页图像', upload_to=UploadTo('thinktank/img/%Y/%m'))
     video = URLField('链接地址', max_length=64, blank=True)
     experience = TextField('经历')
     case = TextField('成功案例')
@@ -383,11 +383,11 @@ class Topic(Model):
 
 class Push(Model):
     pushtype = PositiveIntegerField('推送类型', choices=PUSHTYPE)
-    user = ManyToManyField('User', verbose_name='推送给', blank=True)
+    user = ManyToManyField('User', verbose_name='推送给', blank=True, help_text='如果为空就推送给所有人')
     title = CharField('标题', max_length=32, default='金指投')
     content = CharField('内容', max_length=64)
     index = PositiveIntegerField('对应的id', blank=True, null=True)
-    url = URLField('地址', blank=True, default='www.jinzht.com')
+    url = URLField('地址', blank=True, help_text='如果是网页, 此次段必填')
     valid = NullBooleanField('是否合法', default=None)
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
 

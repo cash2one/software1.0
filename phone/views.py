@@ -83,6 +83,12 @@ def img(file, default=''):
     if not file: return '%s/media/default/coremember.png' % settings.DOMAIN
     return '%s%s' % (settings.DOMAIN, file.url)
 
+
+@api_view(['GET'])
+@login()
+def finuserinfo(req):
+    return False
+
 @api_view(['POST'])
 def sendcode(req, flag):
 
@@ -180,7 +186,6 @@ def logout(req):
 
 @api_view(['POST'])
 def resetpasswd(req):
-
     tel = req.data.get('tel')
     code = req.data.get('code')
     passwd = req.data.get('passwd')
@@ -212,7 +217,6 @@ def resetpasswd(req):
 @api_view(['POST'])
 @login()
 def modifypasswd(req):
-
     user = u(req)
     old = req.data.get('old')
     new = req.data.get('new')
@@ -343,84 +347,75 @@ def project(req, cursor, page):
     data = {'cursor': cursor, 'data': dct['data']}
     return r_(dct['code'], data, dct['msg'])
 
-@api_view(['POST', 'GET'])
+@api_view(['GET'])
 def thinktankdetail(req, pk):
-    item = i_(Thinktank, pk)
-    if not item: return NOENTITY
-    data = dict()
-    data['url'] = item.video
-    data['experience'] = item.experience
-    data['success_cases'] = item.success_cases
-    data['good_at_field'] = item.good_at_field
+    item = i(Thinktank, pk)
+    if not item: 
+        return r(-2, '系统错误')
+    data = { 
+        'img': img(item.img),
+        'video': item.video,
+        'experience': item.experience,
+        'case': item.case,
+        'domain': item.domain,
+    }
     return Response({'code':0, 'msg':'', 'data':data})
     
-@api_view(['POST', 'GET'])    
+@api_view(['GET'])    
 def thinktank(req, page):
-    queryset = q_(Thinktank.objects.all(), page)
+    size = settings.DEFAULT_PAGESIZE
+    queryset = q(Thinktank.objects.all(), page, size)
     data = list()
     for item in queryset:
-        tmp = dict()
-        tmp['id'] = item.id
-        tmp['img'] = '%s%s' %(URL, item.img.url)
-        tmp['thumbnail'] = '%s%s' %(URL, item.img.url)
-        tmp['name'] = item.name
-        tmp['company'] = item.company
-        tmp['title'] = item.title
-        tmp['experience'] = item.experience
-        data.append(tmp)
-    status = -int(len(queryset)<PAGE_SIZE)
-    return Response({'code':status, 'msg':'加载完毕', 'data':data})
+        data.append({
+            'id': item.id,
+            'photo': img(item.photo),
+            'name': item.name,
+            'company': item.company,
+            'position': item.position,
+        })
+    code = 2 if len(queryset) < size else 0
+    return r_(code, data, '加载完毕')
 
-def videourl(name):
-    q = Auth(settings.AK, settings.SK)
-    base_url = 'http://%s/%s' % (settings.BD, name)
-    private_url = q.private_download_url(base_url, expires=3600)
-    return private_url
-
-def investamountsum(flag, project):
-    if flag == 1: return 0
+def amountsum(flag, project):
+    if flag == 1: 
+        return 0
     elif flag == 2:
-        tmp = InvestShip.objects.filter(project=project, valid=True).aggregate(Sum('invest_amount'))['invest_amount__sum']
+        tmp = InvestShip.objects.filter(project=project, valid=True).aggregate(Sum('amount'))['amount__sum']
         if not tmp: tmp = 0 
         return (tmp + int(project.finance2get))
-    else: return project.finance2get
+    else: 
+        return project.finance2get
 
-@api_view(['POST', 'GET'])
-#@login()
+@api_view(['GET'])
+@login()
 def projectdetail(req, pk):
-    project = i_(Project, pk)
-    if not project: return NOENTITY
-    data = dict()
-    data['company_name'] = project.company.name
-    data['stage'] = stage(project)
-    data['participator2plan'] = project.participator2plan
-    data['plan_finance'] = project.planfinance
-    data['project_img'] = '%s%s' %(URL, project.img.url)
-    data['project_video'] = project.url or createurl(project.roadshow.vcr if project.roadshow else '')
-    data['invest_amount_sum'] = investamountsum(data['stage']['flag'], project)
-    uid = req.session.get('uid')
-    data['is_participator'] = ParticipateShip.objects.filter(project__pk=pk, user__pk=uid).exists()
-    ret = lcv(project)
-    data['like_sum'] = ret['like_sum']
-    data['collect_sum'] = ret['collect_sum']
-    data['vote_sum'] = ret['vote_sum']
-    data['company_profile'] = '    ' + project.company.profile
-    data['business'] = '    ' + project.business
-    data['project_desc'] = '    ' + project.desc
-    data['business_model'] = '    ' + project.model
-    data['leadfund'] = project.leadfund
-    data['followfund'] = project.followfund
-    pes = project.projectevent_set.all()
-    if pes.exists():
-        e = pes[0]
-        data['project_event'] = {
-            'event_date':dateformat(e.happen_datetime),
-            'event_detail':'    ' + e.detail,
-            'event_title':e.title
-        }
-    else:
-        data['project_event'] = None
-    return Response({'code': 0, 'msg': '', 'data': data})
+    item = i(Project, pk)
+    if not item:
+        return r(-2, '系统错误')
+
+    stg = stage(item)
+    user = u(req)
+    data = {
+        'company': item.company.name,
+        'stage': stg,
+        'planfinance': item.planfinance,
+        'img': img(item.img),
+        'video': item.video or createurl(item.upload.vcr if item.upload else ''),
+        'profile': '    ' + item.company.profile,
+        'business': '    ' + item.business,
+        'model': '    ' + item.model,
+        'invest': amountsum(stg['flag'], item),
+        'is_like': user in item.like.all(),
+        'is_collect': user in item.collect_set.all(),
+        'is_attend': user in item.attend.all(),
+        'like': item.like.all().count(),
+        'collect': item.collect_set.all().count(),
+        'minfund': item.minfund,
+        'event': item.event,
+    }
+    return r_(0, data)
+
 
 @api_view(['POST', 'GET'])
 def financeplan(req, pk):
@@ -933,40 +928,28 @@ def modifyposition(req):
     user.position = position.split(',')
     return r(0, '职位设置成功')
 
-def lcv(project, uid=0): # like collect vote
-    data = dict()
-    ls = LikeShip.objects.filter(project=project)
-    data['like_sum'] = ls.count()# + random.randint(100, 200) 
-    cs = CollectShip.objects.filter(project=project)
-    data['collect_sum'] = cs.count()# + random.randint(100, 200) 
-    vs = VoteShip.objects.filter(project=project)
-    data['vote_sum'] = vs.count()# + random.randint(100, 200)
-    return data
 
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 @login()
 def collectfinancing(req, page):
-    uid = req.session.get('uid')
     now = timezone.now()
-    queryset = CollectShip.objects.filter(
-        user__pk=uid, 
+    queryset = Collect.objects.filter(
+        user=u(req),
         project__roadshow_start_datetime__lte=now, 
         project__finance_stop_datetime__gte=now,
     )
-    return  g_project(queryset, page)
+    return  proj(queryset, page)
 
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 @login()
 def collectfinanced(req, page):
-    uid = req.session.get('uid')
-    now = timezone.now()
     queryset = CollectShip.objects.filter(
-        user__pk=uid,
-        project__finance_stop_datetime__lt=now
+        user=u(req),
+        project__finance_stop_datetime__lt=timezone.now()
     )
-    return g_project(queryset, page)
+    return proj(queryset, page)
 
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 @login()
 def collectroadshow(req, page=0):
     uid = req.session.get('uid')
@@ -983,13 +966,7 @@ def collectroadshow(req, page=0):
 def feedback(req):
     uid = req.session.get('uid')
     advice = req.data.get('advice', '').strip()
-    if not advice: return ARG
-    #if Feedback.objects.filter(user__pk=uid, valid=None).exists():
-    #    return r(0, '')
-    Feedback.objects.create(
-        user = User.objects.get(pk=uid),
-        advice = advice
-    )
+    MAIL('反馈', advice).send()
     return r(0, '反馈成功')
 
 @api_view(['GET', 'POST'])
@@ -1308,7 +1285,7 @@ def privacy(req):
 def aboutroadshow(req):
     return document('aboutroadshow')
 
-@api_view(['POST', 'GET'])
+@api_view(['GET'])
 def risk(req):
     return document('risk')
 
@@ -1457,68 +1434,63 @@ def newstype(req):
     data = [{'key':item.id, 'value':item.name} for item in NewsType.objects.filter(~Q(valid=False))]
     return r_(0, data)
 
-@api_view(['POST', 'GET'])
-def knowledgetag(req):
-    data = []
-    return Response({'code':0, 'msg':'', 'data':data})
 
-@api_view(['POST', 'GET'])
+@api_view(['GET'])
 @login()
-def hasinform(req):
-    uid = req.session.get('uid')
-    queryset = Inform.objects.filter(user__pk=uid, read=False)
+def hasinform(req): # 有没有系统通知
+    queryset = Inform.objects.filter(user=u(req), read=False)
     data = {'count': queryset.count()}
-    return Response({'code':0, 'msg':'', 'data':data})    
+    return r_(0, data)
 
-@api_view(['POST', 'GET'])
+
+@api_view(['GET'])
 @login()
-def systeminform(req, page):
-    uid = req.session.get('uid')
-    queryset = SystemInform.objects.filter(user__pk=uid)
-    queryset = q_(queryset, page)
+def inform(req):
+    user = u(req)
+    queryset = Inform.objects.filter(user=user)
+    size = settings.DEFAULT_PAGESIZE
+    queryset = q(queryset, page, size)
     data = list()
     for item in queryset:
-        extras = {'api': item.push.msgtype.name,
-            '_id': item.push._id,
-            'url': item.push.url
-        }
-        tmp = dict()
-        tmp['id'] = item.id
-        tmp['title'] = item.push.msgtype.desc
-        tmp['content'] = item.push.content
-        tmp['extras'] = extras
-        tmp['create_datetime'] = timeformat(item.create_datetime)
-        tmp['read'] = item.read
-        data.append(tmp)
-    return Response({'code':0, 'msg':'', 'data':data})
+        data.append({
+            'id': item.id,
+            'title': item.push.title,
+            'content': item.push.content,
+            'create_datetime': timeformat(item.create_datetime),
+            'read': item.read,
+            'extras':{'api': item.push.pushtype, 'id': item.push.id, 'url': item.push.url}
+        })
+    return r_(0, data)
 
-@api_view(['POST', 'GET'])
+@api_view(['GET'])
 @login()
-def setsysteminform(req, pk):
-    systeminform = i_(SystemInform, pk)
-    if not systeminform: return arg_('systeminform')
-    systeminform.read = True
-    systeminform.save()
-    return Response({'code':0, 'msg':'', 'data':systeminform.read})
+def readinform(req, pk):
+    inform = i(Inform, pk)
+    if not inform:
+        return r(-2, '系统错误')
+    inform.read = True
+    inform.save()
+    return r(0)
 
-@api_view(['POST', 'GET'])
+@api_view(['GET'])
 @login()
-def deletesysteminform(req, pk):
-    systeminform = i_(SystemInform, pk)
-    if not systeminform: return arg_('systeminform')
-    uid = req.session.get('uid')
-    user = User.objects.get(pk=uid)
-    if systeminform.user == user:
-        systeminform.delete()
-        return r(0, '删除成功')
-    return r(1, '不能删除别人的消息')
+def deleteinform(req, pk):
+    inform = i(Inform, pk)
+    if not inform:
+        return r(-2, '系统错误')
+    user = u(req)
+    if inform.user == user:
+        inform.delete()
+        return r(0)
+    return r(1, '不能删除他人评论')
+
 
 @api_view(['GET'])
 @login()
 def hastopic(req):
-    user = User.objects.get(pk=s(req)) 
-    queryset = Topic.objects.filter(at__user=user, read=False)
-    return Response({'code':0, 'msg':'', 'data':{'count':queryset.count()}})
+    queryset = Topic.objects.filter(at__user=u(req), read=False)
+    data = {'count':queryset.count()}
+    return r_(0, data)
 
 @api_view(['POST', 'GET'])
 @login()
@@ -1554,7 +1526,7 @@ def latestknowledgecount(req):
     queryset = News.objects.filter(newstype=4, create_datetime__gt=yesterday)
     return Response({'code':0, 'msg':'', 'data':{'count':queryset.count()}})
 
-def g_feelinglikers(queryset, page, pagesize=settings.FEELINGLIKERS_INITAL_PAGESIZE): 
+def __feelinglike(queryset, page, pagesize): 
     queryset = q(queryset, page, pagesize)
     data = list()
     for item in queryset:
@@ -1565,60 +1537,60 @@ def g_feelinglikers(queryset, page, pagesize=settings.FEELINGLIKERS_INITAL_PAGES
         })
     return data
 
-def __feelingcomment(item, user):
-    tmp = dict()
-    tmp['id'] = item.id
-    tmp['flag'] = item.user == user
-    tmp['name'] = '%s' % (item.user.name)
-    tmp['uid'] = item.user.id
-    tmp['photo'] = img(item.user.photo)
+def _itemcomment(item, user): # 获取某个人的评论
+    dct = {
+        'id': item.id,
+        'flag': item.user == user,
+        'name': '%s' % (item.user.name),
+        'uid': item.user.id,
+        'photo': img(item.user.photo),
+        'content': '%s' % (item.content),
+    }
     if item.at:
-        tmp['at_label'] = '回复' 
-        tmp['at_uid'] = item.at.user.id
-        tmp['at_name'] = item.at.user.name
-    tmp['label_suffix'] = ':'
-    tmp['content'] = '%s' % (item.content)
-    return tmp
+        dct['at_uid'] = item.at.user.id
+        dct['at_name'] = item.at.user.name
+    return dct
 
-def g_feelingcomment(queryset, user, page):
-    queryset = q(queryset, page, settings.FEELINGCOMMENT_PAGESIZE)
-    data = list()
-    for item in queryset:
-        tmp = __feelingcomment(item, user)
-        data.append(tmp)
-    return data
+def __feelingcomment(queryset, user, page, size):
+    queryset = q(queryset, page, size)
+    return [_itemcomment(item, user) for item in queryset]
        
 def __feeling(item, user): # 获取发表的状态的关联信息
-    tmp = dict()
-    tmp['id'] = item.id
-    tmp['uid'] = item.user.id
-    tmp['flag'] = item.user == user
-    tmp['datetime'] = dt_(item.create_datetime)
-    tmp['name'] = item.user.name
-    tmp['photo'] = img(item.user.photo)
-    tmp['content'] = item.content
+    tmp = { 
+        'id': item.id,
+        'uid': item.user.id,
+        'company': item.user.company,
+        'position': item.user.position,
+        'flag': item.user == user,
+        'datetime': dt_(item.create_datetime),
+        'name': item.user.name,
+        'photo': img(item.user.photo),
+        'content': item.content,
+    } 
     news = item.news
     if news: 
         tmp['share'] = {
             'id': news.id,
             'title': news.title, 
-            'src': news.src,
-            'href': '%s/%s/%s' %(settings.DOMAIN, settings.NEWS_URL_PATH, news.name)
+            'img': img(news.img),
+            'url': '%s/%s/%s' %(settings.DOMAIN, settings.NEWS_URL_PATH, news.name)
         }
     else:
-        #if item.pic == '':
-            
-        tmp['pic'] = [] if item.pic==''  else [ os.path.join(settings.DOMAIN, v) for v in item.pic.split(';') ]
+        if not item.pic:
+            tmp['pic'] = []
+        else:
+            tmp['pic'] = [ os.path.join(settings.DOMAIN, v) for v in item.pic.split(';') ]
+
     tmp['is_like'] = user in item.like.all()
-    tmp['like'] = g_feelinglikers(item.like.all(), 0) # page_size=3
-    remain_likers_num = item.like.all().count() - settings.FEELINGLIKERS_INITAL_PAGESIZE
-    tmp['remain_likers_num'] = 0 if remain_likers_num <=0 else remain_likers_num
-    tmp['position'] = item.user.position
+
+    size = settings.FEELINGLIKE_PAGESIZE
+    tmp['like'] = __feelinglike(item.like.all(), 0, size)
+    tmp['remain_like'] = max(0, item.like.all().count() - size)
+
     queryset = FeelingComment.objects.filter(feeling=item, valid=None)
-    data = g_feelingcomment(queryset, user, 0)
-    tmp['comment'] = data
-    remain_comment_num = queryset.count() - 15
-    tmp['remain_comment_num'] = 0 if remain_comment_num <=0 else remain_comment_num 
+    size = settings.FEELINGCOMMENT_PAGESIZE
+    tmp['comment'] = __feelingcomment(queryset, user, 0, size)
+    tmp['remain_comment'] = max(0, queryset.count() - size)
     return tmp  
 
 @api_view(['GET','POST'])
@@ -1698,7 +1670,7 @@ def deletefeeling(req, pk):
         return r(0, '删除状态成功')
     return r(1, '不能删除别人的状态')
 
-@api_view(['POST'])
+@api_view(['GET'])
 @login()
 def likefeeling(req, pk, is_like):
     item = i(Feeling, pk)
@@ -1721,25 +1693,26 @@ def likefeeling(req, pk, is_like):
 @api_view(['GET'])
 @login()
 def feelinglikers(req, pk, page):
-    item = i_(Feeling, pk)
-    if not item: return NOENTITY
+    item = i(Feeling, pk)
+    if not item:
+        return r(-2, '系统错误')
     queryset = item.like.all()
-    pagesize = settings.FEELINGLIKERS_PAGESIZE
-    data = g_feelinglikers(queryset, page, pagesize)
-    status = -(len(data)<pagesize)
-    return Response({'code':status, 'msg':'', 'data':data})
+    size = settings.FEELINGLIKE_PAGESIZE
+    data = __feelinglike(queryset, page, size)
+    code = 2 if len(data) < size else 0
+    return r_(code, data)
 
 @api_view(['GET'])
 @login()
 def feelingcomment(req, pk, page):
-    item = i_(Feeling, pk)
+    item = i(Feeling, pk)
     if not item: return NOENTITY
     user = User.objects.get(pk=req.session.get('uid'))
     queryset = Feelingcomment.objects.filter(feeling=item, valid=None)
-    pagesize = settings.FEELINGCOMMENT_PAGESIZE
-    data = g_feelingcomment(queryset, user, page)
-    status = -(len(data)<pagesize)
-    return Response({'code':status, 'msg':'', 'data':data})
+    size = settings.FEELINGCOMMENT_PAGESIZE
+    data = __feelingcomment(queryset, user, page, size)
+    code = 2 if len(data) < size else 0 
+    return r_(code, data)
 
 @api_view(['POST'])
 @login()
@@ -1762,7 +1735,7 @@ def postfeelingcomment(req, pk):
         content = content,
         at = at
     )
-    data = __feelingcomment(obj, user)
+    data = _itemcomment(obj, user)
     return r_(0, data)
 
 @api_view(['POST'])

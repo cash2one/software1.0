@@ -169,9 +169,9 @@ class BannerAdmin(admin.ModelAdmin):
 
 class ThinktankAdmin(admin.ModelAdmin):
     form = ThinktankForm
-    list_display = ('id', 'name', 'title', '_img')
+    list_display = ('id', 'name', 'position', '_img')
     def _img(self, obj):
-        return '<a target="_blank" href="%s">img</a>' % (obj.img.url)
+        return '<a target="_blank" href="%s">img</a>' % (obj.photo.url)
     _img.allow_tags = True
     _img.short_description = '图像'
 
