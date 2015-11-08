@@ -1,6 +1,7 @@
 # coding: utf-8
 from django.contrib import admin
 from django.contrib import messages
+from django.utils.html import format_html
 
 from .modelform import *
 
@@ -12,7 +13,7 @@ class UserAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'tel', 'gender', 'addr', 'company', '_create_datetime')
     search_fields = ('tel',)
     
-    readonly_fields = ('photo', '_photo', 'nickname', 'name', 'tel', 'passwd', 
+    readonly_fields = ('idpic', '_idpic', 'photo', '_photo', 'nickname', 'name', 'tel', 'passwd', 
         'gender', 'idno',  'email', 'company', 'position', 
         'addr', 'birthday', 'birthplace', 
         'bg','regid', 'version', 
@@ -23,10 +24,18 @@ class UserAdmin(admin.ModelAdmin):
             url = obj.photo.url
         else:
             url = ''
-        from django.utils.html import format_html
         return  format_html('<img width="200px" src="%s"/>' % url)
-        _photo.allow_tags = True
-        _photo.short_description = 'fjajf图像'
+    _photo.allow_tags = True
+    _photo.short_description = 'photo'
+
+    def _idpic(self, obj):
+        if  obj.idpic:
+            url = obj.idpic.url
+        else:
+            url = ''
+        return  format_html('<img width="200px" src="%s"/>' % url)
+    _idpic.allow_tags = True
+    _idpic.short_description = '身份证'
 
     def _create_datetime(self, obj):
         return timeformat(obj.create_datetime)
@@ -102,7 +111,7 @@ class ProjectAdmin(admin.ModelAdmin):
         }),
 
         ('内容', {
-            'fields':('model', 'business')
+            'fields':('model', 'business', 'tag')
         }),
         ('融资', {
             'fields':(('planfinance', 'finance2get', 'share2give', 'quitway'), 'usage')

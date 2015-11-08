@@ -5,7 +5,6 @@ from phone import views
 urlpatterns = [
     url(r'^test/$', views.test, name='test'),
 
-    url(r'finuserinfo/$', views.finuserinfo, name='finuserinfo'),
 
     url(r'^sendcode/(?P<flag>[01])/$', views.sendcode, name='sendcode'),
     url(r'^registe/(?P<os>[12])/$', views.registe, name='registe'),

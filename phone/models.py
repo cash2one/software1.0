@@ -90,6 +90,7 @@ class User(Model):
     birthday = DateField('生日', null=True, blank=True)
 
     ''' 认证信息 '''
+    idpic = ImageField('身份证', upload_to=UploadTo('company/idpic/%Y/%m'), blank=True)
     qualification = CharField('认证条件', max_length=32, blank=True) #PositiveSmallIntegerField('认证条件', choices=QUALIFICATION, null=True, blank=True)
     Institute = ForeignKey('Institute', verbose_name='机构', null=True, blank=True)
     comment = CharField('备注', max_length=64, blank=True)
@@ -169,7 +170,7 @@ class Project(Model):
     ''' 项目所关联的公司 '''
     company = ForeignKey('Company', verbose_name='公司', on_delete=PROTECT, blank=True)
     video = URLField('视频地址', blank=True)
-    tag = TextField('标签', blank=True)
+    tag = CharField('标签', max_length=32, blank=True)
    
     ''' 项目概况 '''
     img = ImageField('图片', upload_to=UploadTo('project/img/%Y/%m')) 
@@ -198,6 +199,8 @@ class Project(Model):
 
     ''' 公司新闻 '''
     event = TextField('公司新闻')
+
+    rcmd = NullBooleanField('推荐')
 
     def __str__(self): return '%s%s' % (self.pk, self.company)
     
