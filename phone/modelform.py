@@ -32,15 +32,9 @@ class ProjectForm(forms.ModelForm):
     
     def clean(self):
         cleaned_data = super(ProjectForm, self).clean()
-
-        roadshow_start_datetime = cleaned_data.get('roadshow_start_datetime')
-        roadshow_stop_datetime = cleaned_data.get('roadshow_stop_datetime')
-        finance_stop_datetime = cleaned_data.get('finance_stop_datetime')
-
-        if roadshow_start_datetime and roadshow_stop_datetime and finance_stop_datetime:
-            if roadshow_start_datetime >= roadshow_stop_datetime:
-                raise forms.ValidationError('路演开始时间 必须< 路演截至时间')
-            elif roadshow_stop_datetime > finance_stop_datetime:
+        start = cleaned_data.get('start')
+        stop = cleaned_data.get('stop')
+        if start and stop and start > stop:
                 raise forms.ValidationError('路演截至时间 必须<= 融资截至时间')
 
 

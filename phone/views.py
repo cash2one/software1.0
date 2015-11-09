@@ -22,7 +22,7 @@ PK_RE = re.compile(r'^[1-9]\d*$')
 MTM_RE = re.compile(r'^[1-9]\d*(,[1-9]\d*)*$')
 CHINESE_RE = re.compile(r'[\u4e00-\u9fa5a-zA-Z]+')
 
-NOENTITY = Response({'code':1, 'msg':'操作异常'})
+NOENTITY = Response({'code': -2, 'msg': '非法操作'})
 
 def r(code, msg=''):
     return Response({'code': code, 'msg': msg}) 
@@ -31,6 +31,8 @@ def r_(code, data, msg=''):
     return Response({'code': code, 'msg': msg, 'data': data})
 
 def q(QuerySet, page, size=4):
+    if not QuerySet: 
+        return []
     page, size = int(page), int(size)
     s = page * size
     e = (page+1) * size
@@ -84,7 +86,7 @@ def img(file, default=''):
     return '%s%s' % (settings.DOMAIN, file.url)
 
 
-def fininfo(user):
+def info(user):
     if not user.name or not user.idno or not user.company or not user.position or not user.addr:
         return False
     return True
@@ -166,12 +168,12 @@ def login_(req):
         if passwd == user.passwd:
             req.session['uid'] = user.id 
             req.session.set_expiry(3600 * 24)
-            if regid: # 如果redid存在
-                user.regid = regid
-                user.version = version
-                user.last_login = timezone.now()
-                user.save()
-            return r_(0, {'fininfo': fininfo(user)}, '登录成功')
+            user.regid = regid
+            user.version = version
+            user.lastlogin = timezone.now()
+            user.save()
+            data = {'auth': user.valid, 'info': info(user)}
+            return r_(0, data, '登录成功')
         return r(1, '手机号码或密码错误')
     return r(1, '您尚未注册, 请先注册')
 
@@ -241,7 +243,7 @@ def weixin(req):
 
 def stage(project):
     now = timezone.now()
-    if not project.roadshow_start_datetime:
+    if not project.start:
         stage = {
             'flag': 1,
             'code': '路演预告',
@@ -255,34 +257,34 @@ def stage(project):
                 'datetime': '待定'
             }
         }
-    elif now < project.roadshow_start_datetime: # 现在时间 < 路演开始时间
+    elif now < project.start: # 现在时间 < 路演开始时间
         stage = { 
                     'flag': 1,
                     'code': '路演预告', 
                     'color': 0xE69781,
                     'start': {
                         'name':'路演时间', 
-                        'datetime':dateformat(project.roadshow_start_datetime)
+                        'datetime':dateformat(project.start)
                         },
                     'end': {
                         'name':'报名截止', 
-                        'datetime': dateformat(project.roadshow_start_datetime - timedelta(days=2))
+                        'datetime': dateformat(project.start- timedelta(days=2))
                         }
                 }
 
-    elif now > project.roadshow_stop_datetime:
-        if now > project.finance_stop_datetime:
+    elif now > project.stop:
+        if now > project.stop:
             stage = {
                     'flag': 3,
                     'code': '融资完毕', 
                     'color': 0xDC471C,
                     'start': {
                         'name': '众筹时间', 
-                        'datetime': dateformat(project.roadshow_start_datetime),
+                        'datetime': dateformat(project.start),
                     },
                     'end': {
                         'name': '截止时间', 
-                        'datetime': dateformat(project.finance_stop_datetime)
+                        'datetime': dateformat(project.stop)
                     }
                 }
         else:
@@ -292,11 +294,11 @@ def stage(project):
                     'color': 0xD4A225,
                     'start': {
                         'name': '众筹时间', 
-                        'datetime': dateformat(project.roadshow_start_datetime),
+                        'datetime': dateformat(project.start),
                     },
                     'end': {
                         'name': '截止时间', 
-                        'datetime': dateformat(project.finance_stop_datetime)
+                        'datetime': dateformat(project.stop)
                     }
                 }
     else:
@@ -306,25 +308,19 @@ def stage(project):
                     'color': 0xD4A225,
                     'start': {
                         'name': '众筹时间', 
-                        'datetime': dateformat(project.roadshow_start_datetime),
+                        'datetime': dateformat(project.start),
                     },
                     'end': {
                         'name': '截止时间', 
-                        'datetime': dateformat(project.finance_stop_datetime)
+                        'datetime': dateformat(project.stop)
                     }
                 }
     return stage
 
-def _finance(page):
+
+def _finance(queryset, page):
     size = settings.DEFAULT_PAGESIZE
-    now = timezone.now()
-    queryset = Project.objects.filter( 
-        Q(roadshow_start_datetime__isnull=True) | 
-        Q(roadshow_start_datetime__lte = now, finance_stop_datetime__gte = now)
-    )
     queryset = q(queryset, page, size)
-    if not queryset:
-        return {'code': 2, 'data': [], 'msg': '加载完毕'}
     data = list()
     for item in queryset:
         data.append({
@@ -332,17 +328,14 @@ def _finance(page):
             'img': img(item.img),
             'company': re.sub(r'(股份)?有限(责任)?公司', '', item.company.name),
             'tag': item.tag,
-            'date': item.roadshow_start_datetime or '待定',
+            'date': dateformat(item.start),
         }) 
     code = 2 if len(queryset) < size else 0
-    return {'code': code, 'data': data, 'msg': '加载完毕'}
+    return r_(code, data, '加载完毕')
 
-def _financing(page):
+def _financing(queryset, page):
     size = settings.DEFAULT_PAGESIZE
-    now = timezone.now()
-    queryset = q(Project.objects.filter(roadshow_start_datetime__lte=now, finance_stop_datetime__gte=now), page, size)
-    if not queryset:
-        return {'code': 2, 'data': [], 'msg': '加载完毕'}
+    queryset = q(queryset, page, size)
     data = list()
     for item in queryset:
         _queryset = Invest.objects.filter(project=item, valid=True)
@@ -357,16 +350,14 @@ def _financing(page):
             'planfinance': item.planfinance,
             'invest': invest,    
             'investor': investor,
-            'date': item.finance_stop_datetime,
+            'date': dateformat(item.stop),
         }) 
     code = 2 if len(queryset) < size else 0
-    return {'code': code, 'data': data, 'msg': '加载完毕'}
+    return r_(code, data, '加载完毕')
 
-def _financed(page):
+def _financed(queryset, page):
     size = settings.DEFAULT_PAGESIZE
-    queryset = q(Project.objects.filter(finance_stop_datetime__lt = timezone.now()), page, size)
-    if not queryset:
-        return {'code': 2, 'data': [], 'msg': '加载完毕'}
+    queryset = q(queryset, page, size)
     data = list()
     for item in queryset:
         _queryset = Invest.objects.filter(project=item, valid=True)
@@ -381,9 +372,23 @@ def _financed(page):
             'planfinance': item.planfinance,
             'invest': invest,    
             'investor': investor,
+            'date': dateformat(item.stop),
         }) 
     code = 2 if len(queryset) < size else 0
-    return {'code': code, 'data': data, 'msg': '加载完毕'}
+    return r_(code, data, '加载完毕')
+
+def _preelection(queryset, page):
+    size = settings.DEFAULT_PAGESIZE
+    queryset = q(queryset, page, size)
+    data = list()
+    for item in queryset:
+        data.append({
+            'name': item.name,
+            'tel': item.tel,
+            'company': item.company,
+            'vcr': create(item.vcr),
+        })
+    return r_(0, data)
 
 @api_view(['GET'])
 @login()
@@ -396,25 +401,27 @@ def project(req, cursor, page):
     if cursor == 0:
         cursor = settings.CURSOR # 默认显示
     #---------- 根据cursor返回不同的值-----------#
+    now = timezone.now()
     if cursor == 1:
-        dct = _finance(page)
+        queryset = Project.objects.filter(Q(start__isnull=True) | Q(start__gt=now))
+        return _finance(queryset, page)
     elif cursor == 2:
-        dct = _financing(page)
+        queryset = Project.objects.filter(start__lte=now, stop__gte=now)
+        return  _financing(queryset, page)
     elif cursor == 3:
-        dct = _financed(page)
+        queryset = Project.objects.filter(stop__lt=now)
+        return  _financed(queryset, page)
     else:
-        pass
+        queryset = Upload.objects.filter(valid=True)
+        return  _preelection(queryset, page)
     #--------- End cursor ----------------------#
-    data = {'cursor': cursor, 'data': dct['data']}
-    return r_(dct['code'], data, dct['msg'])
 
 @api_view(['GET'])
 def thinktankdetail(req, pk):
     item = i(Thinktank, pk)
     if not item: 
         return r(-2, '系统错误')
-    data = { 
-        'img': img(item.img),
+    data = {
         'video': item.video,
         'experience': item.experience,
         'case': item.case,
@@ -458,6 +465,7 @@ def projectdetail(req, pk):
     stg = stage(item)
     user = u(req)
     data = {
+        'id': item.id,
         'company': item.company.name,
         'stage': stg,
         'planfinance': item.planfinance,
@@ -468,7 +476,7 @@ def projectdetail(req, pk):
         'model': '    ' + item.model,
         'invest': amountsum(stg['flag'], item),
         'is_like': user in item.like.all(),
-        'is_collect': user in item.collect_set.all(),
+        'is_collect': Collect.objects.filter(user=user, project=item).exists(), #item.collect_set.all().filter(user=user).exists(),
         'is_attend': user in item.attend.all(),
         'like': item.like.all().count(),
         'collect': item.collect_set.all().count(),
@@ -477,111 +485,105 @@ def projectdetail(req, pk):
     }
     return r_(0, data)
 
-
-@api_view(['POST', 'GET'])
+@api_view(['GET'])
 def financeplan(req, pk):
-    item = i_(Project, pk)
-    if not item: return NOENTITY
-    data = dict()
-    data['plan_finance'] = item.planfinance
-    data['finance_pattern'] = item.pattern
-    data['share2give'] = item.share2give
-    data['fund_purpose'] = item.usage
-    data['quit_way'] = item.quitway
-    return Response({'code':0, 'msg':'', 'data': data})
-
-@api_view(['POST', 'GET'])
-def coremember(req, pk):
-    project = i_(Project, pk)
-    if not project: return NOENTITY
-    data = list()
-    queryset = project.coremember_set.all()
-    for item in queryset:
-        tmp = dict()
-        tmp['id'] = item.id
-        tmp['img'] = img(item.img)
-        tmp['name'] = item.name
-        tmp['title'] = item.title
-        tmp['profile'] = item.profile
-        data.insert(0, tmp)
-    return Response({'code':0, 'msg':'', 'data':data})
-
-@api_view(['POST', 'GET'])
-def corememberdetail(req, pk):
-    coremember = i_(CoreMember, pk)
-    if not coremember: return NOENTITY
-    data = dict()
-    data['profile'] = coremember.profile
-    return Response({'code':0, 'msg':'', 'data':data})
-
-@api_view(['POST', 'GET'])
-def projectinvestorlist(req, pk):
-    queryset = InvestShip.objects.filter(project__pk=pk, valid=True)
-    data = list()
-    for item in queryset:
-        tmp = dict()
-        investor = item.investor
-        user = investor.user
-        tmp['certificate_datetime'] = dateformat(investor.certificate_datetime)
-        tmp['invest_amount'] = item.invest_amount
-        tmp['real_name'] = user.name
-        tmp['user_img'] = img(user.img)
-        data.append(tmp)
-    return Response({'code':0, 'msg':'', 'data':data})
-
-@api_view(['POST', 'GET'])
-def projectevent(req, pk):
-    queryset = ProjectEvent.objects.filter(project__pk=pk)
-    data = list()
-    for item in queryset:
-        tmp = dict()
-        tmp['event_title'] = item.title
-        tmp['event_detail'] = item.detail
-        tmp['event_date'] = item.happen_datetime
-        data.append(tmp)
-    return Response({'code':0, 'msg':'', 'data':data})
-
-@api_view(['POST', 'GET'])
-@login()
-def participate(req, pk):
-    project = i_(Project, pk)
-    if not project: return NOENTITY
-    user = User.objects.get(pk=req.session.get('uid'))
-    item = ParticipateShip.objects.filter(project=project, user=user)
-    if item.exists(): return r(1, '您已申请参加该项目路演, 无需重复报名')
-    ParticipateShip.objects.create(project=project, user=user)
-    return r(0, '恭喜您, 申请成功')
+    item = i(Project, pk)
+    if not item: 
+        return NOENTITY
+    data = {
+        'planfinance': item.planfinance,
+        'share2give': item.share2give,
+        'usage': item.usage,
+        'quitway': item.quitway,
+        'minfund': item.minfund,
+    }
+    return r_(0, data)
 
 @api_view(['GET'])
-def defaultclassify(req): return Response({'code':0, 'msg':'', 'data':0})
-
-def proj(queryset, page): 
-    queryset = q(queryset, page)
-    if not queryset:
-        return {'code': 2, 'data': [], 'msg': '加载完毕'}
-    if isinstance(queryset[0], Project): flag = 'p'
-    elif isinstance(queryset[0], Invest): flag = 'i'
-    elif isinstance(queryset[0], Collect): flag= 'c'
+@login()
+def member(req, pk):
+    project = i(Project, pk)
+    if not project: 
+        return NOENTITY
     data = list()
-    for project in queryset:
-        if not flag == 'p': 
-            project = project.project
-        data.append({
-            'id': project.id,
-            'img': img(project.img), 
-            'company': re.sub(r'(股份)?有限(责任)?公司', '', project.company.name),
-            'addr': project.company.addr,
-            'stage': stage(project)
+    for item in project.member_set.all():
+        data.insert(0, {
+            'id': item.id,
+            'photo': img(item.photo),
+            'name': item.name,
+            'position': item.position,
+            'profile': item.profile,
         })
-    code = 2 if len(queryset) < settings.DEFAULT_PAGESIZE else 0
-    return {'code': code, 'data': data, 'msg': '加载完毕'}
+    return r_(0, data)
 
-@api_view(['POST', 'GET'])
-def finishfinance(req, page):
-    #ps = Project.objects.annotate(invested_sum=Sum('investship__invest_amount')).filter(invested_sum__gte=F('planfinance'))
-    now = timezone.now()
-    ret = g_project( Project.objects.filter(finance_stop_datetime__lt = now), page )
-    return ret
+
+@api_view(['GET'])
+def investlist(req, pk):
+    queryset = Invest.objects.filter(project__pk=pk, valid=True)
+    data = list()
+    for item in queryset:
+        user = item.user
+        data.append({
+            'amount': item.amount,
+            'name': user.name,
+            'photo': img(user.photo),
+        })
+    return r_(0, data)
+
+@api_view(['GET'])
+@login()
+def attend(req, pk):
+    project = i(Project, pk)
+    if not project: 
+        return NOENTITY
+    user = u(req)
+    if user in project.attend.all(): 
+        return r(1, '您已申请参加该项目, 无需重复报名')
+    project.attend.add(user)
+    return r(0, '恭喜您, 申请成功')
+
+def _auth(queryset, page):
+    size = settings.DEFAULT_PAGESIZE
+    queryset = q(queryset, page, size)
+    data = list()
+    for item in queryset:
+        data.append({
+            'id': item.id,
+            'name': item.name,
+            'company': item.company,
+            'position': item.position,
+            'date': dateformat(item.create_datetime),
+        }) 
+    code = 2 if len(queryset) < size else 0
+    return r_(code, data, '加载完毕')
+
+def _institute(queryset, page):
+    size = settings.DEFAULT_PAGESIZE
+    queryset = q(queryset, page, size)
+    data = list()
+    for item in queryset:
+        data.append({
+            'id': item.id,
+            'name': item.name,
+            'legalperson': item.legalperson,
+        }) 
+    code = 2 if len(queryset) < size else 0
+    return r_(code, data, '加载完毕')
+
+@api_view(['GET'])
+#@login()
+def investor(req, cursor, page):
+    cursor = int(cursor)
+    if cursor == 0:
+        cursor = settings.CURSOR # 默认显示
+    
+    if cursor == 1:
+        queryset = User.objects.filter(valid=True)
+        return _auth(queryset, page)
+    if cursor == 2:
+        queryset = Institute.objects.all()
+        return _institute(queryset, page)
+#ps = Project.objects.annotate(invested_sum=Sum('investship__invest_amount')).filter(invested_sum__gte=F('planfinance'))
 
 @api_view(['POST'])
 @login()
@@ -604,101 +606,6 @@ def wantroadshow(req):
         vcr = vcr,
     )
     return Response({'code':0, 'msg':'上传项目成功, 您的项目已成功入选项目库', 'data':obj.id})
-
-
-
-#@api_view(['POST'])
-#@login()
-#def addcompany(req):
-#    uid = req.session.get('uid')
-#    user = User.objects.get(pk=uid)
-#    invalids = JoinShip.objects.filter(~Q(valid=True), user=user)
-#    if invalids.exists(): return r(1, '您尚有公司在审核中, 请耐心等待')
-#    name = req.data.get('company_name')
-#    company = Company.objects.filter(name=name)
-#    if company.exists(): company = company[0]
-#    else:
-#        province = req.data.get('province')
-#        city = req.data.get('city')
-#        industry= req.data.get('industry_type').split(',')
-#        companystatus = req.data.get('company_status')
-#        company = Company.objects.create(
-#            name = name,
-#            province = province,
-#            city = city,
-#            companystatus = Companystatus.objects.get(pk=companystatus)
-#        )
-#        company.industry= industry
-#
-#    if not JoinShip.objects.filter(user__pk=uid, company__pk=company.id).exists():
-#        JoinShip.objects.create(user=user,company=company)
-#    data = dict()
-#    data['id'] = company.id
-#    data['company'] = company.name
-#    return Response({'code':0, 'msg':'公司添加成功', 'data':data})
-
-@api_view(['POST'])
-@login()
-def editcompany(req, pk):
-    return r(0, '')
-
-#@api_view(['POST', 'GET'])
-#def companyinfo(req, pk):
-#    item = i_(Company, pk)
-#    if not item: return NOENTITY
-#    data = dict()
-#    data['industry_type'] = [it.name for it in item.industry.all()]
-#    data['province'] = item.province
-#    data['city'] = item.city
-#    data['company_status'] = item.companystatus.name
-#    return Response({'code':0, 'msg':'', 'data':data})
-
-#@api_view(['POST', 'GET'])
-#@login()
-#def companylist(req):
-#    user = User.objects.get(pk=req.session.get('uid'))
-#    data = [{'id':o.id, 'company_name':o.name} for o in user.company.all()]
-#    return Response({'code':0, 'msg':'', 'data':data})
-
-#@api_view(['POST', 'GET'])
-#def industry(req):
-#    data = [{'id':o.id, 'type_name':o.name} for o in Industry.objects.all()]
-#    return Response({'code':0, 'msg':'', 'data':data})
-
-@api_view(['POST', 'GET'])
-def companystatus(req):
-    data = [{'id':o.id, 'status_name':o.name} for o in Companystatus.objects.all()]
-    return Response({'code':0, 'msg':'', 'data':data})
-
-
-@api_view(['POST', 'GET'])
-@login()
-def authenticate(req):
-    name = req.data.get('name','').strip()
-    position = req.data.get('position', '').strip()
-    company = req.data.get('company','').strip()
-    if not name or not position or not company: return arg_('请完善信息')
-    qualification = req.data.get('qualification','').strip()
-    if not MTM_RE.match(qualification): return arg_('qualification')
-
-    user = User.objects.get(pk=req.session.get('uid'))
-    queryset = Investor.objects.filter(user=user)
-
-    if queryset.exists():
-        valid = queryset[0].valid
-        if valid == None: return r(1, '该身份认证正在审核中')
-        elif valid == False: return r(1, '认证失败, 请去用户中心查看详情')
-        else: return r(1, '认证成功')
-    
-    investor = Investor.objects.create(
-         user=user,
-         position = position,
-         comment = company
-    )
-    investor.qualification = qualification.split(',')
-    user.name = name; user.save()
-    return r(0, '提交成功, 等待审核')
-
 
 @api_view(['GET'])
 @login()
@@ -813,8 +720,8 @@ def home(req):
     now = timezone.now()
     #rcmd=True
     queryset = Project.objects.filter(
-        roadshow_start_datetime__lte=now, 
-        finance_stop_datetime__gte=now,
+        start__lte=now, 
+        stop__gte=now,
     )
     queryset = q(queryset, 0, size)
     project = list()
@@ -829,7 +736,7 @@ def home(req):
             'tag': item.tag,
             'planfinance': item.planfinance,
             'invest': invest,
-            'date': item.finance_stop_datetime,
+            'date': item.stop,
         }) 
     
     data = {
@@ -965,51 +872,33 @@ def auth(req):
         user.save()
         return r(0, '认证提交成功') 
 
-@api_view(['POST'])
+@api_view(['GET'])
 @login()
-def like(req, pk):
-    uid = req.session.get('uid')
-    action = req.data.get('action') 
-    if action == '1':
-        LikeShip.objects.create(
-            user = User.objects.get(pk=uid),
-            project = Project.objects.get(pk=pk)
-        )
-        return r(0)
+def like(req, pk, flag):
+    user = u(req)
+    project = i(Project, pk)
+    if not project:
+        return r(-2, '系统错误')
+    if flag == '0':
+        project.like.add(user)
+        return r_(0, {'is_like': True})
     else:
-        LikeShip.objects.filter(
-            user__pk=uid,
-            project__pk=pk
-        ).delete()
-        return r(0)
+        project.like.remove(user)
+        return r_(0, {'is_like': False})
 
-@api_view(['POST'])
+@api_view(['GET'])
 @login()
-def collect(req, pk):
-    uid = req.session.get('uid')
-    action = req.data.get('action') 
-    if action == '1':
-        CollectShip.objects.create(
-            user = User.objects.get(pk=uid),
-            project = Project.objects.get(pk=pk)
-        )
-        return r(0, '收藏成功')
+def collect(req, pk, flag):
+    user = u(req)
+    project = i(Project, pk)
+    if not project:
+        return r(-2, '系统错误')
+    if flag == '0':
+        Collect.objects.create(user=user, project=project)
+        return r_(0, {'is_collect': True})
     else:
-        CollectShip.objects.filter(
-            user__pk=uid,
-            project__pk=pk
-        ).delete()
-        return r(0, '取消收藏')
-
-@api_view(['POST'])
-@login()
-def modifyposition(req):
-    position = req.data.get('position_type', '').strip()
-    if not MTM_RE.match(position): return arg_('position')
-    user = User.objects.get(pk=req.session.get('uid'))
-    user.position = position.split(',')
-    return r(0, '职位设置成功')
-
+        Collect.objects.filter(user=user, project=project).delete()
+        return r_(0, {'is_collect': False})
 
 @api_view(['GET'])
 @login()
@@ -1017,31 +906,46 @@ def collectfinancing(req, page):
     now = timezone.now()
     queryset = Collect.objects.filter(
         user=u(req),
-        project__roadshow_start_datetime__lte=now, 
-        project__finance_stop_datetime__gte=now,
+        project__start__lte=now, 
+        project__stop__gte=now,
     )
-    return  proj(queryset, page)
+    return __collect(queryset, page)
 
 @api_view(['GET'])
 @login()
 def collectfinanced(req, page):
-    queryset = CollectShip.objects.filter(
+    queryset = Collect.objects.filter(
         user=u(req),
-        project__finance_stop_datetime__lt=timezone.now()
+        project__stop__lt=timezone.now()
     )
-    return proj(queryset, page)
+    return __collect(queryset, page)
+
+def __collect(queryset, page):
+    size = settings.DEFAULT_PAGESIZE
+    queryset = q(queryset, page, size)
+    data = list()
+    for item in queryset:
+        project = item.project
+        data.append({
+            'id': project.id,
+            'img': img(project.img),
+            'company': project.company.name,
+            'start': dateformat(project.start),
+            'stop': dateformat(project.stop),
+        })
+    code = 2 if len(queryset) < size else 0
+    return r_(code, data, '加载完毕')
 
 @api_view(['GET'])
 @login()
-def collectroadshow(req, page=0):
-    uid = req.session.get('uid')
+def collectfinance(req, page):
     now = timezone.now()
-    queryset = CollectShip.objects.filter(
-        Q(project__roadshow_start_datetime__isnull=True) | 
-        Q(project__roadshow_start_datetime__gt=now),
-        user__pk=uid, 
+    queryset = Collect.objects.filter( 
+        Q(project__start__isnull=True) | 
+        Q(project__start__gt=now),
+        user=u(req)
     )
-    return g_project(queryset, page)
+    return __collect(queryset, page)
 
 @api_view(['POST', 'GET'])
 @login()
@@ -1072,22 +976,6 @@ def projectsearch(req, pk, page):
     return g_project(queryset, page)
 
 
-@api_view(['POST', 'GET'])
-@login()
-def myinvestorlist(req):
-    uid = req.session.get('uid')
-    ivs = Investor.objects.filter(user__pk=uid, valid=True)
-    data = list()
-    for iv in ivs:
-        tmp = dict()
-        tmp['id'] = iv.id
-        if iv.company is None:
-            tmp['company'] = '自然人'
-        else:
-            tmp['company'] = iv.company.name
-        data.append(tmp)
-    return Response({'code':0, 'msg':'', 'data':data})
-        
 @api_view(['GET', 'POST'])
 @login()
 def wantinvest(req, pk):
@@ -1118,28 +1006,6 @@ def wantinvest(req, pk):
     )
     return r(0, '工信您, 投资信息提交成功')
 
-@api_view(['GET', 'POST'])
-@login()
-def myinvestorauthentication(req):
-    uid = req.session.get('uid')
-    invs = Investor.objects.filter(user__pk=uid) 
-    data = list()
-    for inv in invs:
-        tmp = dict()
-        tmp['id'] = inv.id
-        tmp['company'] = inv.company.name if inv.company else '自然人'
-        tmp['apply_for_certificate_datetime'] = timeformat(inv.create_datetime)
-        tmp['audit_date'] = timeformat(inv.create_datetime + timedelta(seconds=2))
-        tmp['certificate_datetime'] = timeformat(inv.certificate_datetime)
-        tmp['is_qualified'] = inv.valid
-        if inv.valid == True:
-            tmp['reject_reason'] = '认证成功' 
-        elif inv.valid == False:
-            tmp['reject_reason'] = inv.reason 
-        else:
-            tmp['reject_reason'] = '等待审核, 预计2天内处理完毕'
-        data.append(tmp)
-    return Response({'code':0, 'msg':'', 'data':data})
 
 @api_view(['GET', 'POST'])
 @login()
@@ -1166,33 +1032,6 @@ def myroadshow(req):
             tmp['reason'] = obj.reason 
         else:
             tmp['reason'] = '等待审核, 预计2天内处理完毕' 
-        data.append(tmp)
-    return Response({'code':0, 'msg':'', 'data':data})
-
-@api_view(['GET', 'POST'])
-@login()
-def myparticipate(req):
-    uid = req.session.get('uid')
-    objs = ParticipateShip.objects.filter(user__pk=uid) 
-    data = list()
-    for obj in objs:
-        tmp = dict()
-        tmp['id'] = obj.project.id
-        tmp['company'] = obj.project.company.name
-        tmp['project'] = obj.project.summary
-        tmp['create_datetime'] = timeformat(obj.create_datetime)
-        tmp['audit_datetime'] = timeformat(obj.create_datetime + timedelta(seconds=2))
-        if obj.valid == None:
-            tmp['handle_datetime'] = ''
-        else:
-            tmp['handle_datetime'] = timeformat(obj.handle_datetime)
-        tmp['valid'] = obj.valid
-        if obj.valid == True:
-            tmp['reason'] = '申请成功' 
-        elif obj.valid == False:
-            tmp['reason'] = obj.reason 
-        else:
-            tmp['reason'] = '等待审核, 预计2天内处理完毕'
         data.append(tmp)
     return Response({'code':0, 'msg':'', 'data':data})
 
@@ -1285,36 +1124,10 @@ def isinvestor(req):
     else:
         return r(1, '对不起, 您的认证失败')
 
-@api_view(['POST', 'GET'])
-@login()
-def investorinfo(req, pk):
-    investor = i_(Investor, pk)
-    if not investor: return NOENTITY
-    data = dict()
-    data['investor_type'] = 1 if investor.company else 0 
-    if investor.company: #机构投资人
-        data['company'] = investor.company.name
-        data['industry'] = [it.name for it in investor.industry.all()]
-        data['fund_size_range'] = investor.fundsizerange.desc
-    else: #自然投资人
-        user = investor.user
-        data['real_name'] = user.name
-        data['tel'] = investor.user.tel
-        data['province'] = user.province
-        data['city'] = user.city
-        data['company'] = investor.comment
-        data['position'] = investor.position
-    return Response({'code':0, 'msg':'', 'data':data})
-
 @api_view(['POST'])
 @login()
 def valsession(req):
     return r(0)
-
-@api_view(['POST', 'GET'])
-def contactus(req):
-    data = {'tel':'18681838312', 'name':'徐力'}
-    return Response({'code':0, 'msg':'', 'data':data})
 
 @api_view(['POST', 'GET'])
 def checkupdate(req, system):
@@ -1836,16 +1649,9 @@ def hidefeelingcomment(req, pk):
 @api_view(['GET'])
 @login()
 def background(req):
-    user = User.objects.get(pk=s(req))
-    if req.method == 'GET':
-        data = {'bg': img(user.bg), 'photo': img(user.photo)}
-        return Response({'code': 0, 'msg': '', 'data': data})
-    elif req.method == 'POST':
-        img = req.data.get('file')
-        if not img: return r(1, '背景上传失败')
-        if imghdr.what(img) not in settings.ALLOW_IMG: return r(1, '图片格式不正确')
-        store(user.bg, img) 
-        return r(0, '背景设置成功')
+    user = u(req)
+    data = {'bg': img(user.bg), 'photo': img(user.photo)}
+    return r_(0, data)
 
 @api_view(['GET'])
 def test(req):

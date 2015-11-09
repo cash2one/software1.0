@@ -72,7 +72,7 @@ class User(Model):
     regid = CharField('唯一识别码', max_length=32, blank=True) # 极光推送
     version = CharField('版本', max_length=64, blank=True) # 版本号, 用户更新检测
     create_datetime = DateTimeField('注册时间', auto_now_add=True)
-    last_login = DateTimeField('上次登录时间', null=True, blank=True)
+    lastlogin = DateTimeField('上次登录时间', null=True, blank=True)
 
     ''' 必填信息 '''
     name = CharField('姓名', max_length=16, blank=True) # 真实姓名 cation
@@ -148,6 +148,7 @@ class Company(Model):
 class Upload(Model):        
 
     ''' 上传的项目 '''
+    user = ForeignKey('User', verbose_name='上传人')
     name = CharField('姓名', max_length=32)
     tel = CharField('手机', max_length=11, validators=[validtel])
     company = CharField('公司名称', max_length=64)
@@ -170,14 +171,14 @@ class Project(Model):
     ''' 项目所关联的公司 '''
     company = ForeignKey('Company', verbose_name='公司', on_delete=PROTECT, blank=True)
     video = URLField('视频地址', blank=True)
-    tag = CharField('标签', max_length=32, blank=True)
+    tag = CharField('标签', max_length=32)
    
     ''' 项目概况 '''
     img = ImageField('图片', upload_to=UploadTo('project/img/%Y/%m')) 
     model = TextField('商业模式', blank=True)
     business = TextField('主营业务', blank=True)
 
-    ''' 路演时的具体情况 '''
+    ''' 具体情况 '''
     planfinance = PositiveIntegerField('计划融资')
     finance2get = PositiveIntegerField('已获得融资')
     share2give = DecimalField('让出股份', max_digits=4, decimal_places=2)
@@ -187,9 +188,8 @@ class Project(Model):
     minfund = PositiveIntegerField('投资最低额度')
    
     ''' 时间 '''
-    roadshow_start_datetime = DateTimeField('路演时间', null=True, blank=True)
-    roadshow_stop_datetime = DateTimeField('路演结束', null=True, blank=True)
-    finance_stop_datetime = DateTimeField('融资结束', null=True, blank=True)
+    start = DateTimeField('融资时间', null=True, blank=True)
+    stop = DateTimeField('融资结束', null=True, blank=True)
     over = NullBooleanField('众筹完成')
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
@@ -219,7 +219,7 @@ class Member(Model):
 
     project = ForeignKey(Project, verbose_name='项目')  
     name = CharField('姓名', max_length=32)
-    photo = ImageField('头像', upload_to=UploadTo('coremember/photo/%Y/%m'), blank=True)
+    photo = ImageField('头像', upload_to=UploadTo('member/photo/%Y/%m'), blank=True)
     position = CharField('职位', max_length=32)
     profile = TextField('简介')
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
@@ -308,7 +308,6 @@ class Thinktank(Model):
     company = CharField('公司', max_length=64)
     position = CharField('职位', max_length=64)
     photo = ImageField('图像', upload_to=UploadTo('thinktank/photo/%Y/%m'))
-    img = ImageField('详情页图像', upload_to=UploadTo('thinktank/img/%Y/%m'))
     video = URLField('链接地址', max_length=64, blank=True)
     experience = TextField('经历')
     case = TextField('成功案例')
@@ -327,8 +326,7 @@ class Thinktank(Model):
         if edit: thinktank = Thinktank.objects.get(pk=self.pk)
         super(Thinktank, self).save(*args, **kwargs)
         if edit:
-            osremove(thinktank.img, self.img)
-            osremove(thinktank.thumbnail, self.thumbnail)
+            osremove(thinktank.photo, self.photo)
 
 class NewsType(Model):
 

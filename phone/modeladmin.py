@@ -17,7 +17,7 @@ class UserAdmin(admin.ModelAdmin):
         'gender', 'idno',  'email', 'company', 'position', 
         'addr', 'birthday', 'birthplace', 
         'bg','regid', 'version', 
-        'last_login', 'qualification')
+        'lastlogin', 'qualification')
     
     def _photo(self, obj):
         if  obj.photo:
@@ -87,22 +87,23 @@ class ProjectAdmin(admin.ModelAdmin):
 
     def stage(self, obj):
         now = timezone.now()
-        if not obj.roadshow_start_datetime or now < obj.roadshow_start_datetime: return None # 路演预告
-        elif now > obj.roadshow_stop_datetime:
-            if now > obj.finance_stop_datetime: return True # 融资完毕
-            else: return False # 融资进行
-        else: return False # 融资进行
+        if not obj.start or now < obj.start: 
+            return None # 路演预告
+        elif now > obj.stop:
+            return True
+        else: 
+            return False # 融资进行
 
         return stage
     stage.short_description = '状态'
     stage.boolean = True
 
     def start(self, obj):
-        return timeformat(obj.roadshow_start_datetime)
-    start.short_description='路演时间'
+        return timeformat(obj.start)
+    start.short_description='开始时间'
 
     def stop(self, obj):
-        return timeformat(obj.finance_stop_datetime)
+        return timeformat(obj.stop)
     stop.short_description='融资截至'
 
     fieldsets = (
@@ -120,7 +121,7 @@ class ProjectAdmin(admin.ModelAdmin):
             'fields':(('invest2plan', 'minfund'),)
         }),
         ('时间', {
-            'fields':(('roadshow_start_datetime', 'roadshow_stop_datetime', 'finance_stop_datetime'), 'over')
+            'fields':(('start', 'stop'), 'over')
         }),
         ('人', {
             'fields':('attend', 'like'),
@@ -178,11 +179,12 @@ class BannerAdmin(admin.ModelAdmin):
 
 class ThinktankAdmin(admin.ModelAdmin):
     form = ThinktankForm
-    list_display = ('id', 'name', 'position', '_img')
-    def _img(self, obj):
-        return '<a target="_blank" href="%s">img</a>' % (obj.photo.url)
-    _img.allow_tags = True
-    _img.short_description = '图像'
+    list_display = ('id', 'name', 'position', '_photo')
+    def _photo(self, obj):
+        #return '<a target="_blank" href="%s">img</a>' % (obj.photo.url)
+        return  format_html('<img width="200px" src="%s"/>' % obj.photo.url)
+    _photo.allow_tags = True
+    _photo.short_description = '图像'
 
 class NewsTypeAdmin(admin.ModelAdmin):
     form = NewsTypeForm
