@@ -58,14 +58,14 @@ class Institute(Model):
 class User(Model):
    
     ''' 微信授权登录 '''
-    openid = CharField('微信', max_length=64, null=True, blank=True) # 微信授权登录的返回序列号
+    openid = CharField('微信', max_length=64, blank=True) # 微信授权登录的返回序列号
     photo = ImageField('图像', upload_to=UploadTo('user/photo/%Y/%m'), blank=True) # 微信的图像, 用户可以自己设置, 默认为微信没有的图像
     nickname = CharField('昵称', max_length=64, blank=True) # 微信的昵称, 用户可以自己设置, 默认为匿名用户 
     bg = ImageField('微信背景', upload_to=UploadTo('user/bg/%Y/%m/'), blank=True)
 
     ''' 手机登录 '''
-    tel = CharField('手机', max_length=11, unique=True, validators=[validtel])
-    passwd = CharField('密码', max_length=32)
+    tel = CharField('手机', max_length=11, unique=True, blank=True, validators=[valtel])
+    passwd = CharField('密码', max_length=32, blank=True)
 
     ''' 系统, 极光, 版本 '''
     os = PositiveIntegerField('操作系统', choices=OS) # 系统类别
@@ -101,7 +101,8 @@ class User(Model):
 
     def save(self, *args, **kwargs): #密码的问题
         edit = self.pk
-        if edit: user = User.objects.get(pk=self.pk)
+        if edit: 
+            user = User.objects.get(pk=self.pk)
         super(User, self).save(*args, **kwargs)
         if edit:
             osremove(user.photo, self.photo)
@@ -150,7 +151,7 @@ class Upload(Model):
     ''' 上传的项目 '''
     user = ForeignKey('User', verbose_name='上传人')
     name = CharField('姓名', max_length=32)
-    tel = CharField('手机', max_length=11, validators=[validtel])
+    tel = CharField('手机', max_length=11, validators=[valtel])
     company = CharField('公司名称', max_length=64)
     vcr = CharField('vcr', max_length=64, blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
@@ -401,26 +402,17 @@ class Push(Model):
 
     def save(self, *args, **kwargs):
         edit = self.pk
-        super(Push, self).save(*args, **kwargs)
         if self.valid == True:
-            if self.msgtype.name == 'web':
-                news = News.objects.filter(pk=self._id)
-                if news: self.url = '%s/%s/%s' %(settings.DOMAIN, settings.NEWS_URL_PATH, news[0].name)
-            extras = {'api': self.msgtype.name,
-                '_id': self._id,
-                'url': self.url
-            }
+            if self.msgtype == 1:
+                extras = {'api': 'project', 'id': self.index }
+            else:
+                extras = {'api': 'web', 'url': self.url}
             if not self.user:
                 JG(self.content, extras).all()
-                queryset = User.objects.all()
             else:
                 for user in self.user.all(): 
                     user.regid and JG(self.content, extras).single(user.regid)
-                queryset = self.user.all() 
-            try:
-                for user in queryset:
-                    with transaction.atomic(): Inform.objects.create(user=user, push=self)
-            except IntegrityError as e: pass
+        super(Push, self).save(*args, **kwargs)
                     
 class Inform(Model):
     user = ForeignKey('User', verbose_name='用户')

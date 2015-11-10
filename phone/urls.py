@@ -4,7 +4,8 @@ from phone import views
 
 urlpatterns = [
     url(r'^test/$', views.test, name='test'),
-
+    
+    url(r'^openid/(?P<openid>.+)/$', views.openid, name='openid'),
 
     url(r'^sendcode/(?P<flag>[01])/$', views.sendcode, name='sendcode'),
     url(r'^registe/(?P<os>[12])/$', views.registe, name='registe'),
@@ -23,7 +24,7 @@ urlpatterns = [
     url(r'^addr/$', views.addr, name='addr'),
     url(r'^weixin/$', views.weixin, name='weixin'),
    
-    url(r'^hasinform', views.hasinform, name='hasinform'),
+    url(r'^hasinform', views.hasinform, name='hasinform'), # lindyang
     url(r'^hastopic/$', views.hastopic, name='hastopic'),
 
     url(r'^inform/(?P<page>\d+)/$', views.inform, name='inform'),
@@ -44,6 +45,10 @@ urlpatterns = [
     url(r'^collectfinancing/(?P<page>\d+)/$', views.collectfinancing, name='collectfinancing'),
     url(r'^collectfinanced/(?P<page>\d+)/$', views.collectfinanced, name='collectfinanced'),
 
+
+
+    url(r'^upload/$', views.upload, name='upload'),
+
     url(r'^newstype/$', views.newstype, name='newstype'),
     url(r'^news/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.news, name='news'),
     url(r'^newsread/(?P<pk>[1-9]\d*)/$', views.newsread, name='newsread'),
@@ -54,7 +59,6 @@ urlpatterns = [
 
     url(r'^feeling/(?P<page>\d+)/$', views.feeling, name='feeling'),
 
-    url(r'^wantroadshow/$', views.wantroadshow, name='wantroadshow'),
     url(r'^wantinvest/(?P<pk>[1-9]\d*)/$', views.wantinvest, name='wantinvest'),
 
     url(r'^projectdetail/(?P<pk>[1-9]\d*)/$', views.projectdetail, name='projectdetail'),
@@ -72,9 +76,8 @@ urlpatterns = [
     url(r'^keyword/$', views.keyword, name='keyword'),
     url(r'^projectsearch/(?P<pk>\d+)/(?P<page>\d+)/$', views.projectsearch, name='projectsearch'),
     url(r'^userinfo/((?P<pk>[1-9]\d*)/)?$', views.userinfo, name='userinfo'),
-    url(r'^mycreateproject/(?P<page>\d+)/$', views.mycreateproject, name='mycreateproject'),
-    url(r'^myinvestproject/(?P<page>\d+)/$', views.myinvestproject, name='myinvestproject'),
-    url(r'^myroadshow/$', views.myroadshow, name='myroadshow'),
+    url(r'^myupload/(?P<page>\d+)/$', views.myupload, name='myupload'),
+    url(r'^myinvest/(?P<page>\d+)/$', views.myinvest, name='myinvest'),
 
     url(r'^token/$', views.token, name='token'),
     url(r'^callback/$', views.callback, name='callback'),
@@ -85,6 +88,7 @@ urlpatterns = [
     url(r'^checkupdate/(?P<system>[12])/$', views.checkupdate, name='checkupdate'),
     url(r'^shareproject/(?P<pk>[1-9]\d*)/$', views.shareproject, name='shareproject'),
     url(r'^shareapp/$', views.shareapp, name='shareapp'),
+
     url(r'^aboutroadshow', views.aboutroadshow, name='aboutroadshow'),
     url(r'^risk/$', views.risk, name='risk'),
     url(r'^useragreement/$', views.useragreement, name='useragreement'),
@@ -92,10 +96,12 @@ urlpatterns = [
     url(r'^crowfunding/$', views.crowfunding, name='crowfunding'),
     url(r'^leadfunding/$', views.leadfunding, name='leadfunding'),
     url(r'^privacy/$', views.privacy, name='privacy'),
+
     url(r'^topic/(?P<pk>[1-9]\d*)/$', views.topic, name='topic'),
     url(r'^topiclist/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.topiclist, name='topiclist'),
-    url(r'^topicread/(?P<page>\d+)/$', views.topicread, name='topicread'),
-    url(r'^settopicread/(?P<pk>\d+)/$', views.settopicread, name='settopicread'),
+    url(r'^mytopiclist/(?P<page>\d+)/$', views.mytopiclist, name='mytopiclist'),
+    url(r'^readtopic/(?P<pk>\d+)/$', views.readtopic, name='readtopic'),
+
     url(r'^latestnewscount/$', views.latestnewscount, name='latestnewscount'),
     url(r'^getfeeling/(?P<pk>[1-9]\d*)/$', views.getfeeling, name='getfeeling'),
     url(r'^postfeeling/$', views.postfeeling, name='postfeeling'),

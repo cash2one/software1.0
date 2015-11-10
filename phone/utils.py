@@ -29,7 +29,7 @@ def dateformat(now=timezone.now()):
     if not now: return '待定' 
     return timezone.localtime(now).strftime('%Y-%m-%d')
 
-def validtel(tel):
+def valtel(tel):
     PHONE_RE = re.compile(r'(13[0-9]|15[012356789]|17[678]|18[0-9]|14[57])[0-9]{8}$')
     if tel and PHONE_RE.match(tel): return True
     return False                              

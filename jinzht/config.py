@@ -21,8 +21,7 @@ QUALIFICATION = (
 
 PUSHTYPE = (
     (1, 'project 项目详情'), # 跳到项目详情页面
-    (2, 'url 网页'), # 跳到一个网页
-    (5, 'feeling 朋友圈'), # 消息回复
+    (2, 'web 网页'), # 跳到一个网页
 )
 
 OS = ((1, 'iPhone'), (2, 'Android'))
