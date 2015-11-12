@@ -7,7 +7,7 @@ urlpatterns = [
     
     url(r'^openid/(?P<openid>.+)/$', views.openid, name='openid'),
 
-    url(r'^sendcode/(?P<flag>[01])/$', views.sendcode, name='sendcode'),
+    url(r'^sendcode/(?P<flag>[01])/(?P<weixin>[01])/$', views.sendcode, name='sendcode'),
     url(r'^registe/(?P<os>[12])/$', views.registe, name='registe'),
     url(r'^login/$', views.login_, name='login'),
     url(r'^resetpasswd/$', views.resetpasswd, name='resetpasswd'),
@@ -54,7 +54,7 @@ urlpatterns = [
     url(r'^newsread/(?P<pk>[1-9]\d*)/$', views.newsread, name='newsread'),
     url(r'^newsshare/(?P<pk>[1-9]\d*)/$', views.newsshare, name='newsshare'),
     url(r'^sanban/(?P<name>\d+)/$', views.sanban, name='sanban'),
-    url(r'^newssearch/(?P<pk>\d+)/(?P<page>\d+)/$', views.newssearch, name='newssearch'),
+    url(r'^newssearch/(?P<page>\d+)/$', views.newssearch, name='newssearch'),
     url(r'^sharenews/(?P<pk>[1-9]\d*)/$', views.sharenews, name='sharenews'),
 
     url(r'^feeling/(?P<page>\d+)/$', views.feeling, name='feeling'),
@@ -74,7 +74,7 @@ urlpatterns = [
 
     url(r'^feedback/$', views.feedback, name='feedback'),
     url(r'^keyword/$', views.keyword, name='keyword'),
-    url(r'^projectsearch/(?P<pk>\d+)/(?P<page>\d+)/$', views.projectsearch, name='projectsearch'),
+    url(r'^projectsearch/(?P<page>\d+)/$', views.projectsearch, name='projectsearch'),
     url(r'^userinfo/((?P<pk>[1-9]\d*)/)?$', views.userinfo, name='userinfo'),
     url(r'^myupload/(?P<page>\d+)/$', views.myupload, name='myupload'),
     url(r'^myinvest/(?P<page>\d+)/$', views.myinvest, name='myinvest'),

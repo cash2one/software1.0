@@ -33,7 +33,8 @@ DE_RE = re.compile('''<a\ class="htn-a-img"\ href="(?P<url>.*?)".*?>.
 
 class Credit(object):
 
-    LINK_RE = re.compile(r'href="(?P<url>.*?)" target="_blank">(?P<title>.*?)</a></h3>.*?<div class="c-abstract">(?P<content>.*?)</div>')
+    #LINK_RE = re.compile(r'href="(?P<url>.*?)" target="_blank">(?P<title>.*?)</a></h3>.*?<div class="c-abstract">(?P<content>.*?)</div><div class="f13"><span class="g">(?P<green>)</span>')
+    LINK_RE = re.compile(r'href="(?P<url>.*?)" target="_blank">(?P<title>.*?)</a></h3>.*?<div class="c-abstract">(<span class=".+?">(?P<date>.+?)</span>)?(?P<content>.*?)</div>.*<span class="g">(?P<origin_url>.+?)</span>')
 
     def __init__(self):
         socket.setdefaulttimeout(20)

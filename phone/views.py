@@ -10,11 +10,13 @@ from django.core.urlresolvers import reverse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
-#from django.db.models import F, Q, Sum
+from django.db.models import F, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from collections import OrderedDict
 from phone.models import *
 from phone.utils import *
 import functools
+from jinzht.config import INDUSTRY
 #from PIL import Image as Img
 #import StringIO
 
@@ -96,16 +98,24 @@ def openid(req, openid):
         
 
 @api_view(['POST'])
-def sendcode(req, flag):
+def sendcode(req, flag, weixin):
     tel = req.data.get('tel')
     if not valtel(tel): 
         return r(1, '手机格式不正确')
 
-    user = User.objects.filter(tel=tel)
-    if flag == '0' and user.exists():
-        return r(1, '该手机已注册, 请直接登录')
-    elif flag == '1' and not user.exists():
-        return r(1, '您尚未注册, 请先注册')
+    if weixin == '1':
+        openid = req.data.get('openid')
+        if not openid:
+            return r(1, '微信不能为空')
+        user = User.objects.filter(openid=openid, tel=tel)
+        if flag == '0' and user.exists():
+            return r(1, '用户已经存在, 请直接登录')
+    elif weixin == '0':
+        user = User.objects.filter(tel=tel)
+        if flag == '0' and user.exists():
+            return r(1, '该手机已注册, 请直接登录')
+        elif flag == '1' and not user.exists():
+            return r(1, '您尚未注册, 请先注册')
 
     code = SMS(tel).send() # 验证码
     print(code)
@@ -122,8 +132,8 @@ def registe(req, os):
     tel = req.data.get('tel')
     code = req.data.get('code')
     regid = req.data.get('regid', '')
-    version = req.data.get('version', '')
     sode = req.session.get(tel)
+    version = '1'
 
     if not valtel(tel):
         return r(1, '手机格式不正确')
@@ -138,6 +148,8 @@ def registe(req, os):
         openid = req.data.get('openid').strip()
         nickname = req.data.get('nickname', '').rstrip()
         photo = req.data.get('file')
+        if not openid:
+            return r(1, '微信不能为空')
 
         openid_user = User.objects.filter(openid=openid)
         if not openid_user.exists(): # openid 不存在
@@ -151,7 +163,7 @@ def registe(req, os):
                     tel=tel, 
                     os=int(os), 
                     regid=regid, 
-                    version=version
+                    version = version
                 ) 
             else: # 给手机绑定 openid 
                 user = tel_user[0]
@@ -163,9 +175,7 @@ def registe(req, os):
                 user.save()
         else: # openid 存在
             user = openid_user[0]
-            if tel = user.tel:
-                pass
-            else:
+            if not tel == user.tel:
                 tel_user = User.objects.filter(tel=tel)
                 if tel_user.exists(): # 给确定手机绑定 openid
                     user.openid = ''
@@ -176,27 +186,27 @@ def registe(req, os):
                     user.nickname = user.nickname
                     user.regid = regid
                     user.version = version
+                    user.os = int(os)
                     store(user.photo, photo)
                     user.save()
                 else: # 给某个openid换绑手机
                     user.tel = tel
                     user.regid = regid
                     user.version = version
+                    user.os = int(os)
                     user.save()
     else:
         passwd = req.data.get('passwd')
         if not passwd:
             return r(1, '请输入密码')
-    
-        if User.objects.filter(tel=tel).exists(): 
-            return r(1, '您的手机号码已注册, 请直接登录')
-
-        obj = User.objects.create(
+        #if User.objects.filter(tel=tel).exists(): 
+        #    return r(1, '您的手机号码已注册, 请直接登录')
+        user = User.objects.create(
             tel=tel, 
             passwd=passwd, 
             os=int(os),
             regid = regid,
-            version = version,
+            version = version
         ) 
 
     req.session[tel] = ''
@@ -207,28 +217,40 @@ def registe(req, os):
 
 @api_view(['POST'])
 def login_(req):
-    tel = req.data.get('tel')
-    passwd = req.data.get('passwd')
-    regid = req.data.get('regid', '')
-    version = req.data.get('version', '')
+    regid = req.data.get('regid', '').strip()
+    if not regid:
+        return r(1, 'debug')
 
-    if not valtel(tel): 
-        return r(1, '手机格式不正确')
+    if 'openid' in req.data:
+        openid = req.data.get('openid').strip()
+        if not openid:
+            return r(1, 'openid不能为空')
+        user = User.objects.filter(openid=openid)
+        if user.exists():
+            user = user[0]
+        else:
+            return r(1, '请先绑定微信')
+    else:
+        tel = req.data.get('tel')
+        passwd = req.data.get('passwd')
+        if not valtel(tel): 
+            return r(1, '手机格式不正确')
 
-    user = User.objects.filter(tel=tel)
-    if user.exists():
-        user = user[0]
-        if passwd == user.passwd:
-            req.session['uid'] = user.id 
-            req.session.set_expiry(3600 * 24)
-            user.regid = regid
-            user.version = version
-            user.lastlogin = timezone.now()
-            user.save()
-            data = {'auth': user.valid, 'info': info(user)}
-            return r_(0, data, '登录成功')
-        return r(1, '手机号码或密码错误')
-    return r(1, '您尚未注册, 请先注册')
+        user = User.objects.filter(tel=tel)
+        if user.exists():
+            user = user[0]
+            if not passwd == user.passwd:
+                return r(1, '手机号码或密码错误')
+        else:
+            return r(1, '您尚未注册, 请先注册')
+    #-------------------------------------------#
+    req.session['uid'] = user.id 
+    req.session.set_expiry(3600 * 24)
+    user.regid = regid
+    user.lastlogin = timezone.now()
+    user.save()
+    data = {'auth': user.valid, 'info': info(user)}
+    return r_(0, data, '登录成功')
 
 
 @api_view(['GET'])
@@ -393,8 +415,7 @@ def _financing(queryset, page):
     data = list()
     for item in queryset:
         _queryset = Invest.objects.filter(project=item, valid=True)
-        tmp = _queryset.aggregate(Sum('amount'))['amount__sum']
-        if not tmp: tmp = 0 
+        tmp = _queryset.aggregate( amount_sum=Coalesce(Sum('amount'), Value(0)) )['amount_sum']
         invest = tmp + int(item.finance2get)
         investor = _queryset.count()
         data.append({
@@ -622,6 +643,7 @@ def _institute(queryset, page):
             'id': item.id,
             'name': item.name,
             'legalperson': item.legalperson,
+            'logo': img(item.logo),
         }) 
     code = 2 if len(queryset) < size else 0
     return r_(code, data, '加载完毕')
@@ -690,8 +712,8 @@ def photo(req):
     user = u(req)
     flag = store(user.photo, photo)
     if not flag: 
-        return r(1, '设置图像失败')
-    return r(0, '设置图像成功')
+        return r(1, '图像设置失败')
+    return r(0, '图像设置成功')
 
 @api_view(['POST'])
 @login()
@@ -1016,58 +1038,59 @@ def feedback(req):
     MAIL('反馈', advice).send()
     return r(0, '反馈成功')
 
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 def keyword(req):
-    industrys = Industry.objects.filter(~Q(valid=False))
+    data = {'keyword': INDUSTRY}
+    return r_(0, data)
+
+def __project(queryset, page):
+    size = settings.DEFAULT_PAGESIZE
+    queryset = q(queryset, page, size)
     data = list()
-    for keyword in industrys:
-        tmp = dict()
-        tmp['id'] = keyword.id
-        tmp['word'] = keyword.name
-        data.append(tmp)
-    return Response({'code':0, 'msg':'', 'data':data})
+    for item in queryset:
+        data.append({
+            'id': item.id,
+            'img': img(item.img),
+            'company': item.company.name,
+            'profile': item.company.profile,
+            'start': dateformat(item.start),
+            'stop': dateformat(item.stop),
+        })
+    code = 2 if len(queryset) < size else 0
+    return r_(code, data, '加载完毕')
 
-@api_view(['POST', 'GET'])
-def projectsearch(req, pk, page):
-    if pk == '0': 
-        value = req.data.get('value').strip()
-        if not value: 
-            return (1, '输入不能为空')
-        queryset = Project.objects.filter(company__name__contains=value)
-    else: queryset = Project.objects.filter(company__industry__in=[int(pk),])
-    return g_project(queryset, page)
+@api_view(['POST'])
+def projectsearch(req, page):
+    value = req.data.get('wd', '').strip()
+    if not value: 
+        return r(1, '输入不能为空')
+    queryset = Project.objects.filter(tag__contains=value)
+    return __project(queryset, page)
 
 
-@api_view(['GET', 'POST'])
+@api_view(['POST'])
 @login()
 def wantinvest(req, pk):
-    flag = req.data.get('flag','').strip()
-    if not re.match('^[01]$', flag): return ARG
-    invest_amount = req.data.get('invest_amount', '').strip() # 投资金额
-    if not PK_RE.match(invest_amount): return ARG
-    investor = req.data.get('investor', '').strip() # 投资人id
-    if not PK_RE.match(investor): 
-        return  Response({'code':1, 'msg':'请选择您的投资人身份'})
+    amount = req.data.get('amount', '').strip() # 投资金额
+    if not PK_RE.match(amount): 
+        return r(1, '非法输入')
     project = i(Project, pk) # 项目
-    if not project: return ENTITY
-    fund = project.leadfund if flag=='1' else project.followfund
-    if int(invest_amount) < fund:
-        return Response({'code':1, 'msg':'金额必须大于%s' % fund})
-    uid = req.session.get('uid')
-    investor_obj = Investor.objects.filter(pk=investor, user__pk=uid) # 投资人实体
-    if not investor_obj.exists():
-        return r(9, '该投资人不存在')
-    investship = InvestShip.objects.filter(project__pk=pk, investor__pk=investor) #是否投资过
-    if investship.exists():
+    if not project: 
+        return ENTITY
+    fund = project.minfund
+    if int(amount) < fund:
+        return r(1, '金额必须大于%s' % fund)
+    user = u(req)
+    invest = Invest.objects.filter(project=project, user=user) #是否投资过
+    if invest.exists():
         return r(1, '您已投资过该项目, 请到用户中心查看')
-    InvestShip.objects.create(
-        investor = investor_obj[0],
+    Invest.objects.create(
+        user = user,
         project = project,
-        invest_amount = invest_amount,
+        amount = amount,
         lead = int(flag)
     )
-    return r(0, '工信您, 投资信息提交成功')
-
+    return r(0, '投资信息提交成功')
 
 @api_view(['GET'])
 @login()
@@ -1333,8 +1356,7 @@ def newsshare(req, pk):
     news = i(News, pk) 
     if not news: 
         return ENTITY
-    news.share += 1
-    news.save()
+    news.update(share=F('share')+1)
     return r(0)
         
 @api_view(['POST', 'GET'])
@@ -1342,17 +1364,15 @@ def newsread(req, pk):
     news = i(News, pk) 
     if not news:
         return ENTITY
-    news.read += 1
-    news.save()
+    news.update(read=F('read') + 1)
     return r(0)
     
-@api_view(['POST', 'GET'])
-def newssearch(req, pk, page):
-    value = req.data.get('value', '').strip()
+@api_view(['POST'])
+def newssearch(req, page):
+    value = req.data.get('wd', '').strip()
     if not value: 
         return r(1, '输入不能为空')
-    if pk == '0': queryset = News.objects.filter(title__contains=value)
-    else: queryset = News.objects.filter(newstype__id=pk)
+    queryset = News.objects.filter(title__contains=value)
     return __news(queryset, page)
 
 @api_view(['GET'])

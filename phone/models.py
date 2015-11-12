@@ -36,6 +36,7 @@ class Institute(Model):
     legalperson = CharField('法人', max_length=32, blank=True)
     addr = CharField('地址', max_length=128, blank=True)
     profile = TextField('机构介绍', blank=True)
+    logo = ImageField('logo', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
     orgcode = ImageField('组织机构代码证', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
 
@@ -51,7 +52,6 @@ class Institute(Model):
         super(Institute, self).save(*args, **kwargs)
         if edit:
             osremove(item.logo, self.logo)
-            osremove(item.license, self.license)
             osremove(item.orgcode,self.orgcode)
 
 
@@ -394,7 +394,7 @@ class Push(Model):
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
     def __str__(self):
-        return '%s,%s' % (self.id)
+        return '%s' % (self.pk)
 
     class Meta:
         ordering = ('-pk',)
@@ -403,11 +403,13 @@ class Push(Model):
     def save(self, *args, **kwargs):
         edit = self.pk
         if self.valid == True:
-            if self.msgtype == 1:
-                extras = {'api': 'project', 'id': self.index }
-            else:
-                extras = {'api': 'web', 'url': self.url}
-            if not self.user:
+            extras = {
+                'api': PUSHTYPE[self.pushtype-1][1],
+                'id': self.index,
+                'url': self.url
+            }
+            if not self.user.count():
+                print('all')
                 JG(self.content, extras).all()
             else:
                 for user in self.user.all(): 
