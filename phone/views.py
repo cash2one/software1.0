@@ -64,7 +64,8 @@ def login(text=''):
 
 
 def store(field, image):
-     
+    if not image:
+        return True
     #img = Img.open(StringIO.StringIO(self.image.read()))
     #if img.mode != 'RGB':
     #    img = img.convert('RGB')
@@ -156,6 +157,7 @@ def registe(req, os):
             tel_user = User.objects.filter(tel=tel)
 
             if not tel_user.exists(): # 全新创建 
+                print('a')
                 user = User.objects.create(
                     openid=openid, 
                     nickname = nickname,
@@ -166,9 +168,11 @@ def registe(req, os):
                     version = version
                 ) 
             else: # 给手机绑定 openid 
+                print('b')
                 user = tel_user[0]
                 user.openid = openid
                 user.nickname = nickname
+                user.os = int(os)
                 user.regid = regid
                 user.version = version
                 store(user.photo, photo)
@@ -176,8 +180,10 @@ def registe(req, os):
         else: # openid 存在
             user = openid_user[0]
             if not tel == user.tel:
+                print('c')
                 tel_user = User.objects.filter(tel=tel)
                 if tel_user.exists(): # 给确定手机绑定 openid
+                    print('d')
                     user.openid = ''
                     user.save()
 
@@ -190,17 +196,19 @@ def registe(req, os):
                     store(user.photo, photo)
                     user.save()
                 else: # 给某个openid换绑手机
+                    print('e')
                     user.tel = tel
                     user.regid = regid
                     user.version = version
                     user.os = int(os)
                     user.save()
     else:
+        print('f')
         passwd = req.data.get('passwd')
         if not passwd:
             return r(1, '请输入密码')
-        #if User.objects.filter(tel=tel).exists(): 
-        #    return r(1, '您的手机号码已注册, 请直接登录')
+        if User.objects.filter(tel=tel).exists(): 
+            return r(1, '您的手机号码已注册, 请直接登录')
         user = User.objects.create(
             tel=tel, 
             passwd=passwd, 
@@ -802,10 +810,11 @@ def home(req):
     size = settings.DEFAULT_PAGESIZE
     now = timezone.now()
     #rcmd=True
-    queryset = Project.objects.filter(
-        start__lte=now, 
-        stop__gte=now,
-    )
+    #queryset = Project.objects.filter(
+    #    start__lte=now, 
+    #    stop__gte=now,
+    #)
+    queryset = Project.objects.all()[:4]
     queryset = q(queryset, 0, size)
     project = list()
     for item in queryset:
@@ -819,7 +828,7 @@ def home(req):
             'tag': item.tag,
             'planfinance': item.planfinance,
             'invest': invest,
-            'date': item.stop,
+            'date': dateformat(item.stop),
         }) 
     
     data = {
@@ -829,8 +838,8 @@ def home(req):
         'platform': [
             {'key': '成功融资总额(元)', 'value': '56125895423'},
             {'key': '项目总数', 'value': '451231'},
-            {'key': '投资人总人数', 'value': '254566'},
-            {'key': '基金池总额(元)', 'value': '452122553144'},
+            #{'key': '投资人总人数', 'value': '254566'},
+            #{'key': '基金池总额(元)', 'value': '452122553144'},
         ],
     }
     return r_(0, data)    
@@ -1356,7 +1365,8 @@ def newsshare(req, pk):
     news = i(News, pk) 
     if not news: 
         return ENTITY
-    news.update(share=F('share')+1)
+    news.share += 1
+    news.save()
     return r(0)
         
 @api_view(['POST', 'GET'])
@@ -1364,7 +1374,8 @@ def newsread(req, pk):
     news = i(News, pk) 
     if not news:
         return ENTITY
-    news.update(read=F('read') + 1)
+    news.read += 1
+    news.save()
     return r(0)
     
 @api_view(['POST'])
@@ -1504,6 +1515,7 @@ def __feeling(item, user): # 获取发表的状态的关联信息
         'uid': item.user.id,
         'company': item.user.company,
         'position': item.user.position,
+        'addr': item.user.addr,
         'flag': item.user == user,
         'datetime': dt_(item.create_datetime),
         'name': item.user.name,
