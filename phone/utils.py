@@ -20,7 +20,7 @@ import requests
 from qiniu import Auth, BucketManager
 from jinzht import settings
 
-
+COMPANY_RE  = re.compile(r'(股份)?有限(责任)?公司')
 def timeformat(now=timezone.now()):
     if not now: return '待定'
     return timezone.localtime(now).strftime('%Y-%m-%d %H:%M:%S')
@@ -195,7 +195,10 @@ class JG(object):
             "apns_production":False
         }
         self.push.platform = jpush.all_  
-        self.push.send()
+        try:
+            self.push.send() 
+        except Exception as e:
+            print(e)
 
     def single(self, reg_id):
         self.push.audience = jpush.audience( 
@@ -212,7 +215,10 @@ class JG(object):
             "apns_production":False
         }
         self.push.platform = jpush.all_ 
-        self.push.send() 
+        try:
+            self.push.send() 
+        except Exception as e:
+            print(e)
 
 if __name__ == '__main__':
     print('yld') 

@@ -59,7 +59,7 @@ urlpatterns = [
 
     url(r'^feeling/(?P<page>\d+)/$', views.feeling, name='feeling'),
 
-    url(r'^wantinvest/(?P<pk>[1-9]\d*)/$', views.wantinvest, name='wantinvest'),
+    url(r'^wantinvest/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.wantinvest, name='wantinvest'),
 
     url(r'^projectdetail/(?P<pk>[1-9]\d*)/$', views.projectdetail, name='projectdetail'),
     url(r'^financeplan/(?P<pk>[1-9]\d*)/$', views.financeplan, name='financeplan'),
@@ -83,7 +83,6 @@ urlpatterns = [
     url(r'^callback/$', views.callback, name='callback'),
     url(r'^delvideo/$', views.delvideo, name='delvideo'),
     url(r'^ismyproject/(?P<pk>[1-9]\d*)/$', views.ismyproject, name='ismyproject'),
-    url(r'^isinvestor/$', views.isinvestor, name='isinvestor'),
     url(r'^valsession/$', views.valsession, name='valsession'),
     url(r'^checkupdate/(?P<system>[12])/$', views.checkupdate, name='checkupdate'),
     url(r'^shareproject/(?P<pk>[1-9]\d*)/$', views.shareproject, name='shareproject'),

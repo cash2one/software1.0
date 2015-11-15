@@ -243,7 +243,8 @@ class Invest(Model):
     project = ForeignKey('Project', verbose_name='项目方', on_delete=PROTECT)
     user = ForeignKey('User', verbose_name='投资人', on_delete=PROTECT)
     amount = PositiveIntegerField('投资金额')
-    valid = NullBooleanField('是否合法', default=None)
+    lead = NullBooleanField('领投')
+    valid = NullBooleanField('是否合法')
     create_datetime = DateTimeField('投资日期', auto_now_add=True)
 
     def __str__(self): return '%s/%s/%s' % (self.project, self.user, self.amount)
@@ -261,10 +262,11 @@ class Invest(Model):
             tp = self.user.tel 
             ri = self.user.regid
             dt = timeformat(self.create_datetime)
-            pj = self.project.summary
+            pj = COMPANY_RE.sub('', self.project.company.name)
             am = self.amount
             text = INVEST_VALID_TRUE %(dt, pj, am)
-            JG(text).single(ri); SMS().remind(tp, text)
+            JG(text).single(ri) 
+            SMS(tp, text).send()
             MAIL( '投资申请', '%s于%s投资"%s"%s万' %(tp, dt, pj, am) ).send()
 
 
@@ -463,9 +465,8 @@ class FeelingComment(Model):
     def save(self, *args, **kwargs):
         edit = self.pk
         super(FeelingComment, self).save(*args, **kwargs)
-        if edit == False:
-            if self.user == self.feeling.user: pass
-            else:
+        if not edit:
+            if not self.user == self.feeling.user:
                 extras = {'api': 'feeling', 'id':self.feeling.id}
                 JG('有人提及到您', extras).single(self.feeling.user.regid)
                 self.at and self.at.user != self.feeling.user and  JG('有人回复了你', extras).single(self.at.user.regid)

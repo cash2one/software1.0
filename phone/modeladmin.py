@@ -149,7 +149,7 @@ class InvestAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         if change:
             if 'project' in form.changed_data or 'investor' in form.changed_data:
-                return messages.error(request, '✖ %s' %(InvestShip._meta.verbose_name.title()))
+                return messages.error(request, '✖ %s' %(Invest._meta.verbose_name.title()))
         obj.save()
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
@@ -160,7 +160,7 @@ class InvestAdmin(admin.ModelAdmin):
         if db_field.name == 'investor':
             if hasattr(self, 'investor'):
                 kwargs['queryset'] = self.investor
-        return super(InvestShipAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
+        return super(InvestAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 class CollectAdmin(admin.ModelAdmin):
     form = CollectForm

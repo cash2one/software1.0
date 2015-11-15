@@ -123,8 +123,9 @@ def sendcode(req, flag, weixin):
     if not code: 
         return r(-1, '获取验证码失败')
 
-    req.session[tel] = code
     req.session.set_expiry(60 * 10)
+    req.session[tel] = code
+    req.session.set_expiry(3600 * 24)
     return r(0, '验证码已发送, 请耐心等待')
 
 
@@ -218,10 +219,18 @@ def registe(req, os):
         ) 
 
     req.session[tel] = ''
-    req.session['uid'] = user.id
     req.session.set_expiry(3600 * 24)
+    req.session['uid'] = user.id
     return r(0, '注册成功')
 
+def is_auth(user):
+    if user.valid == True:
+        return True
+    if user.valid == False:
+        return False
+    if not user.qualification:
+        return ''
+    return None
 
 @api_view(['POST'])
 def login_(req):
@@ -252,12 +261,12 @@ def login_(req):
         else:
             return r(1, '您尚未注册, 请先注册')
     #-------------------------------------------#
-    req.session['uid'] = user.id 
     req.session.set_expiry(3600 * 24)
+    req.session['uid'] = user.id 
     user.regid = regid
     user.lastlogin = timezone.now()
     user.save()
-    data = {'auth': user.valid, 'info': info(user)}
+    data = {'auth': is_auth(user), 'info': info(user)}
     return r_(0, data, '登录成功')
 
 
@@ -292,8 +301,8 @@ def resetpasswd(req):
     user.passwd = passwd
     user.save()
 
-    req.session['uid'] = user.id
     req.session.set_expiry(3600 * 24)
+    req.session['uid'] = user.id
     req.session[tel] = ''
     return r(0, '设置密码成功')
 
@@ -1079,7 +1088,7 @@ def projectsearch(req, page):
 
 @api_view(['POST'])
 @login()
-def wantinvest(req, pk):
+def wantinvest(req, pk, flag):
     amount = req.data.get('amount', '').strip() # 投资金额
     if not PK_RE.match(amount): 
         return r(1, '非法输入')
@@ -1097,7 +1106,7 @@ def wantinvest(req, pk):
         user = user,
         project = project,
         amount = amount,
-        lead = int(flag)
+        lead = flag
     )
     return r(0, '投资信息提交成功')
 
@@ -1175,19 +1184,6 @@ def ismyproject(req, pk):
         return r(1, '你不可以给自己的项目投资哦')
     return r(0, '')
 
-@api_view(['POST', 'GET'])
-@login()
-def isinvestor(req):
-    uid = req.session.get('uid')
-    investors = Investor.objects.filter(user__pk=uid)
-    if not investors.exists():
-        return r(9, '您还没有认证')
-    elif investors.filter(valid=True).exists():
-        return r(0, '您已经认证')
-    elif investors.filter(valid=None).exists():
-        return r(1, '您的认证尚在审核中')
-    else:
-        return r(1, '对不起, 您的认证失败')
 
 @api_view(['GET'])
 @login()
@@ -1353,7 +1349,7 @@ def sharenews(req, pk):
         return ENTITY
 
     data = {
-        'url': '%s/%s/%s' %(settings.DOMAIN, settings.NEWS_URL_PATH, news.name),
+        'url': '%s/%s/%s' %(settings.DOMAIN, 'phone/sanban', news.name),
         'src': news.src,
         'title': news.title,
         'content': news.content,
@@ -1527,8 +1523,8 @@ def __feeling(item, user): # 获取发表的状态的关联信息
         tmp['share'] = {
             'id': news.id,
             'title': news.title, 
-            'img': img(news.img),
-            'url': '%s/%s/%s' %(settings.DOMAIN, settings.NEWS_URL_PATH, news.name)
+            'img': news.img,
+            'url': '%s/%s/%s' %(settings.DOMAIN, 'phone/sanban', news.name)
         }
     else:
         tmp['pic'] = [ os.path.join(settings.DOMAIN, v) for v in item.pic.split(';') if v ]
@@ -1569,11 +1565,11 @@ def feeling(req, page):
 @api_view(['POST'])
 @login()
 def postfeeling(req):
+    news = req.data.get('news', 0)
+    news = i(News, news)
     content = req.data.get('content', '').rstrip()
     relative_path = datetime.now().strftime('media/feeling/%Y/%m')
     absolute_path = os.path.join(settings.BASE_DIR, relative_path)   
-    news = req.data.get('news', 0)
-    news = i(News, news)
 
     if req.FILES: 
         mkdirp(absolute_path)
@@ -1581,7 +1577,7 @@ def postfeeling(req):
         return r(1, '发表内容不能为空')
 
     relative_path_list = list()
-    for i, v in enumerate(req.FILES.values()):
+    for j, v in enumerate(req.FILES.values()):
         ext = imghdr.what(v)
         if ext not in settings.ALLOW_IMG: 
             return r(1, '图片格式不正确')
@@ -1592,7 +1588,7 @@ def postfeeling(req):
             for data in v.chunks(): 
                 fp.write(data)
         relative_path_list.append( os.path.join(relative_path, img_name) )
-        if i >= 8 : break
+        if j >= 8 : break
 
     user = u(req) 
     obj = Feeling.objects.create(
@@ -1604,7 +1600,7 @@ def postfeeling(req):
     data = __feeling(obj, user) 
     return r_(0, data, '发表成功')
 
-@api_view(['POST'])
+@api_view(['GET'])
 @login()
 def deletefeeling(req, pk):
     item = i(Feeling, pk)
@@ -1684,7 +1680,7 @@ def postfeelingcomment(req, pk):
     data = _itemcomment(obj, user)
     return r_(0, data)
 
-@api_view(['POST'])
+@api_view(['GET'])
 @login()
 def hidefeelingcomment(req, pk):
     item = i(FeelingComment, pk)
@@ -1706,4 +1702,7 @@ def background(req):
 
 @api_view(['GET'])
 def test(req):
+    print(news)
+    req.session[0] = 'bar'
+    print(req.session['0'])
     return r(0, 'test')
