@@ -17,8 +17,8 @@ from phone.models import *
 from phone.utils import *
 import functools
 from jinzht.config import INDUSTRY
-#from PIL import Image as Img
-#import StringIO
+from PIL import Image as Img
+from io import StringIO
 
 PK_RE = re.compile(r'^[1-9]\d*$')
 MTM_RE = re.compile(r'^[1-9]\d*(,[1-9]\d*)*$')
@@ -49,6 +49,7 @@ def s(req):
     return req.session.get('uid')
 
 def u(req):
+    print(req.session.get('uid'))
     return User.objects.get(pk=req.session.get('uid'))
 
 def login(text=''):
@@ -64,22 +65,23 @@ def login(text=''):
 
 
 def store(field, image):
-    if not image:
-        return True
-    #img = Img.open(StringIO.StringIO(self.image.read()))
-    #if img.mode != 'RGB':
-    #    img = img.convert('RGB')
-    #img.thumbnail((image.width/1.5, image.height/1.5), Img.ANTIALIAS)
-    #output = StringIO.StringIO()
-    #img.save(output, format='JPEG', quality=70)
-    #output.seek(0)
-    #image= InMemoryUploadedFile(output,'ImageField', "%s.jpg" %self.image.name.split('.')[0], 'image/jpeg', output.len, None)
-    
+    if not image: 
+        return False
     ext = imghdr.what(image)
-    if ext in ('jpeg', 'png'):
-        field.save('file.' + ext, File(image)) 
-        return True
-    return False
+    if ext not in ('jpeg', 'png'):
+        return False
+    print(image.size)
+    if False and image.size > 100000:
+        img = Img.open(image.read())
+        #img.thumbnail((image.width/1.5, image.height/1.5), Img.ANTIALIAS)
+        output = StringIO()
+        img.save(output, format='JPEG', quality=20)
+        output.seek(0)
+        print(output.len)
+        image= InMemoryUploadedFile(output,'ImageField', "file.jpg", 'image/jpeg', output.len, None)
+    
+    field.save('file.jpg', File(image)) 
+    return True
 
 
 def img(file, default=''):
@@ -92,8 +94,11 @@ def info(user):
         return False
     return True
 
-@api_view(['GET'])
-def openid(req, openid):
+@api_view(['POST'])
+def openid(req):
+    openid = req.data.get('openid', '').strip()
+    if not openid:
+        return r(1, '微信不能为空')
     user = User.objects.filter(openid=openid)
     return r_(0, {'flag': user.exists()})
         
@@ -103,13 +108,16 @@ def sendcode(req, flag, weixin):
     tel = req.data.get('tel')
     if not valtel(tel): 
         return r(1, '手机格式不正确')
-
+    is_new_user = False # 是否全新注册, 默认为 False
     if weixin == '1':
+        if flag == '1':
+            return r(1, 'debug')
         openid = req.data.get('openid')
         if not openid:
             return r(1, '微信不能为空')
-        user = User.objects.filter(openid=openid, tel=tel)
-        if flag == '0' and user.exists():
+        if not User.objects.filter(Q(openid=openid) | Q(tel=tel)).exists(): # 全新注册
+            is_new_user = True 
+        elif User.objects.filter(openid=openid, tel=tel).exists(): # 用户存在
             return r(1, '用户已经存在, 请直接登录')
     elif weixin == '0':
         user = User.objects.filter(tel=tel)
@@ -126,7 +134,7 @@ def sendcode(req, flag, weixin):
     req.session.set_expiry(60 * 10)
     req.session[tel] = code
     req.session.set_expiry(3600 * 24)
-    return r(0, '验证码已发送, 请耐心等待')
+    return r_(0, {'flag': is_new_user}, '验证码已发送, 请耐心等待')
 
 
 @api_view(['POST'])
@@ -134,6 +142,7 @@ def registe(req, os):
     tel = req.data.get('tel')
     code = req.data.get('code')
     regid = req.data.get('regid', '')
+    passwd = req.data.get('passwd')
     sode = req.session.get(tel)
     version = '1'
 
@@ -142,7 +151,7 @@ def registe(req, os):
     if not sode:
         return r(1, '请先获取验证码')
     if not regid: 
-        return r(1, 'debug')
+        return r(1, 'regid')
     if code != str(sode):
         return r(1, '验证码错误')
 
@@ -158,12 +167,15 @@ def registe(req, os):
             tel_user = User.objects.filter(tel=tel)
 
             if not tel_user.exists(): # 全新创建 
+                if not passwd:
+                    return r(1, '请输入密码')
                 print('a')
                 user = User.objects.create(
                     openid=openid, 
                     nickname = nickname,
                     photo = photo,
                     tel=tel, 
+                    passwd=passwd,
                     os=int(os), 
                     regid=regid, 
                     version = version
@@ -205,7 +217,6 @@ def registe(req, os):
                     user.save()
     else:
         print('f')
-        passwd = req.data.get('passwd')
         if not passwd:
             return r(1, '请输入密码')
         if User.objects.filter(tel=tel).exists(): 
@@ -232,6 +243,12 @@ def is_auth(user):
         return ''
     return None
 
+@api_view(['GET'])
+@login()
+def myauth(req):
+    user = u(req)
+    data = {'auth': is_auth(user)}
+    return r_(0, data)
 @api_view(['POST'])
 def login_(req):
     regid = req.data.get('regid', '').strip()
@@ -475,13 +492,16 @@ def _upload(queryset, page):
     data = list()
     for item in queryset:
         data.append({
-            'name': item.name,
-            'tel': item.tel,
+            'img': 'https://www.baidu.com/link?url=wZY-2x0l4O43Wq9e9XXa0cEO0Elq6lWxuK7pt4YWbfxrPQq5dWQxRlzQpJHKLlfKjqtm3l9vz_a-pry2n1UC8q&wd=&eqid=cbda0b2200005d660000000256494e72', #img(item.user.photo),
+            'name': item.user.name,
+            'tel': item.user.tel,
             'company': item.company,
-            'vcr': create(item.vcr),
+            'desc': item.desc,
+            'vcr': createurl(item.vcr),
             'date': dateformat(item.create_datetime)
         })
-    return r_(0, data)
+    code = 2 if len(data) < size else 0
+    return r_(code, data)
 
 @api_view(['GET'])
 @login()
@@ -502,7 +522,7 @@ def project(req, cursor, page):
         queryset = Project.objects.filter(start__lte=now, stop__gte=now)
         return  _financing(queryset, page)
     elif cursor == 3:
-        queryset = Project.objects.filter(stop__lt=now)
+        queryset = Project.objects.filter(start__isnull=False, stop__lt=now)
         return  _financed(queryset, page)
     else:
         queryset = Upload.objects.filter(valid=True)
@@ -517,7 +537,7 @@ def thinktankdetail(req, pk):
     data = {
         'video': item.video,
         'experience': item.experience,
-        'case': item.case,
+        'cases': item.case,
         'domain': item.domain,
     }
     return Response({'code':0, 'msg':'', 'data':data})
@@ -607,7 +627,7 @@ def member(req, pk):
             'position': item.position,
             'profile': item.profile,
         })
-    return r_(0, data)
+    return r_(2, data)
 
 
 @api_view(['GET'])
@@ -620,8 +640,9 @@ def investlist(req, pk):
             'amount': item.amount,
             'name': user.name,
             'photo': img(user.photo),
+            'date': dateformat(item.create_datetime),
         })
-    return r_(0, data)
+    return r_(2, data)
 
 @api_view(['GET'])
 @login()
@@ -678,7 +699,6 @@ def investor(req, cursor, page):
     if cursor == 2:
         queryset = Institute.objects.all()
         return _institute(queryset, page)
-#ps = Project.objects.annotate(invested_sum=Sum('investship__invest_amount')).filter(invested_sum__gte=F('planfinance'))
 
 @api_view(['POST'])
 @login()
@@ -686,25 +706,21 @@ def upload(req):
     user = u(req)
     if Upload.objects.filter(~Q(valid=True), user=user).exists(): 
         return r(1, '您还有项目尚在审核中')
-    name = req.data.get('name', '').strip()
     company = req.data.get('company', '').strip()
-    tel = req.data.get('tel', '').strip()
+    desc = req.data.get('desc', '').strip()
     vcr = req.data.get('vcr')
 
-    if not name:
-        return r(1, '联系人不能为空')
     if not company:
         return r(1, '公司不能为空')
-    if valtel(tel) == False: 
-        return r(1, '手机格式不正确')
+    if not desc:
+        return r(1, '项目描述不能为空')
     if not vcr:
         return r(1, 'vcr不能为空')
 
-    obj = Roadshow.objects.create(
+    obj = Upload.objects.create(
         user=user, 
-        comment=company, 
-        name=name, 
-        tel=tel,
+        company=company, 
+        desc = desc,
         vcr = vcr,
     )
     return r(0, '您的项目已成功入选项目库')
@@ -732,18 +748,26 @@ def photo(req):
         return r(1, '图像设置失败')
     return r(0, '图像设置成功')
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @login()
 def bg(req):
-    bg = req.data.get('file')
-    if not bg:
-        return r(1, '图像不能为空')    
+    if req.method == 'GET':
+        user = u(req)
+        data = {
+            'bg': img(user.bg), 
+            'photo': img(user.photo)
+        }
+        return r_(0, data)
+    elif req.method == 'POST':
+        bg = req.data.get('file')
+        if not bg:
+            return r(1, '图像不能为空')    
 
-    user = u(req)
-    flag = store(user.bg, bg)
-    if not flag:
-        return r(1, '设置背景失败') 
-    return r(0, '设置背景成功')
+        user = u(req)
+        flag = store(user.bg, bg)
+        if not flag:
+            return r(1, '设置背景失败') 
+        return r(0, '设置背景成功')
 
 @api_view(['POST'])
 @login()
@@ -761,7 +785,6 @@ def nickname(req):
 @api_view(['POST'])
 @login()
 def company(req):
-
     company = req.data.get('company', '').strip()
     if not company:
         return r(1, '公司不能为空')
@@ -789,7 +812,6 @@ def position(req):
 @api_view(['POST'])
 @login()
 def addr(req):
-
     addr = req.data.get('addr', '').strip()
     if not addr:
         return r(1, '地址不能为空')
@@ -866,6 +888,21 @@ def credit(req):
     return r_(0, data)
 
 
+@api_view(['POST'])
+@login()
+def name(req):
+    user = u(req)
+    if is_auth(user) == True:
+        return r(1, '您已认证, 姓名不能修改')
+    name = req.data.get('name')
+    if not name:
+        return r(1, '姓名不能为空')
+
+    user.name = name
+    user.save()
+    return r(0, '姓名修改成功')
+
+
 @api_view(['GET', 'POST'])
 @login()
 def userinfo(req, uid=None):
@@ -880,6 +917,7 @@ def userinfo(req, uid=None):
             'nickname': user.nickname,
             'name': user.name,
             'idno': user.idno,
+            'idpic': img(user.idpic),
             'company': user.company,
             'position': user.position,
             'addr': user.addr}
@@ -927,10 +965,9 @@ def userinfo(req, uid=None):
         user.birthday = birthday
         user.birthplace = birthplace
         user.save()
-        print(user.birthday)
 
         print(ret)
-        return r(0, str(ret))
+        return r(0)
 
 @api_view(['GET', 'POST'])
 @login()
@@ -943,15 +980,23 @@ def auth(req):
         return r_(0, data)
 
     elif req.method == 'POST':
-        if user.valid:
-            return r(1, '认证已通过, 更改请联系客服')
+        _auth = is_auth(user)
+        if info(user) == False:
+            return r(1, '请先完善个人信息, 然后认证')
+        if _auth == True:
+            return r(1, '认证成功, 更改请联系客服')
+        elif _auth == False:
+            return r(1, '认证失败, 更改请联系客服')
         qualification = req.data.get('qualification', '').strip()
         qualification = set(qualification.split(','))
         choice = set(str(item[0]) for item in QUALIFICATION)
         idpic = req.data.get('file')
+        print(idpic)
 
         if not qualification or not qualification <= choice:
             return r(1, '认证资格有误')
+        if not idpic:
+            return r(1, '身份证未上传')
         
         comment = ''
         if 'institute' in req.data: # 机构认证
@@ -994,11 +1039,14 @@ def collect(req, pk, flag):
     project = i(Project, pk)
     if not project:
         return ENTITY
+
+    item = Collect.objects.filter(user=user, project=project)
     if flag == '0':
-        Collect.objects.create(user=user, project=project)
+        if not item.exists():
+            Collect.objects.create(user=user, project=project)
         return r_(0, {'is_collect': True})
     else:
-        Collect.objects.filter(user=user, project=project).delete()
+        item.delete()
         return r_(0, {'is_collect': False})
 
 @api_view(['GET'])
@@ -1128,7 +1176,8 @@ def token(req):
     key = req.data.get('key', '').strip()
     if not key: 
         return r(1, '上传视频名不能为空')
-
+    
+    print(key)
     user = u(req)
     if Upload.objects.filter(~Q(valid=True), user=user).exists():
         return r(1, '您还有项目尚在审核中')
@@ -1153,7 +1202,8 @@ def createurl(name):
 def callback(req):
     name = req.data.get('name', '').strip()
     if not name: 
-        return r(0, '视频名不能为空')
+        return r(1, '视频名不能为空')
+    print('name')
     url = createurl(name)
     data = {'url': url}
     return r_(0, data,  '视频上传成功')
@@ -1627,10 +1677,10 @@ def likefeeling(req, pk, is_like):
     }
     if is_like == '0': 
         item.like.add(user)
-        return r_(0, data, '点赞成功')
+        return r_(0, data)
     else: 
         item.like.remove(user)
-        return r_(0, data, '取消点赞')
+        return r_(0, data)
 
 @api_view(['GET'])
 @login()
@@ -1702,7 +1752,5 @@ def background(req):
 
 @api_view(['GET'])
 def test(req):
-    print(news)
-    req.session[0] = 'bar'
-    print(req.session['0'])
-    return r(0, 'test')
+    url = createurl('wantroadshowe69cac.mp4')
+    return r_(0, {'url': url}, 'test')

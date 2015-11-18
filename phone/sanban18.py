@@ -152,7 +152,7 @@ class Browser(object):
         import codecs
         dirname = os.path.dirname( os.path.abspath(__file__) )
         app_label = os.path.basename(dirname)
-        pth = os.path.join(dirname, 'templates', app_label, settings.SANBAN) 
+        pth = os.path.join(dirname, 'templates', app_label, 'sanban') 
         filepath = os.path.join(pth, name)
         try: fp = codecs.open(filepath, 'w+', 'utf-8')
         except IOException as e: print(e) 

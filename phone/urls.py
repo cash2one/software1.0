@@ -5,7 +5,7 @@ from phone import views
 urlpatterns = [
     url(r'^test/$', views.test, name='test'),
     
-    url(r'^openid/(?P<openid>.+)/$', views.openid, name='openid'),
+    url(r'^openid/$', views.openid, name='openid'),
 
     url(r'^sendcode/(?P<flag>[01])/(?P<weixin>[01])/$', views.sendcode, name='sendcode'),
     url(r'^registe/(?P<os>[12])/$', views.registe, name='registe'),
@@ -14,6 +14,8 @@ urlpatterns = [
     url(r'^modifypasswd/$', views.modifypasswd, name='modifypasswd'),
     url(r'^logout/$', views.logout, name='logout'),
 
+
+    url(r'^name/$', views.name, name='name'),
     url(r'^userinfo/$', views.userinfo, name='userinfo'),
     url(r'^leftslide/$', views.leftslide, name='leftslide'),
     url(r'^photo/$', views.photo, name='photo'),
@@ -38,6 +40,7 @@ urlpatterns = [
     url(r'^project/(?P<cursor>[01234])/(?P<page>\d+)/$', views.project, name='project'),
 
     url(r'^auth/$', views.auth, name='auth'),
+    url(r'^myauth/$', views.myauth, name='myauth'),
 
     url(r'^like/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.like, name='like'),
     url(r'^collect/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.collect, name='collect'),

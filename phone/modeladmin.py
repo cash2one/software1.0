@@ -16,7 +16,7 @@ class UserAdmin(admin.ModelAdmin):
     readonly_fields = ('idpic', '_idpic', 'photo', '_photo', 'nickname', 'name', 'tel', 'passwd', 
         'gender', 'idno',  'email', 'company', 'position', 
         'addr', 'birthday', 'birthplace', 
-        'bg','regid', 'version', 
+        'bg', 'openid', 'os', 'regid', 'version', 
         'lastlogin', 'qualification')
     
     def _photo(self, obj):
@@ -117,6 +117,9 @@ class ProjectAdmin(admin.ModelAdmin):
         ('融资', {
             'fields':(('planfinance', 'finance2get', 'share2give', 'quitway'), 'usage')
         }),
+        ('新闻', {
+            'fields': ('event',)
+        }),
         ('数字', {
             'fields':(('invest2plan', 'minfund'),)
         }),
@@ -134,8 +137,8 @@ class MemberAdmin(admin.ModelAdmin):
     form = MemberForm
     list_display = ('id', 'project', 'name', '_img', 'position')
     def _img(self, obj):
-        if obj.img:
-            return '<img width="50px" src="%s"/>' % obj.img.url
+        if obj.photo:
+            return '<img width="50px" src="%s"/>' % obj.photo.url
         return '<img width="50px" src="%s"/>' % 'http://www.jinzht.com/media/default/coremember.png'
     _img.allow_tags = True
     _img.short_description = '图像'

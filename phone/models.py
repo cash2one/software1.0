@@ -103,13 +103,19 @@ class User(Model):
         edit = self.pk
         if edit: 
             user = User.objects.get(pk=self.pk)
-        super(User, self).save(*args, **kwargs)
-        if edit:
+            if user.qualification != self.qualification:
+                MAIL('认证', '%s 在 %s 申请认证' % (self.tel, timeformat()) ).send()
+            if user.valid != self.valid:
+                if self.valid == True:
+                    SMS(self.tel, AUTH_TRUE).send()
+                elif self.valid == False:
+                    SMS(self.tel, AUTH_FALSE).send()
             osremove(user.photo, self.photo)
             osremove(user.bg, self.bg)
         else:
             SMS(self.tel, REGISTE).send()
-            MAIL('用户注册', '%s 在 %s 注册' % (self.tel, timeformat(self.create_datetime)) ).send()
+            MAIL('用户注册', '%s 在 %s 注册' % (self.tel, timeformat()) ).send()
+        super(User, self).save(*args, **kwargs)
 
     def __str__(self):
         return '%s:%s' % (self.name, self.tel)
@@ -150,15 +156,14 @@ class Upload(Model):
 
     ''' 上传的项目 '''
     user = ForeignKey('User', verbose_name='上传人')
-    name = CharField('姓名', max_length=32)
-    tel = CharField('手机', max_length=11, validators=[valtel])
     company = CharField('公司名称', max_length=64)
+    desc = TextField('项目描述')
     vcr = CharField('vcr', max_length=64, blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
     valid = NullBooleanField('是否合法')
     num = PositiveSmallIntegerField('剩余修改次数', default=5)
 
-    def __str__(self): return '%s' % self.name
+    def __str__(self): return '%s' % self.company
 
     class Meta:
         ordering = ('-pk',)

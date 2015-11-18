@@ -34,8 +34,10 @@ class ProjectForm(forms.ModelForm):
         cleaned_data = super(ProjectForm, self).clean()
         start = cleaned_data.get('start')
         stop = cleaned_data.get('stop')
-        if start and stop and start > stop:
-                raise forms.ValidationError('路演截至时间 必须<= 融资截至时间')
+        if not start and stop or start and not stop:
+            raise forms.ValidationError('要有一起有, 要没一起没')
+        elif start and stop and start > stop:
+            raise forms.ValidationError('路演截至时间 必须<= 融资截至时间')
 
 
 class MemberForm(forms.ModelForm):
