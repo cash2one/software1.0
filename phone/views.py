@@ -49,7 +49,6 @@ def s(req):
     return req.session.get('uid')
 
 def u(req):
-    print(req.session.get('uid'))
     return User.objects.get(pk=req.session.get('uid'))
 
 def login(text=''):
@@ -158,6 +157,7 @@ def registe(req, os):
     if 'openid' in req.data:
         openid = req.data.get('openid').strip()
         nickname = req.data.get('nickname', '').rstrip()
+        print(nickname, '---------------')
         photo = req.data.get('file')
         if not openid:
             return r(1, '微信不能为空')
@@ -775,7 +775,6 @@ def nickname(req):
     nickname = req.data.get('nickname', '').rstrip()
     if not nickname:
         return r(1, '昵称不能为空')
-
     user = u(req) 
     user.nickname = nickname
     user.save()

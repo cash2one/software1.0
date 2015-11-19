@@ -16,7 +16,8 @@ class UserAdmin(admin.ModelAdmin):
     readonly_fields = ('idpic', '_idpic', 'photo', '_photo', 'nickname', 'name', 'tel', 'passwd', 
         'gender', 'idno',  'email', 'company', 'position', 
         'addr', 'birthday', 'birthplace', 
-        'bg', 'openid', 'os', 'regid', 'version', 
+        #'bg', 'openid', 'os', 'regid', 'version', 
+        'bg', 'os', 'regid', 'version', 
         'lastlogin', 'qualification')
     
     def _photo(self, obj):

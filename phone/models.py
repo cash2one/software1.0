@@ -60,7 +60,7 @@ class User(Model):
     ''' 微信授权登录 '''
     openid = CharField('微信', max_length=64, blank=True) # 微信授权登录的返回序列号
     photo = ImageField('图像', upload_to=UploadTo('user/photo/%Y/%m'), blank=True) # 微信的图像, 用户可以自己设置, 默认为微信没有的图像
-    nickname = CharField('昵称', max_length=64, blank=True) # 微信的昵称, 用户可以自己设置, 默认为匿名用户 
+    nickname = CharField('昵称', max_length=256, blank=True) # 微信的昵称, 用户可以自己设置, 默认为匿名用户 
     bg = ImageField('微信背景', upload_to=UploadTo('user/bg/%Y/%m/'), blank=True)
 
     ''' 手机登录 '''
