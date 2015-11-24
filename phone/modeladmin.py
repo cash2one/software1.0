@@ -13,12 +13,12 @@ class UserAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'tel', 'gender', 'addr', 'company', '_create_datetime')
     search_fields = ('tel',)
     
-    readonly_fields = ('idpic', '_idpic', 'photo', '_photo', 'nickname', 'name', 'tel', 'passwd', 
-        'gender', 'idno',  'email', 'company', 'position', 
-        'addr', 'birthday', 'birthplace', 
-        #'bg', 'openid', 'os', 'regid', 'version', 
-        'bg', 'os', 'regid', 'version', 
-        'lastlogin', 'qualification')
+    #readonly_fields = ('idpic', '_idpic', 'photo', '_photo', 'nickname', 'name', 'tel', 'passwd', 
+    #    'gender', 'idno',  'email', 'company', 'position', 
+    #    'addr', 'birthday', 'birthplace', 
+    #    #'bg', 'openid', 'os', 'regid', 'version', 
+    #    'bg', 'os', 'regid', 'version', 
+    #    'lastlogin', 'qualification')
     
     def _photo(self, obj):
         if  obj.photo:
@@ -146,8 +146,8 @@ class MemberAdmin(admin.ModelAdmin):
 
 class InvestAdmin(admin.ModelAdmin):
     form = InvestForm
-    #list_display = ('id', 'project', 'user', 'amount', 'valid')
-    #list_editable = ('valid',)
+    list_display = ('id', 'project', 'user', 'amount', 'valid')
+    list_editable = ('valid',)
     #raw_id_fields = ('project', 'user')
 
     def save_model(self, request, obj, form, change):
@@ -197,9 +197,14 @@ class NewsTypeAdmin(admin.ModelAdmin):
 
 class NewsAdmin(admin.ModelAdmin):
     form = NewsForm 
-    list_display = ('id', 'title', '_create_datetime')
+    list_display = ('id', 'title', '_create_datetime', '_url')
     def _create_datetime(self, obj):
         return dt_(obj.create_datetime)
+
+    def _url(self, obj):
+        return '%s/%s/%s/' % (settings.DOMAIN, 'phone/sanban', obj.name),
+
+    _url.short_description = '网址'
 
 class TopicAdmin(admin.ModelAdmin):
     form = TopicForm

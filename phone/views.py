@@ -84,7 +84,8 @@ def store(field, image):
 
 
 def img(file, default=''):
-    if not file: return '%s/media/default/coremember.png' % settings.DOMAIN
+    if not file: return 'http://www.jinzht.com/static/app/img/icon.png'
+    #if not file: return '%s/media/default/coremember.png' % settings.DOMAIN
     return '%s%s' % (settings.DOMAIN, file.url)
 
 
@@ -232,7 +233,8 @@ def registe(req, os):
     req.session[tel] = ''
     req.session.set_expiry(3600 * 24)
     req.session['uid'] = user.id
-    return r(0, '注册成功')
+    data = {'auth': is_auth(user), 'info': info(user)}
+    return r_(0, data,  '注册成功')
 
 def is_auth(user):
     if user.valid == True:
@@ -284,6 +286,7 @@ def login_(req):
     user.lastlogin = timezone.now()
     user.save()
     data = {'auth': is_auth(user), 'info': info(user)}
+    print(data)
     return r_(0, data, '登录成功')
 
 
@@ -333,6 +336,7 @@ def modifypasswd(req):
 
     if not new:
         return r(1, '新密码不能为空')
+    print(old)
     if old != user.passwd: 
         return r(1, '旧密码输入有误')
 
@@ -492,7 +496,7 @@ def _upload(queryset, page):
     data = list()
     for item in queryset:
         data.append({
-            'img': 'https://www.baidu.com/link?url=wZY-2x0l4O43Wq9e9XXa0cEO0Elq6lWxuK7pt4YWbfxrPQq5dWQxRlzQpJHKLlfKjqtm3l9vz_a-pry2n1UC8q&wd=&eqid=cbda0b2200005d660000000256494e72', #img(item.user.photo),
+            'img': img(item.user.photo),
             'name': item.user.name,
             'tel': item.user.tel,
             'company': item.company,
@@ -818,7 +822,7 @@ def addr(req):
     user = u(req)
     user.addr = addr
     user.save()
-    return r(0, '地址设置成功')
+    return r(0)
 
 @api_view(['GET'])
 @login()
@@ -875,15 +879,19 @@ def home(req):
     return r_(0, data)    
 
 
-@api_view(['POST'])
-@login()
+@api_view(['POST', 'GET'])
+#@login()
 def credit(req):
-    from phone.sanban18 import Credit
-    wd = req.data.get('wd', '').strip()
-    if not wd:
-        return r(1, '关键词不能为空')
+    if req.method == 'GET':
+        queryset = random.sample(list(Company.objects.all()), 5)
+        data = {'company': [ c.name for c in queryset ]}
+    else:
+        from phone.sanban18 import Credit
+        wd = req.data.get('wd', '').strip()
+        if not wd:
+            return r(1, '关键词不能为空')
 
-    data = Credit().outcome(wd)
+        data = Credit().outcome(wd)
     return r_(0, data)
 
 
@@ -975,7 +983,15 @@ def auth(req):
 
     if req.method == 'GET':
         qualification = [{'key': i[0], 'value': i[1]} for i in QUALIFICATION]
-        data = {'company': user.company, 'position': user.position, 'qualification': qualification}
+        data = {
+                'idpic': '%s%s' %(settings.DOMAIN, user.idpic.url) if user.idpic else '',  
+                'qua': user.qualification,
+                'institute': user.comment.split(';')[0],
+                'legalperson': user.comment.split(';')[-1],
+                'company': user.company, 
+                'position': user.position, 
+                'qualification': qualification
+        }
         return r_(0, data)
 
     elif req.method == 'POST':
@@ -999,15 +1015,15 @@ def auth(req):
         
         comment = ''
         if 'institute' in req.data: # 机构认证
-            institute = req.data.get('institute', '').strip()
-            legalperson = req.data.get('legalperson', '').strip()
+            institute = req.data.get('institute', '').strip().replace(';', '')
+            legalperson = req.data.get('legalperson', '').strip().replace(';', '')
             
             if not institute or not CHINESE_RE.match(institute):
                 return r(1, '机构输入有误')
             if not legalperson or not CHINESE_RE.match(institute):
                 return r(1, '法人输入有误')
 
-            comment = '%s %s' % (institute, legalperson)
+            comment = '%s;%s' % (institute, legalperson)
         
         flag = store(user.idpic, idpic)
         if not flag:
@@ -1144,7 +1160,7 @@ def wantinvest(req, pk, flag):
         return ENTITY
     fund = project.minfund
     if int(amount) < fund:
-        return r(1, '金额必须大于%s' % fund)
+        return r(1, '金额必须大于%s万' % fund)
     user = u(req)
     invest = Invest.objects.filter(project=project, user=user) #是否投资过
     if invest.exists():
@@ -1257,7 +1273,7 @@ def checkupdate(req, system):
 def shareproject(req, pk):
     data = dict()
     data['title'] = '项目分享'
-    data['img'] = '%s/static/app/img/icon.png' % settings.DOMAIN
+    data['img'] = 'http://www.jinzht.com/static/app/img/icon.png' #% settings.DOMAIN
     data['url'] = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
     data['content'] = '项目分享'
     return Response({'code':0, 'msg':'', 'data':data})
@@ -1266,7 +1282,7 @@ def shareproject(req, pk):
 def shareapp(req):
     data = dict()
     data['title'] = 'app分享'
-    data['img'] = '%s/static/app/img/icon.png' % settings.DOMAIN
+    data['img'] = 'http://www.jinzht.com/static/app/img/icon.png' #% settings.DOMAIN
     data['url'] = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
     data['content'] = '金指投App分享'
     return Response({'code':0, 'msg':'', 'data':data})
@@ -1348,9 +1364,9 @@ def __topiclist(queryset, page):
         tmp['pid'] = item.project.id
         tmp['id'] = item.id
         tmp['photo'] = img(item.user.photo)
-        tmp['name'] = item.user.name
+        tmp['name'] = item.user.name or item.user.tel[-4:]
         if item.at: 
-            tmp['at_name'] = item.at.user.name
+            tmp['at_name'] = item.at.user.name or item.at.user.tel[-4:]
         tmp['date'] = dt_(item.create_datetime) 
         tmp['content'] = item.content
         tmp['auth'] = item.user.valid is True
@@ -1398,12 +1414,13 @@ def sharenews(req, pk):
         return ENTITY
 
     data = {
+        'img': news.img,
         'url': '%s/%s/%s' %(settings.DOMAIN, 'phone/sanban', news.name),
         'src': news.src,
         'title': news.title,
         'content': news.content,
     }
-    return Response({'code':0, 'msg':'', 'data':data})
+    return r_(0, data) #Response({'code':0, 'msg':'', 'data':data})
 
 @api_view(['GET'])
 def newsshare(req, pk):
@@ -1540,14 +1557,14 @@ def _itemcomment(item, user): # 获取某个人的评论
     dct = {
         'id': item.id,
         'flag': item.user == user,
-        'name': '%s' % (item.user.name),
+        'name': item.user.name or item.user.tel[-4:],
         'uid': item.user.id,
         'photo': img(item.user.photo),
         'content': '%s' % (item.content),
     }
     if item.at:
         dct['at_uid'] = item.at.user.id
-        dct['at_name'] = item.at.user.name
+        dct['at_name'] = item.at.user.name or item.at.user.tel[-4:]
     return dct
 
 def __feelingcomment(queryset, user, page, size):
@@ -1563,7 +1580,7 @@ def __feeling(item, user): # 获取发表的状态的关联信息
         'addr': item.user.addr,
         'flag': item.user == user,
         'datetime': dt_(item.create_datetime),
-        'name': item.user.name,
+        'name': item.user.name or item.user.tel[-4:],
         'photo': img(item.user.photo),
         'content': item.content,
     } 

@@ -369,10 +369,10 @@ class News(Model):
         verbose_name = verbose_name_plural = '资讯'
 
 class Topic(Model):
-    project = ForeignKey('Project', verbose_name='项目', on_delete=PROTECT)
-    user = ForeignKey('User', verbose_name='发表话题者', on_delete=PROTECT)
+    project = ForeignKey('Project', verbose_name='项目')
+    user = ForeignKey('User', verbose_name='发表话题者')
     content = CharField('内容', max_length=128)
-    at = ForeignKey('self', verbose_name='@话题', null=True, blank=True, on_delete=PROTECT)
+    at = ForeignKey('self', verbose_name='@话题', null=True, blank=True)
     valid = NullBooleanField('是否真实', default=None)
     read = NullBooleanField('是否阅读', default=False)
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
@@ -387,13 +387,14 @@ class Topic(Model):
         edit = self.pk
         super(Topic, self).save(*args, **kwargs)
         if edit == False and self.at_topic:
-            JG('%s 回复了你' % self.user.name, {'api': 'msg'}).single(self.at.user.regid)
+            pass
+            #JG('%s 回复了你' % self.user.name, {'api': 'msg'}).single(self.at.user.regid)
             
 
 class Push(Model):
     pushtype = PositiveIntegerField('推送类型', choices=PUSHTYPE)
     user = ManyToManyField('User', verbose_name='推送给', blank=True, help_text='如果为空就推送给所有人')
-    title = CharField('标题', max_length=32, default='金指投')
+    title = CharField('标题', max_length=32, blank=True)
     content = CharField('内容', max_length=64)
     index = PositiveIntegerField('对应的id', blank=True, null=True)
     url = URLField('地址', blank=True, help_text='如果是网页, 此次段必填')
@@ -409,6 +410,7 @@ class Push(Model):
 
     def save(self, *args, **kwargs):
         edit = self.pk
+        super(Push, self).save(*args, **kwargs)
         if self.valid == True:
             extras = {
                 'api': PUSHTYPE[self.pushtype-1][1],
@@ -416,12 +418,10 @@ class Push(Model):
                 'url': self.url
             }
             if not self.user.count():
-                print('all')
                 JG(self.content, extras).all()
             else:
                 for user in self.user.all(): 
                     user.regid and JG(self.content, extras).single(user.regid)
-        super(Push, self).save(*args, **kwargs)
                     
 class Inform(Model):
     user = ForeignKey('User', verbose_name='用户')
