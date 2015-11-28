@@ -204,7 +204,7 @@ class Project(Model):
     like = ManyToManyField('User', related_name='like', verbose_name='点赞', blank=True)
 
     ''' 公司新闻 '''
-    event = TextField('公司新闻')
+    event = TextField('公司新闻', blank=True)
 
     rcmd = NullBooleanField('推荐')
 
@@ -387,8 +387,10 @@ class Topic(Model):
         edit = self.pk
         super(Topic, self).save(*args, **kwargs)
         if edit == False and self.at_topic:
-            pass
-            #JG('%s 回复了你' % self.user.name, {'api': 'msg'}).single(self.at.user.regid)
+            JG(
+                '%s 回复了你' % self.user.name, 
+                {'api': 'msg', 'id': self.project.id},
+            ).single(self.at.user.regid)
             
 
 class Push(Model):

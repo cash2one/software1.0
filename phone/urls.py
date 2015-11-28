@@ -4,7 +4,7 @@ from phone import views
 
 urlpatterns = [
     url(r'^test/$', views.test, name='test'),
-    
+    url(r'^annc/(?P<name>.+)/$', views.annc, name='annc'), 
     url(r'^openid/$', views.openid, name='openid'),
 
     url(r'^sendcode/(?P<flag>[01])/(?P<weixin>[01])/$', views.sendcode, name='sendcode'),
@@ -87,7 +87,7 @@ urlpatterns = [
     url(r'^delvideo/$', views.delvideo, name='delvideo'),
     url(r'^ismyproject/(?P<pk>[1-9]\d*)/$', views.ismyproject, name='ismyproject'),
     url(r'^valsession/$', views.valsession, name='valsession'),
-    url(r'^checkupdate/(?P<system>[12])/$', views.checkupdate, name='checkupdate'),
+    url(r'^checkupdate/(?P<os>[12])/$', views.checkupdate, name='checkupdate'),
     url(r'^shareproject/(?P<pk>[1-9]\d*)/$', views.shareproject, name='shareproject'),
     url(r'^shareapp/$', views.shareapp, name='shareapp'),
 

@@ -84,7 +84,8 @@ def store(field, image):
 
 
 def img(file, default=''):
-    if not file: return 'http://www.jinzht.com/static/app/img/icon.png'
+    if not file: 
+        return 'http://www.jinzht.com/static/app/img/%s' %(default or 'icon.png')
     #if not file: return '%s/media/default/coremember.png' % settings.DOMAIN
     return '%s%s' % (settings.DOMAIN, file.url)
 
@@ -134,6 +135,7 @@ def sendcode(req, flag, weixin):
     req.session.set_expiry(60 * 10)
     req.session[tel] = code
     req.session.set_expiry(3600 * 24)
+    #req.session.set_expiry(3)
     return r_(0, {'flag': is_new_user}, '验证码已发送, 请耐心等待')
 
 
@@ -270,6 +272,7 @@ def login_(req):
         tel = req.data.get('tel')
         passwd = req.data.get('passwd')
         if not valtel(tel): 
+            print(tel, type(tel))
             return r(1, '手机格式不正确')
 
         user = User.objects.filter(tel=tel)
@@ -281,6 +284,7 @@ def login_(req):
             return r(1, '您尚未注册, 请先注册')
     #-------------------------------------------#
     req.session.set_expiry(3600 * 24)
+    #req.session.set_expiry(3)
     req.session['uid'] = user.id 
     user.regid = regid
     user.lastlogin = timezone.now()
@@ -642,7 +646,7 @@ def investlist(req, pk):
         user = item.user
         data.append({
             'amount': item.amount,
-            'name': user.name,
+            'name': user.name or user.tel[-4:],
             'photo': img(user.photo),
             'date': dateformat(item.create_datetime),
         })
@@ -686,6 +690,7 @@ def _institute(queryset, page):
             'name': item.name,
             'legalperson': item.legalperson,
             'logo': img(item.logo),
+            'profile': item.profile,
         }) 
     code = 2 if len(queryset) < size else 0
     return r_(code, data, '加载完毕')
@@ -758,7 +763,7 @@ def bg(req):
     if req.method == 'GET':
         user = u(req)
         data = {
-            'bg': img(user.bg), 
+            'bg': img(user.bg, 'feeling.png'), 
             'photo': img(user.photo)
         }
         return r_(0, data)
@@ -867,7 +872,11 @@ def home(req):
     
     data = {
         'banner': banner,
-        'announcement': {'title': '新三版在线', 'url': 'http://www.baidu.com'},
+        'announcement': {
+            'title': '新手指南', 
+            'url': '%s/phone/annc/user_guide/' %(settings.DOMAIN),
+            #'url': img(None, 'new_user_guide.png') #'http://www.jinzht.com'
+        },
         'project': project,
         'platform': [
             {'key': '成功融资总额(元)', 'value': '56125895423'},
@@ -1028,7 +1037,7 @@ def auth(req):
         flag = store(user.idpic, idpic)
         if not flag:
             return r(1, '上传身份证失败')
-        user.qualification = qualification
+        user.qualification = ','.join(sorted(qualification))
         user.comment = comment
         user.save()
         return r(0, '认证提交成功') 
@@ -1185,24 +1194,28 @@ def myinvest(req, page):
     queryset = Invest.objects.filter(user=u(req))
     return __collect(queryset, page)
 
-@api_view(['POST'])
+@api_view(['POST', 'GET'])
 @login()
 def token(req):
-    key = req.data.get('key', '').strip()
-    if not key: 
-        return r(1, '上传视频名不能为空')
-    
-    print(key)
     user = u(req)
-    if Upload.objects.filter(~Q(valid=True), user=user).exists():
-        return r(1, '您还有项目尚在审核中')
+    if req.method == 'GET':
+        if Upload.objects.filter(~Q(valid=True), user=user).exists():
+            return r(1, '您还有项目尚在审核中')
+        else:
+            return r(0)
+    else:
+        key = req.data.get('key', '').strip()
+        if not key:
+            return r(1, '上传视频名不能为空')
+        if Upload.objects.filter(~Q(valid=True), user=user).exists():
+            return r(1, '您还有项目尚在审核中')
 
-    q = Auth(settings.AK, settings.SK)
-    token = q.upload_token(settings.BN, key)
-    token2 = q.upload_token(settings.BN, key, 7200, {'callbackUrl':'%s/phone/callback/' % settings.DOMAIN, 
-        'callbackBody':'name=$(fname)&hash=$(etag)'})
-    data = {'token': token2}
-    return r_(0, data)
+        q = Auth(settings.AK, settings.SK)
+        token = q.upload_token(settings.BN, key)
+        token2 = q.upload_token(settings.BN, key, 7200, {'callbackUrl':'%s/phone/callback/' % settings.DOMAIN, 
+            'callbackBody':'name=$(fname)&hash=$(etag)'})
+        data = {'token': token2}
+        return r_(0, data)
 
 def createurl(name):
     if not name: return ''
@@ -1256,18 +1269,16 @@ def valsession(req):
     return r(0)
 
 @api_view(['POST', 'GET'])
-def checkupdate(req, system):
-    return r(1, '没有更新')
-    queryset = Version.objects.filter(system__id=system)
-    if not queryset: 
-        return r(0, '')
-    version = queryset[0] 
-    data = dict()
-    data['force'] = True #False
-    data['edition'] = version.edition
-    data['item'] = version.item
-    data['href'] = version.href 
-    return Response({'code':0, 'msg':'', 'data':data})
+def checkupdate(req, os):
+    #return r(1, '没有更新')
+    data = {
+        'force': False, #True,
+        'edition': '2.1.0',
+        'item': '1,更改投融资\n2,开启上传项目\n3,增加圈子功能',
+        #'href': 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro',
+        'href': 'http://dd.myapp.com/16891/274E705CD88A17A68B682C2F944742AF.apk?fsname=com.jinzht.pro_2.0.6_10.apk&amp;asr=02f1',
+    }
+    return r_(0, data)
 
 @api_view(['POST', 'GET'])
 def shareproject(req, pk):
@@ -1281,7 +1292,7 @@ def shareproject(req, pk):
 @api_view(['POST', 'GET'])
 def shareapp(req):
     data = dict()
-    data['title'] = 'app分享'
+    data['title'] = '金指投科技'
     data['img'] = 'http://www.jinzht.com/static/app/img/icon.png' #% settings.DOMAIN
     data['url'] = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
     data['content'] = '金指投App分享'
@@ -1404,8 +1415,11 @@ def news(req, pk, page):
     queryset = News.objects.filter(newstype__id=pk)
     return __news(queryset, page)
 
-def sanban(request, name):
-    return render(request, 'phone/sanban/%s' % name)
+def sanban(req, name):
+    return render(req, 'phone/sanban/%s' % name)
+
+def annc(req, name):
+    return render(req, 'phone/annc/%s.html' % name)
 
 @api_view(['POST', 'GET'])
 def sharenews(req, pk):
@@ -1508,7 +1522,7 @@ def deleteinform(req, pk):
 @api_view(['GET'])
 @login()
 def hastopic(req):
-    queryset = Topic.objects.filter(at__user=u(req), read=False)
+    queryset = Topic.objects.filter(~Q(read=True), at__user=u(req))
     data = {'count': queryset.count()}
     return r_(0, data)
 

@@ -10,8 +10,9 @@ class InstituteAdmin(admin.ModelAdmin):
 
 class UserAdmin(admin.ModelAdmin):
     form = UserForm
-    list_display = ('id', 'name', 'tel', 'gender', 'addr', 'company', '_create_datetime')
+    list_display = ('id', 'name', 'tel', 'gender', 'addr', 'company', '_create_datetime', 'qualification', 'valid')
     search_fields = ('tel',)
+    list_editable = ('valid',)
     
     #readonly_fields = ('idpic', '_idpic', 'photo', '_photo', 'nickname', 'name', 'tel', 'passwd', 
     #    'gender', 'idno',  'email', 'company', 'position', 
@@ -41,18 +42,18 @@ class UserAdmin(admin.ModelAdmin):
     def _create_datetime(self, obj):
         return timeformat(obj.create_datetime)
 
-    def has_delete_permission(self, request, obj=None):
-        return True
+   # def has_delete_permission(self, request, obj=None):
+   #     return True
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        return super(UserAdmin, self).change_view(request, object_id, form_url, extra_context)
+   # def change_view(self, request, object_id, form_url='', extra_context=None):
+   #     return super(UserAdmin, self).change_view(request, object_id, form_url, extra_context)
 
-    def add_view(self, request, form_url='', extra_context=None):
-        return super(UserAdmin, self).add_view(request, form_url, extra_context)
+   # def add_view(self, request, form_url='', extra_context=None):
+   #     return super(UserAdmin, self).add_view(request, form_url, extra_context)
 
-    def get_actions(self, request):
-        actions = super(UserAdmin, self).get_actions(request)
-        return actions
+   # def get_actions(self, request):
+   #     actions = super(UserAdmin, self).get_actions(request)
+   #     return actions
 
 
 class CompanyAdmin(admin.ModelAdmin):
@@ -78,6 +79,8 @@ class CompanyAdmin(admin.ModelAdmin):
 
 class UploadAdmin(admin.ModelAdmin):
     form = UploadForm
+    list_display = ('id', 'user', 'vcr', 'valid')
+    list_editable = ('valid', )
 
 class ProjectAdmin(admin.ModelAdmin):
     form = ProjectForm

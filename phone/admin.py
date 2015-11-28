@@ -28,7 +28,7 @@ admin.site._registry = registry
 admin.site.index = index_decorator(admin.site.index)
 admin.site.app_index = index_decorator(admin.site.app_index)
 
-admin.site.disable_action('delete_selected')
+#admin.site.disable_action('delete_selected')
 admin.site.register(Institute, InstituteAdmin)
 admin.site.register(User, UserAdmin)
 admin.site.register(Company, CompanyAdmin)

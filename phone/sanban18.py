@@ -135,7 +135,7 @@ class Browser(object):
     </head>
     <body>
         <div class="container-fluid">
-            <div class="row blog-main" style="margin:5px -14px;">
+            <div class="row blog-main" style="margin:5px -12px;">
                 <div class="blog-post">
                 <h4 style="color:#e94819;"><strong>%s</strong></h4>
                 <p class="blog-post-meta">
@@ -186,10 +186,8 @@ def push():
     news = News.objects.all()
     if not news: return
     else: news = news[0]
-    if news.newstype.id == 4: api="news"
-    else: api="knowledge"
     url = "%s/%s/%s" %(settings.DOMAIN, 'phone/sanban', news.name)
-    extras = {"api": api, '_id':news.id, "url": url}
+    extras = {"api": 'news', '_id':news.id, "url": url}
     #JiGuang(news.title, extras).all()
     JG(news.title, extras).single('050eb8bcd2f')
     JG(news.title, extras).single('050dee23230')
