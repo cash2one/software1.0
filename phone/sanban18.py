@@ -33,7 +33,6 @@ DE_RE = re.compile('''<a\ class="htn-a-img"\ href="(?P<url>.*?)".*?>.
 
 class Credit(object):
 
-    #LINK_RE = re.compile(r'href="(?P<url>.*?)" target="_blank">(?P<title>.*?)</a></h3>.*?<div class="c-abstract">(?P<content>.*?)</div><div class="f13"><span class="g">(?P<green>)</span>')
     LINK_RE = re.compile(r'href="(?P<url>.*?)" target="_blank">(?P<title>.*?)</a></h3>.*?<div class="c-abstract">(<span class=".+?">(?P<date>.+?)</span>)?(?P<content>.*?)</div>.*<span class="g">(?P<origin_url>.+?)</span>')
 
     def __init__(self):
@@ -97,15 +96,26 @@ class Browser(object):
         div = soup.findAll('div', {'class', 'newscont'})[0]
         div = str(div)
         name = url.rsplit('/', 1)[-1].rsplit('.')[0]
-        #year = datetime.now().strftime('%Y')
-        #name = '%s/%s' % (year, name) # 网页名
-        div = re.sub(r'style=".*?"', '', div)
-        div = re.sub(r'href=".*?"', 'href="#"', div)
+        div = re.sub(r' style=".*?"', '', div)
+        DAOLUN_RE = re.compile(r'<p>\n<strong>.+?【导语】.+?</p>', re.DOTALL)
+        div = DAOLUN_RE.sub('', div, 1) 
+        div = re.sub(r'<a .+?>(<strong>)?(.+?)(?(1)</strong>)</a>', r'\2', div)
         div = div.replace(r'<br>"', '')
         div = div.replace('src="/', 'src="http://www.sanban18.com/')
         div = div.replace('src=', 'class="img-responsive" src=')
         print(title)
-        try: self.save(name, title, pub_date, src, div)
+        try: 
+            kw = {
+                'name': name,
+                'title': title,
+                'content': content,
+                'date': pub_date,
+                'src': src,
+                'div': div,
+                'two_dimension_code': 'http://www.jinzht.com/static/app/img/two_dimension_code.png',
+                'app': 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro',
+            }
+            self.save(kw)
         except Exception as e: print(e)
         else:
             try:
@@ -121,42 +131,71 @@ class Browser(object):
             except Exception as e: print(e) 
             else: print(name, title, pub_date, src)
 
-    def save(self, name, title, pub_date, src, div):
-        app = 'http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro'
-        html = '''
-<!DOCTYPE html>                
-<html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="http://cdn.bootcss.com/bootstrap/3.3.5/css/bootstrap.min.css"/>
-        <link href="http://www.jinzht.com/static/app/css/blog.css" rel="stylesheet">
-    </head>
-    <body>
-        <div class="container-fluid">
-            <div class="row blog-main" style="margin:5px -12px;">
-                <div class="blog-post">
-                <h4 style="color:#e94819;"><strong>%s</strong></h4>
-                <p class="blog-post-meta">
-                    <a href="%s">%s</a>
-                    <a class="btn btn-danger pull-right" href="%s">下载APP</a>
-                </p>
-                %s
-                <p class="blog-post-meta">版权: %s</p>
+    def save(self, kw):
+        HTML = '''
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0">
+<link rel="shortcut icon" type="image/x-icon" href="http://res.wx.qq.com/mmbizwap/zh_CN/htmledition/images/icon/common/favicon22c41b.ico">
+<title>{title}</title>
+<link rel="stylesheet" type="text/css" href="http://res.wx.qq.com/mmbizwap/zh_CN/htmledition/style/page/appmsg/page_mp_article_improve2a26bd.css">
+<link href="http://res.wx.qq.com/mmbizwap/zh_CN/htmledition/style/page/appmsg/not_in_mm2637ae.css" type="text/css" rel="stylesheet"></head>
+<body id="activity-detail" class="zh_CN mm_appmsg not_in_mm" ontouchstart="">
+<div id="js_cmt_mine" class="discuss_container editing access" style="display:none;">
+    <div class="discuss_container_inner">
+        <h2 class="rich_media_title">{title}</h2>
+    </div>
+</div>
+
+<div id="js_article" class="rich_media">
+    <div class="rich_media_inner">
+        <div id="page-content">
+            <div id="img-content" class="rich_media_area_primary">
+                <h2 class="rich_media_title" id="activity-name">
+                    {title} 
+                </h2>
+                <div class="rich_media_meta_list">
+                    <em id="post-date" class="rich_media_meta rich_media_meta_text">{date}</em>
+                    <em class="rich_media_meta rich_media_meta_text">金指投</em>
+                    <a class="rich_media_meta rich_media_meta_link rich_media_meta_nickname" href="javascript:void(0);" id="post-user">{src}</a>
+                    <span class="rich_media_meta rich_media_meta_text rich_media_meta_nickname">{src}</span>
+                </div>
+                <div class="rich_media_content " id="js_content">
+                    <p><em>{content}</em></p>
+                    <p><br></p>
+                    {div}
+                    <img src="{two_dimension_code}" style="width: auto ! important; visibility: visible ! important; height: auto ! important;" data-s="300,640" data-type="jpeg" data-ratio="1" data-w="">
+                </div>
+                <link rel="stylesheet" type="text/css" href="http://res.wx.qq.com/mmbizwap/zh_CN/htmledition/style/page/appmsg/page_mp_article_improve_combo29ab01.css">
+                <div id='js_toobar3" class="rich_media_tool">
+                    <a class="media_tool_meta meta_primary" id="js_view_source" href="{app}">下载APP, 阅读原文</a>
+                </div>
             </div>
         </div>
-    </body>
-</html>''' % (title, app, '金指投科技', app, div, src)
-
+        <div id="js_pc_qr_code" class="qr_code_pc_outer" style="display: block;">
+            <div class="qr_code_pc_inner">
+                <div class="qr_code_pc">
+                    <img src="{two_dimension_code}" id="js_pc_qr_code_img" class="qr_code_pc_img">
+                    <p>微信扫一扫<br>下载该APP</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>'''.format(**kw)
         import codecs
         dirname = os.path.dirname( os.path.abspath(__file__) )
         app_label = os.path.basename(dirname)
         pth = os.path.join(dirname, 'templates', app_label, 'sanban') 
-        filepath = os.path.join(pth, name)
+        filepath = os.path.join(pth, kw['name'])
+        #filepath = os.path.join(pth, name)
         try: fp = codecs.open(filepath, 'w+', 'utf-8')
         except IOException as e: print(e) 
-        fp.write(html) 
+        #fp.write(html) 
+        fp.write(HTML) 
         fp.close()
 
     def collect(self, newstype):

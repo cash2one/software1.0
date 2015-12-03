@@ -386,7 +386,7 @@ class Topic(Model):
     def save(self, *args, **kwargs):
         edit = self.pk
         super(Topic, self).save(*args, **kwargs)
-        if edit == False and self.at_topic:
+        if not edit and self.at:
             JG(
                 '%s 回复了你' % self.user.name, 
                 {'api': 'msg', 'id': self.project.id},

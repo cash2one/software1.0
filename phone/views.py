@@ -98,6 +98,7 @@ def info(user):
 @api_view(['POST'])
 def openid(req):
     openid = req.data.get('openid', '').strip()
+    print(openid)
     if not openid:
         return r(1, '微信不能为空')
     user = User.objects.filter(openid=openid)
@@ -236,7 +237,7 @@ def registe(req, os):
     req.session.set_expiry(3600 * 24)
     req.session['uid'] = user.id
     data = {'auth': is_auth(user), 'info': info(user)}
-    return r_(0, data,  '注册成功')
+    return r_(0, data)
 
 def is_auth(user):
     if user.valid == True:
@@ -306,13 +307,16 @@ def resetpasswd(req):
     tel = req.data.get('tel')
     code = req.data.get('code')
     passwd = req.data.get('passwd')
+    tel = '13519141132'
+    code = '1234'
+    passwd='qw'
 
     if not valtel(tel): 
         return r(1, '手机格式不正确')
     if not passwd:
         return r(1, '密码不能为空')
 
-    sode = req.session[tel]
+    sode = req.session.get(tel)
     if not sode:
         return r(1, '请先获取验证码')
 
@@ -448,8 +452,10 @@ def _finance(queryset, page):
             'tag': item.tag,
             'date': dateformat(item.start),
         }) 
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 def _financing(queryset, page):
     size = settings.DEFAULT_PAGESIZE
@@ -469,8 +475,10 @@ def _financing(queryset, page):
             'investor': investor,
             'date': dateformat(item.stop),
         }) 
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 def _financed(queryset, page):
     size = settings.DEFAULT_PAGESIZE
@@ -491,8 +499,10 @@ def _financed(queryset, page):
             'investor': investor,
             'date': dateformat(item.stop),
         }) 
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 def _upload(queryset, page):
     size = settings.DEFAULT_PAGESIZE
@@ -563,8 +573,10 @@ def thinktank(req, page):
             'company': item.company,
             'position': item.position,
         })
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 def amountsum(flag, project):
     if flag == 1: 
@@ -677,8 +689,10 @@ def _auth(queryset, page):
             'position': item.position,
             'date': dateformat(item.create_datetime),
         }) 
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 def _institute(queryset, page):
     size = settings.DEFAULT_PAGESIZE
@@ -692,8 +706,10 @@ def _institute(queryset, page):
             'logo': img(item.logo),
             'profile': item.profile,
         }) 
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 @api_view(['GET'])
 @login()
@@ -1106,8 +1122,10 @@ def __collect(queryset, page):
             'start': dateformat(project.start),
             'stop': dateformat(project.stop),
         })
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 @api_view(['GET'])
 @login()
@@ -1146,8 +1164,10 @@ def __project(queryset, page):
             'start': dateformat(item.start),
             'stop': dateformat(item.stop),
         })
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 @api_view(['POST'])
 def projectsearch(req, page):
@@ -1169,11 +1189,11 @@ def wantinvest(req, pk, flag):
         return ENTITY
     fund = project.minfund
     if int(amount) < fund:
-        return r(1, '金额必须大于%s万' % fund)
+        return r_(1, {'flag': False},  '金额必须大于%s万' % fund)
     user = u(req)
     invest = Invest.objects.filter(project=project, user=user) #是否投资过
     if invest.exists():
-        return r(1, '您已投资过该项目, 请到用户中心查看')
+        return r(1, '您已投资过该项目')
     Invest.objects.create(
         user = user,
         project = project,
@@ -1382,8 +1402,10 @@ def __topiclist(queryset, page):
         tmp['content'] = item.content
         tmp['auth'] = item.user.valid is True
         data.append(tmp) 
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 @api_view(['GET'])
 #@login()
@@ -1407,8 +1429,10 @@ def __news(queryset, page):
             'share': item.share,
             'url': '%s/%s/%s/' % (settings.DOMAIN, 'phone/sanban', item.name),
         })
-    code = 2 if len(queryset) < size else 0
-    return r_(code, data, '加载完毕')
+    if len(queryset) < size:
+        return r_(2, data, '加载完毕')
+    else:
+        return r_(0, data)
 
 @api_view(['GET'])
 def news(req, pk, page):
