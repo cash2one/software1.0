@@ -16,7 +16,7 @@ from collections import OrderedDict
 from phone.models import *
 from phone.utils import *
 import functools
-from jinzht.config import INDUSTRY
+from jinzht.config import QUALIFICATION, INDUSTRY
 from PIL import Image as Img
 from io import StringIO
 
@@ -617,6 +617,19 @@ def projectdetail(req, pk):
     return r_(0, data)
 
 @api_view(['GET'])
+@login()
+def uploaddetail(req, pk):
+    item = i(Upload, pk)
+    if not item:
+        return ENTITY
+    data = {
+       'company': item.company,
+       'desc': item.desc,
+       'user': item.name,
+        'date': dateformat(item.create_datetime),
+    }
+
+@api_view(['GET'])
 def financeplan(req, pk):
     item = i(Project, pk)
     if not item: 
@@ -695,6 +708,18 @@ def _auth(queryset, page):
     else:
         return r_(0, data)
 
+@api_view(['GET'])
+def authdetail(req, pk):
+    item = i(User, pk)
+    if not item:
+        return ENTITY
+    data = {
+        'investfield': item.investfield,
+        'investscale': item.investscale,
+        'profile': item.profile,
+    }
+    return r_(0, data)
+
 def _institute(queryset, page):
     size = settings.DEFAULT_PAGESIZE
     queryset = q(queryset, page, size)
@@ -711,6 +736,17 @@ def _institute(queryset, page):
         return r_(2, data, '加载完毕')
     else:
         return r_(0, data)
+
+@api_view(['GET'])
+def institutedetail(req, pk):
+    item = i(Institute, pk)
+    if not item:
+        return ENTITY
+    data = {
+        'profile': item.profile,
+        'fundsize': item.fundsize
+    }
+    return r_(0, data)
 
 @api_view(['GET'])
 @login()
@@ -1018,7 +1054,8 @@ def auth(req):
                 'legalperson': user.comment.split(';')[-1],
                 'company': user.company, 
                 'position': user.position, 
-                'qualification': qualification
+                'qualification': qualification,
+                'industry': INDUSTRY
         }
         return r_(0, data)
 
@@ -1041,22 +1078,30 @@ def auth(req):
         if not idpic:
             return r(1, '身份证未上传')
         
-        comment = ''
+        investfield = investfield = profile = comment = ''
         if 'institute' in req.data: # 机构认证
             institute = req.data.get('institute', '').strip().replace(';', '')
             legalperson = req.data.get('legalperson', '').strip().replace(';', '')
+            fundsize = req.data.get('fundsize', '').strip()
             
             if not institute or not CHINESE_RE.match(institute):
                 return r(1, '机构输入有误')
             if not legalperson or not CHINESE_RE.match(institute):
                 return r(1, '法人输入有误')
 
-            comment = '%s;%s' % (institute, legalperson)
+            comment = '%s;%s;%s' % (institute, legalperson, fundsize)
+        else:
+           investfield = req.data.get('investfield', '').strip()
+           investscale = req.data.get('investscale', '').strip()
+           profile = req.data.get('profile', '').strip()
         
         flag = store(user.idpic, idpic)
         if not flag:
             return r(1, '上传身份证失败')
         user.qualification = ','.join(sorted(qualification))
+        user.investfield = investfield
+        user.investscale = investscale
+        user.profile = profile
         user.comment = comment
         user.save()
         return r(0, '认证提交成功') 

@@ -26,6 +26,7 @@ urlpatterns = [
     url(r'^$', jump, name='jump'),
     url(r'^admin/', include(admin.site.urls)),
     url(r'^phone/', include('phone.urls', namespace='phone')),
+    #url(r'^reademan/', include('reademan.urls', namespace='reademan')),
     url(r'^app/', include('app.urls', namespace='app')),
 ]
 from django.conf import settings

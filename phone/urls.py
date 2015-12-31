@@ -65,12 +65,15 @@ urlpatterns = [
     url(r'^wantinvest/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.wantinvest, name='wantinvest'),
 
     url(r'^projectdetail/(?P<pk>[1-9]\d*)/$', views.projectdetail, name='projectdetail'),
+    url(r'^uploaddetail/(?P<pk>[1-9]\d*)/$', views.uploaddetail, name='uploaddetail'),
     url(r'^financeplan/(?P<pk>[1-9]\d*)/$', views.financeplan, name='financeplan'),
     url(r'^member/(?P<pk>[1-9]\d*)/$', views.member, name='member'),
     url(r'^investlist/(?P<pk>[1-9]\d*)/$', views.investlist, name='investlist'),
     url(r'^attend/(?P<pk>[1-9]\d*)/$', views.attend, name='attend'),
 
     url(r'^investor/(?P<cursor>[012])/(?P<page>\d+)/$', views.investor, name='investor'),
+    url(r'^authdetail/(?P<pk>[1-9]\d*)/$', views.authdetail, name='authdetail'),
+    url(r'^institutedetail/(?P<pk>[1-9]\d*)/$', views.institutedetail, name='institutedetail'),
 
     url(r'^thinktank/(?P<page>\d+)/$', views.thinktank, name='thinktank'),
     url(r'^thinktankdetail/(?P<pk>[1-9]\d*)/$', views.thinktankdetail, name='thinktankdetail'),
