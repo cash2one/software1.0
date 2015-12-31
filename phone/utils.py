@@ -9,11 +9,10 @@ from email import encoders
 
 from django.core.files import File
 from django.utils import timezone
-import pytz
 from datetime import datetime, timedelta, date
 from rest_framework.response import Response
 
-import os, re, uuid, time, random, pytz, hashlib, codecs
+import os, re, uuid, time, random, hashlib, codecs
 import imghdr
 import jpush as jpush
 import requests

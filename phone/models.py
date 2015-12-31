@@ -35,6 +35,7 @@ class Institute(Model):
     name = CharField('机构名称', max_length=64, unique=True)
     legalperson = CharField('法人', max_length=32, blank=True)
     addr = CharField('地址', max_length=128, blank=True)
+    fundsize = CharField('基金规模', max_length=64, blank=True)
     profile = TextField('机构介绍', blank=True)
     logo = ImageField('logo', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
     orgcode = ImageField('组织机构代码证', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
@@ -97,6 +98,12 @@ class User(Model):
 
     ''' 信息是否属实 '''
     valid = NullBooleanField('是否属实')
+
+    ''' 投资人详情  '''
+    investfield = CharField('投资领域', max_length=64, blank=True)
+    investscale = CharField('投资规模', max_length=64, blank=True)
+    profile = TextField('个人介绍', max_length=256, blank=True)
+
 
 
     def save(self, *args, **kwargs): #密码的问题

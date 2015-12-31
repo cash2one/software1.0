@@ -20,6 +20,9 @@ from jinzht.config import INDUSTRY
 from PIL import Image as Img
 from io import StringIO
 
+from django.http import Http404
+from django.http import HttpResponseNotFound
+
 PK_RE = re.compile(r'^[1-9]\d*$')
 MTM_RE = re.compile(r'^[1-9]\d*(,[1-9]\d*)*$')
 CHINESE_RE = re.compile(r'[\u4e00-\u9fa5a-zA-Z]+')
@@ -307,9 +310,6 @@ def resetpasswd(req):
     tel = req.data.get('tel')
     code = req.data.get('code')
     passwd = req.data.get('passwd')
-    tel = '13519141132'
-    code = '1234'
-    passwd='qw'
 
     if not valtel(tel): 
         return r(1, '手机格式不正确')
@@ -486,9 +486,7 @@ def _financed(queryset, page):
     data = list()
     for item in queryset:
         _queryset = Invest.objects.filter(project=item, valid=True)
-        tmp = _queryset.aggregate(Sum('amount'))['amount__sum']
-        if not tmp: tmp = 0 
-        invest = tmp + int(item.finance2get)
+        invest = item.finance2get
         investor = _queryset.count()
         data.append({
             'id': item.id,
@@ -623,9 +621,12 @@ def financeplan(req, pk):
     item = i(Project, pk)
     if not item: 
         return ENTITY
+    user = u(req)
+    share2givevalue =user.os==1 and item.share2give/100 or item.share2give
+    print ("here is %d"% share2givevalue)
     data = {
         'planfinance': item.planfinance,
-        'share2give': item.share2give,
+        'share2give':share2givevalue,
         'usage': item.usage,
         'quitway': item.quitway,
         'minfund': item.minfund,
@@ -939,8 +940,10 @@ def name(req):
 @login()
 def userinfo(req, uid=None):
     if req.method == 'GET':
-        uid = uid if uid else s(req)
+        uid = uid or s(req)
         user = i(User, uid)
+        if not user:
+            return r(1, 'debug') 
         data = { 
             'uid': s(req),
             'tel': user.tel,
@@ -1290,7 +1293,7 @@ def valsession(req):
 
 @api_view(['POST', 'GET'])
 def checkupdate(req, os):
-    #return r(1, '没有更新')
+    return r(1, '没有更新')
     data = {
         'force': False, #True,
         'edition': '2.1.0',
@@ -1440,7 +1443,10 @@ def news(req, pk, page):
     return __news(queryset, page)
 
 def sanban(req, name):
-    return render(req, 'phone/sanban/%s' % name)
+    try:
+        return render(req, 'phone/sanban/%s' % name)
+    except:
+        return HttpResponseNotFound('<h1>Page not found</h1>')
 
 def annc(req, name):
     return render(req, 'phone/annc/%s.html' % name)
