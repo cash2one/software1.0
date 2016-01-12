@@ -181,9 +181,9 @@ class SANBAN(object):
 </div>
 </body>
 </html>'''.format(**kw)
-        dirname = os.path.dirname( os.path.abspath(__file__) )
-        app_label = os.path.basename(dirname)
-        pth = os.path.join(dirname, 'templates', app_label, 'sanban') 
+        dirname = os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) )
+        app_label = 'app' #os.path.basename(dirname)
+        pth = os.path.join(dirname, app_label, 'templates', app_label, 'sanban') 
         filepath = os.path.join(pth, kw['name'])
         try: 
             fp = codecs.open(filepath, 'w+', 'utf-8')
@@ -201,7 +201,10 @@ class SANBAN(object):
 
 def main():
     sanban = SANBAN()
-    from phone4.models import NewsType
+    try:
+        from phone4.models import NewsType
+    except ImportError:
+        from phone.models import NewsType
     from django.db.models import Q
     for item in NewsType.objects.filter(~Q(valid=False)):
         print(item.eng, item.name) 

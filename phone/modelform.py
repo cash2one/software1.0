@@ -50,12 +50,6 @@ class InvestForm(forms.ModelForm):
         model = Invest
         fields = '__all__'
 
-
-class CollectForm(forms.ModelForm):
-    class Meta:
-        model = Collect
-        fields = '__all__'
-
 class BannerForm(forms.ModelForm):
     class Meta:
         model = Banner
