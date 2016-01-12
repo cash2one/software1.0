@@ -7,6 +7,10 @@ from .modelform import *
 
 class InstituteAdmin(admin.ModelAdmin):
     form = InstituteForm
+    list_display = ('id', 'name')
+
+class InvestCaseAdmin(admin.ModelAdmin):
+    list_dispaly = ('id', 'company', 'logo') 
 
 class UserAdmin(admin.ModelAdmin):
     form = UserForm
@@ -58,7 +62,8 @@ class UserAdmin(admin.ModelAdmin):
 
 class CompanyAdmin(admin.ModelAdmin):
     form = CompanyForm
-    list_display = ('id', 'name', 'logo', '_license', 'orgcode')
+    list_display = ('id', 'name', 'abbrevname', 'logo', '_license', 'orgcode')
+    list_editable = ('abbrevname',)
     def _license(self, obj):
         if not obj.license: return None
         return '<img width="150px" src="%s"/>' % obj.license.url 
@@ -169,16 +174,6 @@ class InvestAdmin(admin.ModelAdmin):
                 kwargs['queryset'] = self.investor
         return super(InvestAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
-class CollectAdmin(admin.ModelAdmin):
-    form = CollectForm
-    list_display = ('id', 'project', 'user')
-    fields = ('project', 'user')
-
-    def save_model(self, request, obj, form, change):
-        if change:
-            if 'project' in form.changed_data or 'user' in form.changed_data:
-                return messages.error(request, '✖ %s' %(Collect._meta.verbose_name.title()))
-        obj.save()
 
 class BannerAdmin(admin.ModelAdmin):
     form = BannerForm
@@ -200,7 +195,8 @@ class NewsTypeAdmin(admin.ModelAdmin):
 
 class NewsAdmin(admin.ModelAdmin):
     form = NewsForm 
-    list_display = ('id', 'title', '_create_datetime', '_url')
+    list_display = ('id', 'title', '_create_datetime', '_url', 'valid')
+    list_editable = ('valid',)
     def _create_datetime(self, obj):
         return dt_(obj.create_datetime)
 

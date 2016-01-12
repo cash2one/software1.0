@@ -16,6 +16,7 @@ import os, re, uuid, time, random, hashlib, codecs
 import imghdr
 import jpush as jpush
 import requests
+from PIL import Image
 from qiniu import Auth, BucketManager
 from jinzht import settings
 
@@ -218,6 +219,33 @@ class JG(object):
             self.push.send() 
         except Exception as e:
             print(e)
+
+class Thumbnail:
+    
+    def __init__(self, img):
+        self.img = img
+
+    def resize(self, imgSavePath='', dividedBy=1024*50):
+        img = self.img
+        print(img)
+        print('*'*20)
+        format = imghdr.what(img)
+        if format not in ('jpeg', 'png'):
+            return False
+        imgSavePath = imgSavePath or img
+        times = os.stat(img).st_size/dividedBy
+        if times <= 1:
+            return False 
+        img = Image.open(img)
+        width, height = img.size
+        width = int(width / times)
+        height = int(height / times)
+        print(times, width, height)
+        img = img.resize((width, height), Image.ANTIALIAS)
+        imgSavePath += '.' + format
+        img.save(imgSavePath, quality=100)
+        return format 
+
 
 if __name__ == '__main__':
     print('yld') 

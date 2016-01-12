@@ -35,10 +35,13 @@ class Institute(Model):
     name = CharField('机构名称', max_length=64, unique=True)
     legalperson = CharField('法人', max_length=32, blank=True)
     addr = CharField('地址', max_length=128, blank=True)
+    foundingtime = DateField('成立时间', blank=True)
     fundsize = CharField('基金规模', max_length=64, blank=True)
     profile = TextField('机构介绍', blank=True)
     logo = ImageField('logo', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
     orgcode = ImageField('组织机构代码证', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
+    investcase = ManyToManyField('InvestCase', related_name='investcase', verbose_name='投资案例', blank=True)
+    homepage = URLField('网站主页', max_length=64, blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
 
     def __str__(self): return '%s' % self.name
@@ -55,6 +58,23 @@ class Institute(Model):
             osremove(item.logo, self.logo)
             osremove(item.orgcode,self.orgcode)
 
+class InvestCase(Model):
+    company = CharField('公司名称', max_length=64)
+    logo = ImageField('公司logo', upload_to=UploadTo('investcase/logo/%Y/%m'), blank=True)
+
+    def __str__(self):
+        return '%s' % (self.company)
+
+    class Meta:
+        ordering = ('pk',)
+        verbose_name = verbose_name_plural = '机构投资案例' 
+
+    def save(self, *args, **kwargs):
+        edit = self.pk
+        if edit:
+            investcase = InvestCase.objects.get(pk=self.pk)
+            osremove(investcase.logo, self.logo)
+        super(InvestCase, self).save(*args, **kwargs)
 
 class User(Model):
    
@@ -100,8 +120,10 @@ class User(Model):
     valid = NullBooleanField('是否属实')
 
     ''' 投资人详情  '''
-    investfield = CharField('投资领域', max_length=64, blank=True)
-    investscale = CharField('投资规模', max_length=64, blank=True)
+    img = ImageField('投资人图像', upload_to=UploadTo('user/img/%Y/%m'), blank=True)
+    signature = CharField('签名', max_length=64, blank=True)
+    investplan = CharField('投资规划', max_length=256, blank=True)
+    investcase = CharField('投资案例', max_length=256, blank=True)
     profile = TextField('个人介绍', max_length=256, blank=True)
 
 
@@ -119,6 +141,7 @@ class User(Model):
                     SMS(self.tel, AUTH_FALSE).send()
             osremove(user.photo, self.photo)
             osremove(user.bg, self.bg)
+            osremove(user.img, self.img)
         else:
             SMS(self.tel, REGISTE).send()
             MAIL('用户注册', '%s 在 %s 注册' % (self.tel, timeformat()) ).send()
@@ -135,6 +158,7 @@ class User(Model):
 class Company(Model):
 
     name = CharField('公司名称', max_length=64, unique=True)
+    abbrevname = CharField('公司简称', max_length=64, blank=True)
     addr = CharField('地址', max_length=128)
     logo = ImageField('公司图片', upload_to=UploadTo('company/logo/%Y/%m'), blank=True)
     profile = TextField('公司介绍', blank=True)
@@ -164,8 +188,15 @@ class Upload(Model):
     ''' 上传的项目 '''
     user = ForeignKey('User', verbose_name='上传人')
     company = CharField('公司名称', max_length=64)
+    img = ImageField('项目图片', upload_to=UploadTo('upload/img/%Y/%m'), blank=True) 
+    planfinance = PositiveIntegerField('计划融资', blank=True, null=True)
+    profile = TextField('公司简介', blank=True)
+    business = TextField('主营业务', blank=True)
+    model = TextField('商业模式', blank=True)
     desc = TextField('项目描述')
     vcr = CharField('vcr', max_length=64, blank=True)
+    like = ManyToManyField('User', related_name='upload_like', verbose_name='点赞', blank=True)
+    collect = ManyToManyField('User', related_name='upload_attend', verbose_name='收藏', blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
     valid = NullBooleanField('是否合法')
     num = PositiveSmallIntegerField('剩余修改次数', default=5)
@@ -175,6 +206,13 @@ class Upload(Model):
     class Meta:
         ordering = ('-pk',)
         verbose_name = verbose_name_plural = '上传项目'
+
+    def save(self, *args, **kwargs):
+        edit = self.pk
+        if edit: upload = Upload.objects.get(pk=self.pk)
+        super(Upload, self).save(*args, **kwargs)
+        if edit:
+            osremove(upload.img, self.img)
 
 
 class Project(Model):
@@ -207,8 +245,9 @@ class Project(Model):
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
 
     ''' 人数情况 '''
-    attend = ManyToManyField('User', related_name='attend', verbose_name='与会者', blank=True)
-    like = ManyToManyField('User', related_name='like', verbose_name='点赞', blank=True)
+    attend = ManyToManyField('User', related_name='project_attend', verbose_name='与会者', blank=True)
+    like = ManyToManyField('User', related_name='project_like', verbose_name='点赞', blank=True)
+    collect = ManyToManyField('User', related_name='project_collect', verbose_name='收藏', blank=True)
 
     ''' 公司新闻 '''
     event = TextField('公司新闻', blank=True)
@@ -281,21 +320,6 @@ class Invest(Model):
             SMS(tp, text).send()
             MAIL( '投资申请', '%s于%s投资"%s"%s万' %(tp, dt, pj, am) ).send()
 
-
-class Collect(Model):
-
-    project = ForeignKey(Project, verbose_name='项目')
-    user = ForeignKey(User, verbose_name='收藏人')
-    create_datetime = DateTimeField('收藏日期', auto_now_add=True)
-
-    def __str__(self): return '%s/%s' % (self.user.name, self.project)
-
-    class Meta:
-        ordering = ('pk', )
-        unique_together = (('project', 'user'),)
-        verbose_name = verbose_name_plural = '项目收藏情况'
-
-
 class Banner(Model):
 
     title = CharField('题目', max_length=16)
@@ -320,6 +344,7 @@ class Banner(Model):
 class Thinktank(Model):
 
     name = CharField('姓名', max_length=16)
+    signature = CharField('签名', max_length=64)
     company = CharField('公司', max_length=64)
     position = CharField('职位', max_length=64)
     photo = ImageField('图像', upload_to=UploadTo('thinktank/photo/%Y/%m'))
@@ -367,6 +392,7 @@ class News(Model):
     read = PositiveIntegerField('阅读数', default=0)
     pub_date = DateField('发布时间', null=True, blank=True)
     create_datetime = DateTimeField('创建时间', auto_now_add=True)
+    valid = NullBooleanField('是否合法')
 
     def __str__(self): return '%s' % self.title
 

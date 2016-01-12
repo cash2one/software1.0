@@ -42,8 +42,10 @@ urlpatterns = [
     url(r'^auth/$', views.auth, name='auth'),
     url(r'^myauth/$', views.myauth, name='myauth'),
 
-    url(r'^like/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.like, name='like'),
-    url(r'^collect/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.collect, name='collect'),
+    url(r'^like/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.projectlike, name='projectlike'),
+    url(r'^uploadlike/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.uploadlike, name='uploadlike'),
+    url(r'^collect/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.projectcollect, name='projectcollect'),
+    url(r'^uploadcollect/(?P<pk>[1-9]\d*)/(?P<flag>[01])/$', views.uploadcollect, name='uploadcollect'),
     url(r'^collectfinance/(?P<page>\d+)/$', views.collectfinance, name='collectfinance'),
     url(r'^collectfinancing/(?P<page>\d+)/$', views.collectfinancing, name='collectfinancing'),
     url(r'^collectfinanced/(?P<page>\d+)/$', views.collectfinanced, name='collectfinanced'),

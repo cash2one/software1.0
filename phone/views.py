@@ -448,7 +448,9 @@ def _finance(queryset, page):
         data.append({
             'id': item.id,
             'img': img(item.img),
-            'company': re.sub(r'(股份)?有限(责任)?公司', '', item.company.name),
+            'company': item.company.name,
+            'abbrevcompany': re.sub(r'(股份)?有限(责任)?公司', '', item.company.name),
+            'addr': item.company.addr,
             'tag': item.tag,
             'date': dateformat(item.start),
         }) 
@@ -508,12 +510,14 @@ def _upload(queryset, page):
     data = list()
     for item in queryset:
         data.append({
-            'img': img(item.user.photo),
-            'name': item.user.name,
-            'tel': item.user.tel,
+            'id': img(item.id),
+            'img': img(item.img),
+            #'name': item.user.name,
+            #'tel': item.user.tel,
             'company': item.company,
-            'desc': item.desc,
-            'vcr': createurl(item.vcr),
+            'abbrevcompany': re.sub(r'(股份)?有限(责任)?公司', '', item.company),
+            #'desc': item.desc,
+            #'vcr': createurl(item.vcr),
             'date': dateformat(item.create_datetime)
         })
     code = 2 if len(data) < size else 0
@@ -551,6 +555,7 @@ def thinktankdetail(req, pk):
     if not item: 
         return ENTITY
     data = {
+        'signature': item.signature,
         'video': item.video,
         'experience': item.experience,
         'cases': item.case,
@@ -607,10 +612,10 @@ def projectdetail(req, pk):
         'model': '    ' + item.model,
         'invest': amountsum(stg['flag'], item),
         'is_like': user in item.like.all(),
-        'is_collect': Collect.objects.filter(user=user, project=item).exists(), #item.collect_set.all().filter(user=user).exists(),
+        'is_collect': user in item.collect.all(),
         'is_attend': user in item.attend.all(),
         'like': item.like.all().count(),
-        'collect': item.collect_set.all().count(),
+        'collect': item.collect.all().count(),
         'minfund': item.minfund,
         'event': item.event,
     }
@@ -623,10 +628,10 @@ def uploaddetail(req, pk):
     if not item:
         return ENTITY
     data = {
-       'company': item.company,
-       'desc': item.desc,
-       'user': item.name,
-        'date': dateformat(item.create_datetime),
+        'planfinance': item.planfinance,
+        'profile': item.profile,
+        'business': item.business,
+        'model': item.model,
     }
 
 @api_view(['GET'])
@@ -698,7 +703,7 @@ def _auth(queryset, page):
         data.append({
             'id': item.id,
             'name': item.name,
-            'photo': img(item.photo),
+            'photo': img(item.img),
             'company': item.company,
             'position': item.position,
             'date': dateformat(item.create_datetime),
@@ -714,9 +719,10 @@ def authdetail(req, pk):
     if not item:
         return ENTITY
     data = {
-        'investfield': item.investfield,
-        'investscale': item.investscale,
         'profile': item.profile,
+        'signature': item.signature,
+        'investplan': item.investplan,
+        'investcase': item.investcase,
     }
     return r_(0, data)
 
@@ -727,10 +733,10 @@ def _institute(queryset, page):
     for item in queryset:
         data.append({
             'id': item.id,
-            'name': item.name,
-            'legalperson': item.legalperson,
             'logo': img(item.logo),
-            'profile': item.profile,
+            'abbrevname': re.sub(r'(股份)?有限(责任)?公司', '', item.name),
+            'name': item.name,
+            'addr': item.addr,
         }) 
     if len(queryset) < size:
         return r_(2, data, '加载完毕')
@@ -743,8 +749,11 @@ def institutedetail(req, pk):
     if not item:
         return ENTITY
     data = {
+        'foundingtime': item.foundingtime,
+        'homepage': item.homepage,
         'profile': item.profile,
-        'fundsize': item.fundsize
+        'fundsize': item.fundsize,
+        'investcase': [{'company': i.company, 'logo': img(i.logo)} for i in item.investcase.all()],
     }
     return r_(0, data)
 
@@ -1067,19 +1076,23 @@ def auth(req):
             return r(1, '认证成功, 更改请联系客服')
         elif _auth == False:
             return r(1, '认证失败, 更改请联系客服')
+        is_institute = 'institute' in req.data # 机构认证
         qualification = req.data.get('qualification', '').strip()
         qualification = set(qualification.split(','))
         choice = set(str(item[0]) for item in QUALIFICATION)
-        idpic = req.data.get('file')
-        print(idpic)
+        idpic = req.data.get('idpic')
+        if not is_institute:
+            img = req.data.get('img')
+            if not img:
+                return r(1, '投资人图像未上传')
 
         if not qualification or not qualification <= choice:
             return r(1, '认证资格有误')
         if not idpic:
             return r(1, '身份证未上传')
         
-        investfield = investfield = profile = comment = ''
-        if 'institute' in req.data: # 机构认证
+        investfield = investscale = profile = comment = ''
+        if is_institute: # 机构认证
             institute = req.data.get('institute', '').strip().replace(';', '')
             legalperson = req.data.get('legalperson', '').strip().replace(';', '')
             fundsize = req.data.get('fundsize', '').strip()
@@ -1095,65 +1108,77 @@ def auth(req):
            investscale = req.data.get('investscale', '').strip()
            profile = req.data.get('profile', '').strip()
         
-        flag = store(user.idpic, idpic)
-        if not flag:
-            return r(1, '上传身份证失败')
         user.qualification = ','.join(sorted(qualification))
         user.investfield = investfield
         user.investscale = investscale
         user.profile = profile
         user.comment = comment
         user.save()
+        flag = store(user.idpic, idpic)
+        if not flag:
+            return r(1, '上传身份证失败')
+        if not is_institute:
+            flag = store(user.img, img)
+            if not flag:
+                return r(1, '上传图像失败')
         return r(0, '认证提交成功') 
 
-@api_view(['GET'])
-@login()
-def like(req, pk, flag):
-    user = u(req)
-    project = i(Project, pk)
-    if not project:
+def _like(item, user, flag):
+    if not item:
         return ENTITY
     if flag == '0':
-        project.like.add(user)
+        item.like.add(user)
         return r_(0, {'is_like': True})
     else:
-        project.like.remove(user)
+        item.like.remove(user)
         return r_(0, {'is_like': False})
 
 @api_view(['GET'])
 @login()
-def collect(req, pk, flag):
-    user = u(req)
-    project = i(Project, pk)
-    if not project:
-        return ENTITY
+def projectlike(req, pk, flag):
+    return _like(i(Project, pk), u(req), flag)
 
-    item = Collect.objects.filter(user=user, project=project)
+@api_view(['GET']) 
+def uploadlike(req, pk, flag):
+    return _like(i(Upload, pk), u(req), flag)
+
+def _collect(item, user, flag):
+    if not item:
+        return ENTITY
     if flag == '0':
-        if not item.exists():
-            Collect.objects.create(user=user, project=project)
+        item.collect.add(user)
         return r_(0, {'is_collect': True})
     else:
-        item.delete()
+        item.collect.remove(user)
         return r_(0, {'is_collect': False})
+
+@api_view(['GET'])
+@login()
+def projectcollect(req, pk, flag):
+    return _collect(i(Project, pk), u(req), flag)
+
+@api_view(['GET'])
+@login()
+def uploadcollect(req, pk, flag):
+    return _collect(i(Upload, pk), u(req), flag)
 
 @api_view(['GET'])
 @login()
 def collectfinancing(req, page):
     now = timezone.now()
-    queryset = Collect.objects.filter(
-        user=u(req),
-        project__start__lte=now, 
-        project__stop__gte=now,
+    queryset = Project.objects.filter(
+        collect=u(req),
+        start__lte=now, 
+        stop__gte=now,
     )
     return __collect(queryset, page)
 
 @api_view(['GET'])
 @login()
 def collectfinanced(req, page):
-    queryset = Collect.objects.filter(
-        user=u(req),
-        project__stop__lt=timezone.now()
+    queryset = Project.objects.filter(
+        collect=u(req),
+        stop__lt=timezone.now()
     )
     return __collect(queryset, page)
 
@@ -1162,13 +1187,12 @@ def __collect(queryset, page):
     queryset = q(queryset, page, size)
     data = list()
     for item in queryset:
-        project = item.project
         data.append({
-            'id': project.id,
-            'img': img(project.img),
-            'company': project.company.name,
-            'start': dateformat(project.start),
-            'stop': dateformat(project.stop),
+            'id': item.id,
+            'img': img(item.img),
+            'company': item.company.name,
+            'start': dateformat(item.start),
+            'stop': dateformat(item.stop),
         })
     if len(queryset) < size:
         return r_(2, data, '加载完毕')
@@ -1179,10 +1203,10 @@ def __collect(queryset, page):
 @login()
 def collectfinance(req, page):
     now = timezone.now()
-    queryset = Collect.objects.filter( 
-        Q(project__start__isnull=True) | 
-        Q(project__start__gt=now),
-        user=u(req)
+    queryset = Project.objects.filter( 
+        Q(start__isnull=True) | 
+        Q(start__gt=now),
+        collect=u(req)
     )
     return __collect(queryset, page)
 
@@ -1222,7 +1246,7 @@ def projectsearch(req, page):
     value = req.data.get('wd', '').strip()
     if not value: 
         return r(1, '输入不能为空')
-    queryset = Project.objects.filter(tag__contains=value)
+    queryset = Project.objects.filter(Q(tag__contains=value)|Q(company__name__contains=value)).distinct()
     return __project(queryset, page)
 
 
@@ -1484,17 +1508,17 @@ def __news(queryset, page):
 
 @api_view(['GET'])
 def news(req, pk, page):
-    queryset = News.objects.filter(newstype__id=pk)
+    queryset = News.objects.filter(newstype__id=pk, valid=True)
     return __news(queryset, page)
 
 def sanban(req, name):
     try:
-        return render(req, 'phone/sanban/%s' % name)
+        return render(req, 'app/sanban/%s' % name)
     except:
         return HttpResponseNotFound('<h1>Page not found</h1>')
 
 def annc(req, name):
-    return render(req, 'phone/annc/%s.html' % name)
+    return render(req, 'app/annc/%s.html' % name)
 
 @api_view(['POST', 'GET'])
 def sharenews(req, pk):
