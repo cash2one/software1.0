@@ -257,6 +257,7 @@ def myauth(req):
     user = u(req)
     data = {'auth': is_auth(user)}
     return r_(0, data)
+
 @api_view(['POST'])
 def login_(req):
     regid = req.data.get('regid', '').strip()
@@ -365,7 +366,7 @@ def weixin(req):
 
 def stage(project):
     now = timezone.now()
-    if not project.start:
+    if not project.start: # 路演时间不确定
         stage = {
             'flag': 1,
             'code': '路演预告',
@@ -377,7 +378,8 @@ def stage(project):
             'end': {
                 'name': '报名截止',
                 'datetime': '待定'
-            }
+            },
+            'daysLeave': '待定',
         }
     elif now < project.start: # 现在时间 < 路演开始时间
         stage = { 
@@ -391,39 +393,26 @@ def stage(project):
                     'end': {
                         'name':'报名截止', 
                         'datetime': dateformat(project.start- timedelta(days=2))
-                        }
+                        },
+                    'daysLeave': max((project.start -  now).days - 2, 0)
                 }
 
-    elif now > project.stop:
-        if now > project.stop:
-            stage = {
-                    'flag': 3,
-                    'code': '融资完毕', 
-                    'color': 0xDC471C,
-                    'start': {
-                        'name': '众筹时间', 
-                        'datetime': dateformat(project.start),
-                    },
-                    'end': {
-                        'name': '截止时间', 
-                        'datetime': dateformat(project.stop)
-                    }
-                }
-        else:
-            stage = {
-                    'flag': 2,
-                    'code': '融资进行', 
-                    'color': 0xD4A225,
-                    'start': {
-                        'name': '众筹时间', 
-                        'datetime': dateformat(project.start),
-                    },
-                    'end': {
-                        'name': '截止时间', 
-                        'datetime': dateformat(project.stop)
-                    }
-                }
-    else:
+    elif now > project.stop: # 现在时间 > 融资结束时间
+        stage = {
+                'flag': 3,
+                'code': '融资完毕', 
+                'color': 0xDC471C,
+                'start': {
+                    'name': '众筹时间', 
+                    'datetime': dateformat(project.start),
+                },
+                'end': {
+                    'name': '截止时间', 
+                    'datetime': dateformat(project.stop)
+                },
+                'daysLeave': 0,
+            }
+    else: # 在之间
             stage = {
                     'flag': 2,
                     'code': '融资进行', 
@@ -435,7 +424,9 @@ def stage(project):
                     'end': {
                         'name': '截止时间', 
                         'datetime': dateformat(project.stop)
-                    }
+                    },
+                    'daysTotal': (project.stop - project.start).days,
+                    'daysLeave': (project.stop - now).days,
                 }
     return stage
 
@@ -449,7 +440,7 @@ def _finance(queryset, page):
             'id': item.id,
             'img': img(item.img),
             'company': item.company.name,
-            'abbrevcompany': re.sub(r'(股份)?有限(责任)?公司', '', item.company.name),
+            'abbrevcompany': item.company.abbrevname,
             'addr': item.company.addr,
             'tag': item.tag,
             'date': dateformat(item.start),
@@ -510,14 +501,10 @@ def _upload(queryset, page):
     data = list()
     for item in queryset:
         data.append({
-            'id': img(item.id),
+            'id': item.id,
             'img': img(item.img),
-            #'name': item.user.name,
-            #'tel': item.user.tel,
             'company': item.company,
             'abbrevcompany': re.sub(r'(股份)?有限(责任)?公司', '', item.company),
-            #'desc': item.desc,
-            #'vcr': createurl(item.vcr),
             'date': dateformat(item.create_datetime)
         })
     code = 2 if len(data) < size else 0
@@ -555,6 +542,7 @@ def thinktankdetail(req, pk):
     if not item: 
         return ENTITY
     data = {
+        'thumbnail': img(item.thumbnail),
         'signature': item.signature,
         'video': item.video,
         'experience': item.experience,
@@ -606,10 +594,10 @@ def projectdetail(req, pk):
         'stage': stg,
         'planfinance': item.planfinance,
         'img': img(item.img),
-        'video': item.video or createurl(item.upload.vcr if item.upload else ''),
-        'profile': '    ' + item.company.profile,
-        'business': '    ' + item.business,
-        'model': '    ' + item.model,
+        'video': item.video or '', 
+        'profile': item.company.profile,
+        'business': item.business,
+        'model': item.model,
         'invest': amountsum(stg['flag'], item),
         'is_like': user in item.like.all(),
         'is_collect': user in item.collect.all(),
@@ -627,12 +615,18 @@ def uploaddetail(req, pk):
     item = i(Upload, pk)
     if not item:
         return ENTITY
+    user = u(req)
     data = {
-        'planfinance': item.planfinance,
+        'planfinance': item.planfinance or '',
         'profile': item.profile,
         'business': item.business,
         'model': item.model,
+        'is_like': user in item.like.all(),
+        'is_collect': user in item.collect.all(),
+        'like': item.like.all().count(),
+        'collect': item.collect.all().count(),
     }
+    return r_(0, data)
 
 @api_view(['GET'])
 def financeplan(req, pk):
@@ -749,6 +743,7 @@ def institutedetail(req, pk):
     if not item:
         return ENTITY
     data = {
+        'thumbnail': img(item.thumbnail),
         'foundingtime': item.foundingtime,
         'homepage': item.homepage,
         'profile': item.profile,
@@ -998,6 +993,7 @@ def userinfo(req, uid=None):
             'name': user.name,
             'idno': user.idno,
             'idpic': img(user.idpic),
+            'img': img(user.img),
             'company': user.company,
             'position': user.position,
             'addr': user.addr}
@@ -1049,25 +1045,28 @@ def userinfo(req, uid=None):
         print(ret)
         return r(0)
 
+@api_view(['POST'])
+@login()
+def authpersonoptional(req):
+    user = u(req)
+    signature = req.data.get('signature', '').strip()
+    investplan = req.data.get('investplan', '').strip()
+    investcase = req.data.get('investcase', '').strip()
+    user.signature = signature
+    user.investplan = investplan
+    user.investcase = investcase
+    user.save()
+    return r(0, '认证提交成功')
+
+
 @api_view(['GET', 'POST'])
 @login()
 def auth(req):
     user = u(req)
-
     if req.method == 'GET':
         qualification = [{'key': i[0], 'value': i[1]} for i in QUALIFICATION]
-        data = {
-                'idpic': '%s%s' %(settings.DOMAIN, user.idpic.url) if user.idpic else '',  
-                'qua': user.qualification,
-                'institute': user.comment.split(';')[0],
-                'legalperson': user.comment.split(';')[-1],
-                'company': user.company, 
-                'position': user.position, 
-                'qualification': qualification,
-                'industry': INDUSTRY
-        }
+        data = {'qualification': qualification}
         return r_(0, data)
-
     elif req.method == 'POST':
         _auth = is_auth(user)
         if info(user) == False:
@@ -1091,26 +1090,16 @@ def auth(req):
         if not idpic:
             return r(1, '身份证未上传')
         
-        investfield = investscale = profile = comment = ''
+        profile = comment = ''
         if is_institute: # 机构认证
             institute = req.data.get('institute', '').strip().replace(';', '')
-            legalperson = req.data.get('legalperson', '').strip().replace(';', '')
             fundsize = req.data.get('fundsize', '').strip()
-            
             if not institute or not CHINESE_RE.match(institute):
                 return r(1, '机构输入有误')
-            if not legalperson or not CHINESE_RE.match(institute):
-                return r(1, '法人输入有误')
-
-            comment = '%s;%s;%s' % (institute, legalperson, fundsize)
+            comment = '%s;%s' % (institute, fundsize)
         else:
-           investfield = req.data.get('investfield', '').strip()
-           investscale = req.data.get('investscale', '').strip()
            profile = req.data.get('profile', '').strip()
-        
         user.qualification = ','.join(sorted(qualification))
-        user.investfield = investfield
-        user.investscale = investscale
         user.profile = profile
         user.comment = comment
         user.save()
@@ -1182,15 +1171,24 @@ def collectfinanced(req, page):
     )
     return __collect(queryset, page)
 
+@api_view(['GET'])
+@login()
+def collectupload(req, page):
+    queryset = Upload.objects.filter(collect=u(req))
+    return _upload(queryset, page)
+
 def __collect(queryset, page):
     size = settings.DEFAULT_PAGESIZE
     queryset = q(queryset, page, size)
     data = list()
     for item in queryset:
+        if not isinstance(item, Project):
+            item = item.project
         data.append({
             'id': item.id,
             'img': img(item.img),
             'company': item.company.name,
+            'abbrevcompany': item.company.abbrevname, 
             'start': dateformat(item.start),
             'stop': dateformat(item.stop),
         })

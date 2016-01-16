@@ -33,13 +33,13 @@ class UploadTo(object):
 class Institute(Model):
 
     name = CharField('机构名称', max_length=64, unique=True)
-    legalperson = CharField('法人', max_length=32, blank=True)
     addr = CharField('地址', max_length=128, blank=True)
     foundingtime = DateField('成立时间', blank=True)
     fundsize = CharField('基金规模', max_length=64, blank=True)
     profile = TextField('机构介绍', blank=True)
     logo = ImageField('logo', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
-    orgcode = ImageField('组织机构代码证', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
+    thumbnail = ImageField('小图', upload_to=UploadTo('institute/thumbnail/%Y/%m'), blank=True)
+    #orgcode = ImageField('组织机构代码证', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
     investcase = ManyToManyField('InvestCase', related_name='investcase', verbose_name='投资案例', blank=True)
     homepage = URLField('网站主页', max_length=64, blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
@@ -56,7 +56,7 @@ class Institute(Model):
         super(Institute, self).save(*args, **kwargs)
         if edit:
             osremove(item.logo, self.logo)
-            osremove(item.orgcode,self.orgcode)
+            osremove(item.thumbnail,self.thumbnail)
 
 class InvestCase(Model):
     company = CharField('公司名称', max_length=64)
@@ -112,8 +112,7 @@ class User(Model):
 
     ''' 认证信息 '''
     idpic = ImageField('身份证', upload_to=UploadTo('company/idpic/%Y/%m'), blank=True)
-    qualification = CharField('认证条件', max_length=32, blank=True) #PositiveSmallIntegerField('认证条件', choices=QUALIFICATION, null=True, blank=True)
-    Institute = ForeignKey('Institute', verbose_name='机构', null=True, blank=True)
+    qualification = CharField('认证条件', max_length=32, blank=True)
     comment = CharField('备注', max_length=64, blank=True)
 
     ''' 信息是否属实 '''
@@ -122,11 +121,9 @@ class User(Model):
     ''' 投资人详情  '''
     img = ImageField('投资人图像', upload_to=UploadTo('user/img/%Y/%m'), blank=True)
     signature = CharField('签名', max_length=64, blank=True)
-    investplan = CharField('投资规划', max_length=256, blank=True)
-    investcase = CharField('投资案例', max_length=256, blank=True)
+    investplan = TextField('投资规划', max_length=256, blank=True)
+    investcase = TextField('投资案例', max_length=256, blank=True)
     profile = TextField('个人介绍', max_length=256, blank=True)
-
-
 
     def save(self, *args, **kwargs): #密码的问题
         edit = self.pk
@@ -141,6 +138,7 @@ class User(Model):
                     SMS(self.tel, AUTH_FALSE).send()
             osremove(user.photo, self.photo)
             osremove(user.bg, self.bg)
+            osremove(user.idpic, self.idpic)
             osremove(user.img, self.img)
         else:
             SMS(self.tel, REGISTE).send()
@@ -348,6 +346,7 @@ class Thinktank(Model):
     company = CharField('公司', max_length=64)
     position = CharField('职位', max_length=64)
     photo = ImageField('图像', upload_to=UploadTo('thinktank/photo/%Y/%m'))
+    thumbnail = ImageField('小图', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'), blank=True)
     video = URLField('链接地址', max_length=64, blank=True)
     experience = TextField('经历')
     case = TextField('成功案例')
@@ -367,6 +366,7 @@ class Thinktank(Model):
         super(Thinktank, self).save(*args, **kwargs)
         if edit:
             osremove(thinktank.photo, self.photo)
+            osremove(thinktank.thumbnail, self.thumbnail)
 
 class NewsType(Model):
 

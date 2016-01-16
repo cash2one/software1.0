@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.contrib import messages
 from django.utils.html import format_html
+from django.utils.translation import ugettext_lazy as _
 
 from .modelform import *
 
@@ -12,8 +13,25 @@ class InstituteAdmin(admin.ModelAdmin):
 class InvestCaseAdmin(admin.ModelAdmin):
     list_dispaly = ('id', 'company', 'logo') 
 
+class AuthFilter(admin.SimpleListFilter):
+    title = _('auth')
+    parameter_name = 'is_auth'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('has_auth', _('认证了')),
+            ('not_auth', _('未认证')),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'has_auth':
+            return queryset.filter(valid=True)
+        if self.value() == 'not_auth':
+            return queryset.filter(~Q(valid=True), ~Q(qualification=''))
+
 class UserAdmin(admin.ModelAdmin):
     form = UserForm
+    list_filter = (AuthFilter,)
     list_display = ('id', 'name', 'tel', 'gender', 'addr', 'company', '_create_datetime', 'qualification', 'valid')
     search_fields = ('tel',)
     list_editable = ('valid',)
