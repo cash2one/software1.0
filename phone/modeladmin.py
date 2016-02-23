@@ -216,10 +216,10 @@ class NewsAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', '_create_datetime', '_url', 'valid')
     list_editable = ('valid',)
     def _create_datetime(self, obj):
-        return dt_(obj.create_datetime)
+        return ago(obj.create_datetime)
 
     def _url(self, obj):
-        return '%s/%s/%s/' % (settings.DOMAIN, 'phone/sanban', obj.name),
+        return '%s/%s/%s/' % (settings.DOMAIN, 'app/sanban', obj.name),
 
     _url.short_description = '网址'
 

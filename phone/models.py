@@ -6,7 +6,7 @@ from django.utils.deconstruct import deconstructible
 from django.core.files.storage import FileSystemStorage
 from django.db import IntegrityError, transaction
 
-from .utils import *
+from utils.utils import *
 from jinzht.config import *
 
 class MyFileStorage(FileSystemStorage):
@@ -38,8 +38,6 @@ class Institute(Model):
     fundsize = CharField('基金规模', max_length=64, blank=True)
     profile = TextField('机构介绍', blank=True)
     logo = ImageField('logo', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
-    thumbnail = ImageField('小图', upload_to=UploadTo('institute/thumbnail/%Y/%m'), blank=True)
-    #orgcode = ImageField('组织机构代码证', upload_to=UploadTo('institute/orgcode/%Y/%m'), blank=True)
     investcase = ManyToManyField('InvestCase', related_name='investcase', verbose_name='投资案例', blank=True)
     homepage = URLField('网站主页', max_length=64, blank=True)
     create_datetime = DateTimeField('添加时间', auto_now_add=True)
@@ -56,7 +54,6 @@ class Institute(Model):
         super(Institute, self).save(*args, **kwargs)
         if edit:
             osremove(item.logo, self.logo)
-            osremove(item.thumbnail,self.thumbnail)
 
 class InvestCase(Model):
     company = CharField('公司名称', max_length=64)
@@ -311,7 +308,7 @@ class Invest(Model):
             tp = self.user.tel 
             ri = self.user.regid
             dt = timeformat(self.create_datetime)
-            pj = COMPANY_RE.sub('', self.project.company.name)
+            pj = self.project.company.name
             am = self.amount
             text = INVEST_VALID_TRUE %(dt, pj, am)
             JG(text).single(ri) 
@@ -346,7 +343,6 @@ class Thinktank(Model):
     company = CharField('公司', max_length=64)
     position = CharField('职位', max_length=64)
     photo = ImageField('图像', upload_to=UploadTo('thinktank/photo/%Y/%m'))
-    thumbnail = ImageField('小图', upload_to=UploadTo('thinktank/thumbnail/%Y/%m'), blank=True)
     video = URLField('链接地址', max_length=64, blank=True)
     experience = TextField('经历')
     case = TextField('成功案例')
@@ -366,7 +362,6 @@ class Thinktank(Model):
         super(Thinktank, self).save(*args, **kwargs)
         if edit:
             osremove(thinktank.photo, self.photo)
-            osremove(thinktank.thumbnail, self.thumbnail)
 
 class NewsType(Model):
 

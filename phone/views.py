@@ -14,7 +14,9 @@ from django.db.models import F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from collections import OrderedDict
 from phone.models import *
-from phone.utils import *
+from utils.utils import *
+from utils.sanban18 import Credit
+from utils.idno import IDNO
 import functools
 from jinzht.config import QUALIFICATION, INDUSTRY
 from PIL import Image as Img
@@ -26,7 +28,6 @@ from django.http import HttpResponseNotFound
 PK_RE = re.compile(r'^[1-9]\d*$')
 MTM_RE = re.compile(r'^[1-9]\d*(,[1-9]\d*)*$')
 CHINESE_RE = re.compile(r'[\u4e00-\u9fa5a-zA-Z]+')
-
 ENTITY = Response({'code': -2, 'msg': '非法操作'})
 
 def r(code, msg=''):
@@ -65,33 +66,27 @@ def login(text=''):
         return wrapper
     return decorator
 
-
 def store(field, image):
     if not image: 
         return False
     ext = imghdr.what(image)
     if ext not in ('jpeg', 'png'):
         return False
-    print(image.size)
     if False and image.size > 100000:
         img = Img.open(image.read())
         #img.thumbnail((image.width/1.5, image.height/1.5), Img.ANTIALIAS)
         output = StringIO()
         img.save(output, format='JPEG', quality=20)
         output.seek(0)
-        print(output.len)
         image= InMemoryUploadedFile(output,'ImageField', "file.jpg", 'image/jpeg', output.len, None)
     
     field.save('file.jpg', File(image)) 
     return True
 
-
 def img(file, default=''):
     if not file: 
         return 'http://www.jinzht.com/static/app/img/%s' %(default or 'icon.png')
-    #if not file: return '%s/media/default/coremember.png' % settings.DOMAIN
     return '%s%s' % (settings.DOMAIN, file.url)
-
 
 def info(user):
     if not user.name or not user.idno or not user.company or not user.position or not user.addr:
@@ -101,7 +96,6 @@ def info(user):
 @api_view(['POST'])
 def openid(req):
     openid = req.data.get('openid', '').strip()
-    print(openid)
     if not openid:
         return r(1, '微信不能为空')
     user = User.objects.filter(openid=openid)
@@ -164,7 +158,6 @@ def registe(req, os):
     if 'openid' in req.data:
         openid = req.data.get('openid').strip()
         nickname = req.data.get('nickname', '').rstrip()
-        print(nickname, '---------------')
         photo = req.data.get('file')
         if not openid:
             return r(1, '微信不能为空')
@@ -176,7 +169,6 @@ def registe(req, os):
             if not tel_user.exists(): # 全新创建 
                 if not passwd:
                     return r(1, '请输入密码')
-                print('a')
                 user = User.objects.create(
                     openid=openid, 
                     nickname = nickname,
@@ -188,7 +180,6 @@ def registe(req, os):
                     version = version
                 ) 
             else: # 给手机绑定 openid 
-                print('b')
                 user = tel_user[0]
                 user.openid = openid
                 user.nickname = nickname
@@ -200,10 +191,8 @@ def registe(req, os):
         else: # openid 存在
             user = openid_user[0]
             if not tel == user.tel:
-                print('c')
                 tel_user = User.objects.filter(tel=tel)
                 if tel_user.exists(): # 给确定手机绑定 openid
-                    print('d')
                     user.openid = ''
                     user.save()
 
@@ -216,14 +205,12 @@ def registe(req, os):
                     store(user.photo, photo)
                     user.save()
                 else: # 给某个openid换绑手机
-                    print('e')
                     user.tel = tel
                     user.regid = regid
                     user.version = version
                     user.os = int(os)
                     user.save()
     else:
-        print('f')
         if not passwd:
             return r(1, '请输入密码')
         if User.objects.filter(tel=tel).exists(): 
@@ -277,7 +264,6 @@ def login_(req):
         tel = req.data.get('tel')
         passwd = req.data.get('passwd')
         if not valtel(tel): 
-            print(tel, type(tel))
             return r(1, '手机格式不正确')
 
         user = User.objects.filter(tel=tel)
@@ -295,7 +281,6 @@ def login_(req):
     user.lastlogin = timezone.now()
     user.save()
     data = {'auth': is_auth(user), 'info': info(user)}
-    print(data)
     return r_(0, data, '登录成功')
 
 
@@ -345,7 +330,6 @@ def modifypasswd(req):
 
     if not new:
         return r(1, '新密码不能为空')
-    print(old)
     if old != user.passwd: 
         return r(1, '旧密码输入有误')
 
@@ -458,14 +442,14 @@ def _financing(queryset, page):
         _queryset = Invest.objects.filter(project=item, valid=True)
         tmp = _queryset.aggregate( amount_sum=Coalesce(Sum('amount'), Value(0)) )['amount_sum']
         invest = tmp + int(item.finance2get)
-        investor = _queryset.count()
         data.append({
             'id': item.id,
             'img': img(item.img),
-            'company': re.sub(r'(股份)?有限(责任)?公司', '', item.company.name),
+            'company': item.company.name,
+            'abbrevcompany': item.company.abbrevname,
             'planfinance': item.planfinance,
             'invest': invest,    
-            'investor': investor,
+            'tag': item.tag,
             'date': dateformat(item.stop),
         }) 
     if len(queryset) < size:
@@ -478,16 +462,15 @@ def _financed(queryset, page):
     queryset = q(queryset, page, size)
     data = list()
     for item in queryset:
-        _queryset = Invest.objects.filter(project=item, valid=True)
         invest = item.finance2get
-        investor = _queryset.count()
         data.append({
             'id': item.id,
             'img': img(item.img),
-            'company': re.sub(r'(股份)?有限(责任)?公司', '', item.company.name),
+            'company': item.company.name,
+            'abbrevcompany': item.company.abbrevname,
             'planfinance': item.planfinance,
             'invest': invest,    
-            'investor': investor,
+            'tag': item.tag,
             'date': dateformat(item.stop),
         }) 
     if len(queryset) < size:
@@ -542,7 +525,6 @@ def thinktankdetail(req, pk):
     if not item: 
         return ENTITY
     data = {
-        'thumbnail': img(item.thumbnail),
         'signature': item.signature,
         'video': item.video,
         'experience': item.experience,
@@ -617,6 +599,7 @@ def uploaddetail(req, pk):
         return ENTITY
     user = u(req)
     data = {
+        'vcr': createurl(item.vcr),
         'planfinance': item.planfinance or '',
         'profile': item.profile,
         'business': item.business,
@@ -634,11 +617,9 @@ def financeplan(req, pk):
     if not item: 
         return ENTITY
     user = u(req)
-    share2givevalue =user.os==1 and item.share2give/100 or item.share2give
-    print ("here is %d"% share2givevalue)
     data = {
         'planfinance': item.planfinance,
-        'share2give':share2givevalue,
+        'share2give': item.share2give,
         'usage': item.usage,
         'quitway': item.quitway,
         'minfund': item.minfund,
@@ -743,7 +724,6 @@ def institutedetail(req, pk):
     if not item:
         return ENTITY
     data = {
-        'thumbnail': img(item.thumbnail),
         'foundingtime': item.foundingtime,
         'homepage': item.homepage,
         'profile': item.profile,
@@ -920,7 +900,8 @@ def home(req):
         project.append({
             'id': item.id,
             'img': img(item.img),
-            'company': re.sub(r'(股份)?有限(责任)?公司', '', item.company.name),
+            'company': item.company.name,
+            'abbrevcompany': item.company.abbrevname, 
             'tag': item.tag,
             'planfinance': item.planfinance,
             'invest': invest,
@@ -931,28 +912,24 @@ def home(req):
         'banner': banner,
         'announcement': {
             'title': '新手指南', 
-            'url': '%s/phone/annc/user_guide/' %(settings.DOMAIN),
-            #'url': img(None, 'new_user_guide.png') #'http://www.jinzht.com'
+            'url': '%s/app/annc/user_guide/' %(settings.DOMAIN),
         },
         'project': project,
-        'platform': [
-            {'key': '成功融资总额(元)', 'value': '56125895423'},
-            {'key': '项目总数', 'value': '451231'},
-            #{'key': '投资人总人数', 'value': '254566'},
-            #{'key': '基金池总额(元)', 'value': '452122553144'},
-        ],
+        'platform': {
+            'title': '融资播报',
+            'url': '%s/app/annc/user_guide/' %(settings.DOMAIN),
+        },
     }
     return r_(0, data)    
 
 
 @api_view(['POST', 'GET'])
-#@login()
+@login()
 def credit(req):
     if req.method == 'GET':
         queryset = random.sample(list(Company.objects.all()), 5)
         data = {'company': [ c.name for c in queryset ]}
     else:
-        from phone.sanban18 import Credit
         wd = req.data.get('wd', '').strip()
         if not wd:
             return r(1, '关键词不能为空')
@@ -1020,7 +997,6 @@ def userinfo(req, uid=None):
         if not idno:
             return r(1, '身份证不能为空')
 
-        from phone.idno import IDNO
         flag, info = IDNO(idno).ip138() 
         if not flag:
             return r(1, info)
@@ -1042,7 +1018,6 @@ def userinfo(req, uid=None):
         user.birthplace = birthplace
         user.save()
 
-        print(ret)
         return r(0)
 
 @api_view(['POST'])
@@ -1312,7 +1287,6 @@ def createurl(name):
     q = Auth(settings.AK, settings.SK)
     url = 'http://%s/%s' % (settings.BD, name)
     url = q.private_download_url(url, expires=3600)
-    print(url)
     return url
 
 @api_view(['POST'])
@@ -1321,7 +1295,6 @@ def callback(req):
     name = req.data.get('name', '').strip()
     if not name: 
         return r(1, '视频名不能为空')
-    print('name')
     url = createurl(name)
     data = {'url': url}
     return r_(0, data,  '视频上传成功')
@@ -1468,7 +1441,7 @@ def __topiclist(queryset, page):
         tmp['name'] = item.user.name or item.user.tel[-4:]
         if item.at: 
             tmp['at_name'] = item.at.user.name or item.at.user.tel[-4:]
-        tmp['date'] = dt_(item.create_datetime) 
+        tmp['date'] = ago(item.create_datetime) 
         tmp['content'] = item.content
         tmp['auth'] = item.user.valid is True
         data.append(tmp) 
@@ -1494,10 +1467,10 @@ def __news(queryset, page):
             'src': item.src,
             'content': item.content,
             'img': item.img,
-            'create_datetime': dt_(item.create_datetime),
+            'create_datetime': ago(item.create_datetime),
             'read': item.read,
             'share': item.share,
-            'url': '%s/%s/%s/' % (settings.DOMAIN, 'phone/sanban', item.name),
+            'url': '%s/%s/%s/' % (settings.DOMAIN, 'app/sanban', item.name),
         })
     if len(queryset) < size:
         return r_(2, data, '加载完毕')
@@ -1509,14 +1482,6 @@ def news(req, pk, page):
     queryset = News.objects.filter(newstype__id=pk, valid=True)
     return __news(queryset, page)
 
-def sanban(req, name):
-    try:
-        return render(req, 'app/sanban/%s' % name)
-    except:
-        return HttpResponseNotFound('<h1>Page not found</h1>')
-
-def annc(req, name):
-    return render(req, 'app/annc/%s.html' % name)
 
 @api_view(['POST', 'GET'])
 def sharenews(req, pk):
@@ -1526,12 +1491,12 @@ def sharenews(req, pk):
 
     data = {
         'img': news.img,
-        'url': '%s/%s/%s' %(settings.DOMAIN, 'phone/sanban', news.name),
+        'url': '%s/%s/%s' %(settings.DOMAIN, 'app/sanban', news.name),
         'src': news.src,
         'title': news.title,
         'content': news.content,
     }
-    return r_(0, data) #Response({'code':0, 'msg':'', 'data':data})
+    return r_(0, data)
 
 @api_view(['GET'])
 def newsshare(req, pk):
@@ -1658,7 +1623,7 @@ def __feelinglike(queryset, page, pagesize):
     data = list()
     for item in queryset:
         data.append({
-            'name': item.name,
+            'name': item.name or item.tel[-4:],
             'uid': item.id,
             'photo': img(item.photo),
         })
@@ -1690,7 +1655,7 @@ def __feeling(item, user): # 获取发表的状态的关联信息
         'position': item.user.position,
         'addr': item.user.addr,
         'flag': item.user == user,
-        'datetime': dt_(item.create_datetime),
+        'datetime': ago(item.create_datetime),
         'name': item.user.name or item.user.tel[-4:],
         'photo': img(item.user.photo),
         'content': item.content,
@@ -1701,7 +1666,7 @@ def __feeling(item, user): # 获取发表的状态的关联信息
             'id': news.id,
             'title': news.title, 
             'img': news.img,
-            'url': '%s/%s/%s' %(settings.DOMAIN, 'phone/sanban', news.name)
+            'url': '%s/%s/%s' %(settings.DOMAIN, 'app/sanban', news.name)
         }
     else:
         tmp['pic'] = [ os.path.join(settings.DOMAIN, v) for v in item.pic.split(';') if v ]
@@ -1798,7 +1763,7 @@ def likefeeling(req, pk, is_like):
     user = u(req) 
     data = { 
         'is_like': not int(is_like),
-        'name': user.name,
+        'name': user.name or user.tel[-4:],
         'uid': user.id,
         'photo': img(user.photo),
     }
@@ -1879,5 +1844,16 @@ def background(req):
 
 @api_view(['GET'])
 def test(req):
-    url = createurl('wantroadshowe69cac.mp4')
-    return r_(0, {'url': url}, 'test')
+    from django.db import connection
+    from collections import namedtuple
+    cursor = connection.cursor()
+    cursor.execute("SELECT id, name as real_name FROM phone_user limit %s", [3])
+    desc = cursor.description
+    result = namedtuple('Result', [col[0] for col in desc])
+    row = [result(*row) for row in cursor.fetchall()]
+    print(row[0].real_name)
+    return r_(0, {'data': '0'})
+    translations = {'name': 'real_'}
+    u = User.objects.raw('SELECT id, name FROM phone_user limit %(limit)s', params={'limit': 1}, translations=translations)[0]
+    #url = createurl('wantroadshowe69cac.mp4')
+    return r_(0, {'url': u.real_, 'ok': u.tel})

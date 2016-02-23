@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # coding: utf-8
 __author__ = 'lindyang'
+
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
@@ -10,9 +11,8 @@ from email import encoders
 from django.core.files import File
 from django.utils import timezone
 from datetime import datetime, timedelta, date
-from rest_framework.response import Response
 
-import os, re, uuid, time, random, hashlib, codecs
+import os, re, uuid, time, random, hashlib, codecs, errno
 import imghdr
 import jpush as jpush
 import requests
@@ -20,7 +20,6 @@ from PIL import Image
 from qiniu import Auth, BucketManager
 from jinzht import settings
 
-COMPANY_RE  = re.compile(r'(股份)?有限(责任)?公司')
 def timeformat(now=timezone.now()):
     if not now: return '待定'
     return timezone.localtime(now).strftime('%Y-%m-%d %H:%M:%S')
@@ -34,7 +33,7 @@ def valtel(tel):
     if tel and PHONE_RE.match(tel): return True
     return False                              
 
-def dt_(t):
+def ago(t):
     t = time.mktime(timezone.localtime(t).timetuple())
     delta = int(time.time() - t)
     if delta < 60:
@@ -48,14 +47,11 @@ def dt_(t):
     dt = datetime.fromtimestamp(t) 
     return '%s年%s月%s日' % (dt.year, dt.month, dt.day)
 
-
 def mkdirp(path):
-    import errno
     try: os.makedirs(path)
     except OSError as e:
         if e.errno == errno.EEXIST and os.path.isdir(path): pass
         else: raise
-
 
 def checkIdcard(idcard):
 

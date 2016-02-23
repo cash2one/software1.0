@@ -4,7 +4,6 @@ from phone import views
 
 urlpatterns = [
     url(r'^test/$', views.test, name='test'),
-    url(r'^annc/(?P<name>.+)/$', views.annc, name='annc'), 
     url(r'^openid/$', views.openid, name='openid'),
 
     url(r'^sendcode/(?P<flag>[01])/(?P<weixin>[01])/$', views.sendcode, name='sendcode'),
@@ -60,7 +59,6 @@ urlpatterns = [
     url(r'^news/(?P<pk>[1-9]\d*)/(?P<page>\d+)/$', views.news, name='news'),
     url(r'^newsread/(?P<pk>[1-9]\d*)/$', views.newsread, name='newsread'),
     url(r'^newsshare/(?P<pk>[1-9]\d*)/$', views.newsshare, name='newsshare'),
-    url(r'^sanban/(?P<name>\d+)/$', views.sanban, name='sanban'),
     url(r'^newssearch/(?P<page>\d+)/$', views.newssearch, name='newssearch'),
     url(r'^sharenews/(?P<pk>[1-9]\d*)/$', views.sharenews, name='sharenews'),
 

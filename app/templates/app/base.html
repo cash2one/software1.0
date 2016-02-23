@@ -1,101 +1,76 @@
-{% load i18n admin_static %}<!DOCTYPE html>
-{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
-<html lang="{{ LANGUAGE_CODE|default:"en-us" }}" {% if LANGUAGE_BIDI %}dir="rtl"{% endif %}>
+{% load staticfiles %}
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
-<title>{% block title %}{% endblock %}</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<link rel="stylesheet" href="http://cdn.bootcss.com/bootstrap/3.3.5/css/bootstrap.min.css"/>
-<link rel="stylesheet" href="http://getbootstrap.com/2.3.2/assets/css/bootstrap-responsive.css"/>
-<script src="http://cdn.bootcss.com/jquery/1.11.3/jquery.min.js"></script>
-<script src="http://cdn.bootcss.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-<style type="text/css">
-    body {
-        padding-top: 60px;
-        padding-bottom: 40px;
+    <meta charset="utf-8">
+    <title>金指投</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="股权投融资第一平台">
+    <meta name="keywords" content="股权, 融资">
+    <meta name="author" content="lindyang">
+    <meta name="robots" content="index,follow">
+    <meta name="application-name" content="bootcss.com">
+    <meta property="qc:admins" content="1603466166416277433363757477167" />
+    <!--meta http-equiv=refresh content="0;url=http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro"-->
+    
+    <!-- Site CSS -->
+    <link href="http://cdn.bootcss.com/bootstrap/3.3.4/css/bootstrap.min.css" rel="stylesheet">
+    <link href="http://cdn.bootcss.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="http://static.bootcss.com/www/assets/css/site.min.css?v5" rel="stylesheet">
+    <style>
+    .job-hot {
+    	position: absolute;
+    	color: #d9534f;
+    	right: 0;
+    	top: 15px;
     }
-</style>
-<!--link rel="stylesheet" type="text/css" href="{% block stylesheet %}{% static "admin/css/base.css" %}{% endblock %}" /-->
-{% block extrastyle %}{% endblock %}
-<!--[if lte IE 7]><link rel="stylesheet" type="text/css" href="{% block stylesheet_ie %}{% static "admin/css/ie.css" %}{% endblock %}" /><![endif]-->
-{% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}" />{% endif %}
-<script type="text/javascript">window.__admin_media_prefix__ = "{% filter escapejs %}{% static "admin/" %}{% endfilter %}";</script>
-<script type="text/javascript">window.__admin_utc_offset__ = "{% filter escapejs %}{% now "Z" %}{% endfilter %}";</script>
-{% block extrahead %}{% endblock %}
-{% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE" />{% endblock %}
+    </style>
+    
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="/assets/js/html5shiv.min.js?v=f3008b4099"></script>
+      <script src="/assets/js/respond.min.js?v=f3008b4099"></script>
+    <![endif]-->
+    
+    <!-- Favicons -->
+    <link rel="apple-touch-icon-precomposed" href="http://static.bootcss.com/www/assets/ico/apple-touch-icon-precomposed.png">
+    <link rel="shortcut icon" href="{% static 'app/img/icon.png' %}">
+    
+    <script>
+      var _hmt = _hmt || [];
+    </script>
+    
+    <link rel="canonical" href="http://www.bootcss.com/" />
+    <meta name="generator" content="Ghost 0.5" />
+    <link rel="alternate" type="application/rss+xml" title="Bootstrap中文网" href="http://www.bootcss.com/rss/" />
+    <script>
+        var qqgroup = '318630708';
+    </script>
+    <!--link href="http://cdn.bootcss.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet"/-->
+    <!--link href="http://getbootstrap.com/2.3.2/assets/css/bootstrap-responsive.css" rel="stylesheet"/-->
+    <!--link href="http://cdn.bootcss.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet"/-->
+    {% block extrahead %}{% endblock %}
 </head>
-{% load i18n %}
 
-<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{% endblock %}">
+<body class="home-template">
+<div>
 
-<!-- Container -->
-<div id="container">
-
-    {% if not is_popup %}
     <!-- Header -->
-    <div id="header">
-        <div id="branding">
-        {% block branding %}{% endblock %}
-        </div>
-        {% block usertools %}
-        {% if has_permission %}
-        <div id="user-tools">
-            {% block welcome-msg %}
-                {% trans 'Welcome,' %}
-                <strong>{% firstof user.get_short_name user.get_username %}</strong>.
-            {% endblock %}
-            {% block userlinks %}
-                {% if site_url %}
-                    <a href="{{ site_url }}">{% trans 'View site' %}</a> /
-                {% endif %}
-                {% if user.is_active and user.is_staff %}
-                    {% url 'django-admindocs-docroot' as docsroot %}
-                    {% if docsroot %}
-                        <a href="{{ docsroot }}">{% trans 'Documentation' %}</a> /
-                    {% endif %}
-                {% endif %}
-                {% if user.has_usable_password %}
-                <a href="{% url 'admin:password_change' %}">{% trans 'Change password' %}</a> /
-                {% endif %}
-                <a href="{% url 'admin:logout' %}">{% trans 'Log out' %}</a>
-            {% endblock %}
-        </div>
-        {% endif %}
-        {% endblock %}
-        {% block nav-global %}{% endblock %}
-    </div>
+    <div id="id_header"> {% block header %}{% endblock %} </div>
     <!-- END Header -->
-    {% block breadcrumbs %}
-    <div class="breadcrumbs">
-    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
-    {% if title %} &rsaquo; {{ title }}{% endif %}
-    </div>
-    {% endblock %}
-    {% endif %}
-
-    {% block messages %}
-        {% if messages %}
-        <ul class="messagelist">{% for message in messages %}
-          <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
-        {% endfor %}</ul>
-        {% endif %}
-    {% endblock messages %}
+    
+    <!-- Banner -->
+    <div id="id_banner">{% block banner %}{% endblock %}</div>
+    <!-- END Banner -->
 
     <!-- Content -->
-    <div id="content" class="{% block coltype %}colM{% endblock %}">
-        {% block pretitle %}{% endblock %}
-        {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
-        {% block content %}
-        {% block object-tools %}{% endblock %}
-        {{ content }}
-        {% endblock %}
-        {% block sidebar %}{% endblock %}
-        <br class="clear" />
-    </div>
+    <div id="id_content"> {% block content %} {{ content }} {% endblock %} </div>
     <!-- END Content -->
-
-    {% block footer %}<div id="footer"></div>{% endblock %}
+    
+    <!-- Footer -->
+    <div id="id_footer">{% block footer %}{% endblock %}</div>
+    <!-- END Footer -->
 </div>
-<!-- END Container -->
-
+{% block extrastyle %}{% endblock %}
 </body>
 </html>

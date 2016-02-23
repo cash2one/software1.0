@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="http://cdn.bootcss.com/bootstrap/3.3.5/css/bootstrap.min.css">
+</head>
+<style>
+body {
+    background-color: #e9eaec;
+    font-family: "Lantinghei SC", "Open Sans", Arial, "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", "STHeiti", "WenQuanYi Micro Hei", SimSun, sans-serif;
+}
+.article {
+    background-color: #fff;
+}
+div.para {
+    font-size: 17px;
+    line-height: 1.8;
+    /*word-break: break-all;*/
+    word-wrap: break-word;
+    /*margin: 30px;*/
+    margin-top:30px;
+    margin-bottom: 30px;
+}
+div.para > p {
+    text-indent: 2em;
+    text-align: justify;
+    margin-bottom: 30px;
+}
+header > h2 {
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e7e7eb;
+}
+header > div {
+    font-size: 16px;
+    vertical-align: middle;
+}
+header > div > em {
+    font-style: normal;
+    color: #8c8c8c;
+    margin-right: 10px;
+}
+header > div > em.download {
+    float: right;
+    positon: relative;
+}
+header > div > em.download a {
+    color: white;
+    font-weight: bold;
+    text-shadow: 1px 1px 5px #FF0000;
+}
+legend.legend, fieldset.fieldset ul li {
+    font-size: 15px;
+    color: #E29716;
+}
+fieldset.fieldset{
+    border: 2px solid #e7e7eb;
+    margin:0 auto;
+    border-radius: 4px;
+    box-shadow: 5px 5px 5px #888888;
+}
+legend.legend {
+    margin: 0 auto;
+    border-bottom-width: 0;
+    display: inline-block;
+    width:inherit;
+    padding: 10px;
+}
+ul {
+    list-style-type: circle;
+    list-style-position: inside;
+    border: 0px solid red;
+    margin: 0 auto;
+    width: 80%;
+    margin-bottom: 20px;
+    padding-left:0;
+}
+.two-dimension-code {
+    border-radius: 4px;
+    box-shadow: 5px 5px 5px #888888;
+    border: 2px solid #e7e7eb;
+    z-index: 100%;
+    margin: 1px;
+    vertical-align: middle;
+    padding-top:20px;
+    padding-bottom: 20px;
+    background: #e9eaec;
+}
+
+div.desc {
+    text-align:center;
+}
+div.desc > h5 {
+    padding-top: 10px;
+    border-top: 2px solid #e7e7eb;
+}
+div.para img {
+    width: 100%;
+    margin-bottom: 30px;
+}
+footer {
+    margin-bottom: 30px;
+</style>
+<body>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-offset-2 col-md-8 col-lg-offset-2 col-lg-8 article">
+            <div>
+                <header>
+                    <h2>德鲁克：CEO必须秉持的6项原则</h2>
+                    <div>
+                        <em>2016-01-02</em>
+                        <em>广西日报</em>
+                        <em class="download"><span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+                            <a href="http://a.app.qq.com/o/simple.jsp?pkgname=com.jinzht.pro">下载金指投</a>
+                        </em>
+                    </div>
+                </header>
+                
+            </div>
+            <div class="para">
+                <fieldset class="fieldset">
+                    <legend class="legend">金指投</legend>
+                    <ul>
+                        <li>专注成长型企业股权投融资</li>
+                        <li>搭建中小企业融资与上市平台</li>
+                        <li>为优秀项目提供私募股权和风险投资</li>
+                    </ul>
+                </fieldset>
+            </div>
+            <div class="para">
+            <p>近日，位于博白县城东工业园区的广西桂牛水牛乳业股份有限公司举行挂牌仪式，正式成为该县第一家正式挂牌“新三板”的本土企业，开创了该县企业登陆资本市场的先河。</p>
+            <img class="img-responsive" src="http://www.sanban18.com/data/upload/2016/0121/11/56a04b069d847.jpg" alt="图片">
+            <p>1，word-break:break-all 例如div宽200px，它的内容就会到200px自动换行，如果该行末端有个英文单词很长（congratulation等），它会把单词截断，变成该行末端为conra(congratulation的前端部分)，下一行为tulation（conguatulation）的后端部分了。
+2，word-wrap:break-word 例子与上面一样，但区别就是它会把congratulation整个单词看成一个整体，如果该行末端宽度不够显示整个单词，它会自动把整个单词放到下一行，而不会把单词截断掉的。
+
+3，word-break;break-all 支持版本：IE5以上 该行为与亚洲语言的 normal 相同。也允许非亚洲语言文本行的任意字内断开。该值适合包含一些非亚洲文本的亚洲文本。 WORD-WRAP:break-word 支持版本：IE5.5以上 内容将在边界内换行。如果需要，词内换行( word-break )也将发生。表格自动换行，避免撑开。 word-break : normal | break-all | keep-all 参数： normal : 依照亚洲语言和非亚洲语言的文本规则，允许在字内换行 break-all : 该行为与亚洲语言的normal相同。也允许非亚洲语言文本行的任意字内断开。该值适合包含一些非亚洲文本的亚洲文本 keep-all : 与所有非亚洲语言的normal相同。对于中文，韩文，日文，不允许字断开。适合包含少量亚洲文本的非亚洲文本 语法： word-wrap : normal | break-word 参数： normal : 允许内容顶开指定的容器边界 break-word : 内容将在边界内换行。如果需要，词内换行（word-break）也行发生说明：设置或检索当当前行超过指定容器的边界时是否断开转行。</p>
+
+<p>1，word-break:break-all 例如div宽200px，它的内容就会到200px自动换行，如果该行末端有个英文单词很长（congratulation等），它会把单词截断，变成该行末端为conra(congratulation的前端部分)，下一行为tulation（conguatulation）的后端部分了。
+2，word-wrap:break-word 例子与上面一样，但区别就是它会把congratulation整个单词看成一个整体，如果该行末端宽度不够显示整个单词，它会自动把整个单词放到下一行，而不会把单词截断掉的。
+
+3，word-break;break-all 支持版本：IE5以上 该行为与亚洲语言的 normal 相同。也允许非亚洲语言文本行的任意字内断开。该值适合包含一些非亚洲文本的亚洲文本。 WORD-WRAP:break-word 支持版本：IE5.5以上 内容将在边界内换行。如果需要，词内换行( word-break )也将发生。表格自动换行，避免撑开。 word-break : normal | break-all | keep-all 参数： normal : 依照亚洲语言和非亚洲语言的文本规则，允许在字内换行 break-all : 该行为与亚洲语言的normal相同。也允许非亚洲语言文本行的任意字内断开。该值适合包含一些非亚洲文本的亚洲文本 keep-all : 与所有非亚洲语言的normal相同。对于中文，韩文，日文，不允许字断开。适合包含少量亚洲文本的非亚洲文本 语法： word-wrap : normal | break-word 参数： normal : 允许内容顶开指定的容器边界 break-word : 内容将在边界内换行。如果需要，词内换行（word-break）也行发生说明：设置或检索当当前行超过指定容器的边界时是否断开转行。</p>
+            </div>
+            <footer>
+                <div class="two-dimension-code row">
+                    <div class="col-xs-4 col-sm-4 col-md-offset-1 col-md-4 col-lg-offset-1 col-lg-4">
+                    <img src="http://www.jinzht.com/static/app/img/two_dimension_code.png" class="img-responsive" alt="二维码">
+                    </div>
+                    <div class="col-xs-8 col-sm-8 col-md-7 col-lg-7 desc">
+                    <h4><a href="http://v.qq.com/page/s/h/w/s01699sj5hw.html">金指投科技</a></h4>
+                    <h5>中国成长型企业股权投融资</h5>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+</div>
+</body>
+</html>
